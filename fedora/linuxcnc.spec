@@ -47,8 +47,12 @@ BuildRequires:  asciidoc >= 8.5
 Requires:       bwidget
 Requires:       blt
 Requires:       tclx
+Requires:       tkimg
 Requires:       python-mtTkinter
 Requires:       pygtkglext
+Requires:       boost-python
+Requires:       python-pillow-tk
+
 #Requires:       kernel-rt
 
 Autoreq: 0
