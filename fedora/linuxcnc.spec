@@ -52,6 +52,7 @@ Requires:       python-mtTkinter
 Requires:       pygtkglext
 Requires:       boost-python
 Requires:       python-pillow-tk
+Requires:       gstreamer-python
 
 #Requires:       kernel-rt
 

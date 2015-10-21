@@ -46,7 +46,7 @@ from gladevcp.gladebuilder import GladeBuilder
 
 from time import strftime   # needed to add a time stamp with alarm entrys
 from time import localtime  # needed to add a time stamp with alarm entrys
-from ImageChops import difference
+from PIL import ImageChops
 
 # Throws up a dialog with debug info when an error is encountered
 def excepthook( exc_type, exc_obj, exc_tb ):
