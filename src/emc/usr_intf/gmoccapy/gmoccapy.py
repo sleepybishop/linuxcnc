@@ -88,7 +88,7 @@ if debug:
 
 # constants
 #         # gmoccapy  #"
-_RELEASE = " 1.5.5.1"
+_RELEASE = " 1.5.5.4"
 _INCH = 0                         # imperial units are active
 _MM = 1                           # metric units are active
 _TEMPDIR = tempfile.gettempdir()  # Now we know where the tempdir is, usualy /tmp
@@ -160,7 +160,6 @@ class gmoccapy( object ):
         # widget states.
 
         self.start_line = 0      # needed for start from line
-#        self.stepping = False    # used to sensitize widgets when using step by step
 
         self.active_gcodes = []  # this are the formated G code values
         self.active_mcodes = []  # this are the formated M code values
@@ -1202,6 +1201,15 @@ class gmoccapy( object ):
 
         self.widgets.IconFileSelection1.show_buttonbox( False )
         self.widgets.IconFileSelection1.show_filelabel( False )
+        
+        # now we initialize the button states
+        self.widgets.btn_home.set_sensitive(self.widgets.IconFileSelection1.btn_home.get_sensitive())
+        self.widgets.btn_dir_up.set_sensitive(self.widgets.IconFileSelection1.btn_dir_up.get_sensitive())
+        self.widgets.btn_sel_prev.set_sensitive(self.widgets.IconFileSelection1.btn_sel_prev.get_sensitive())
+        self.widgets.btn_sel_next.set_sensitive(self.widgets.IconFileSelection1.btn_sel_next.get_sensitive())
+        self.widgets.btn_select.set_sensitive(self.widgets.IconFileSelection1.btn_select.get_sensitive())
+        self.widgets.btn_jump_to.set_sensitive(self.widgets.IconFileSelection1.btn_jump_to.get_sensitive())
+        self.widgets.btn_jump_to.set_sensitive(self.widgets.IconFileSelection1.btn_jump_to.get_sensitive())
 
     # init the keyboard shortcut bindings
     def _init_keybindings( self ):
@@ -1539,7 +1547,6 @@ class gmoccapy( object ):
                       "tbtn_flood", "tbtn_mist", "rbt_forward", "rbt_reverse", "rbt_stop",
                       "btn_load", "btn_edit", "tbtn_optional_blocks"
         ]
-        #"btn_step",
         if not self.widgets.rbt_hal_unlock.get_active():
             widgetlist.append( "tbtn_setup" )
         if self.all_homed or self.no_force_homing:
@@ -1575,17 +1582,12 @@ class gmoccapy( object ):
                       "btn_load", "btn_edit", "tbtn_optional_blocks", "rbt_reverse", "rbt_stop", "rbt_forward",
                       "btn_tool_touchoff_x", "btn_tool_touchoff_z", "btn_touch"
         ]
-        #"btn_step",
         # in MDI it should be possible to add more commands, even if the interpreter is running
         if self.stat.task_mode != linuxcnc.MODE_MDI:
             widgetlist.append( "ntb_jog" )
 
         self._sensitize_widgets( widgetlist, False )
         self.widgets.btn_run.set_sensitive( False )
-        # the user want to run step by step
-#        if self.stepping == True:
-#            self.widgets.btn_step.set_sensitive( True )
-#            self.widgets.tbtn_pause.set_sensitive( False )
 
         self.widgets.btn_show_kbd.set_image( self.widgets.img_brake_macro )
         self.widgets.btn_show_kbd.set_property( "tooltip-text", _( "interrupt running macro" ) )
@@ -2327,7 +2329,7 @@ class gmoccapy( object ):
 
         # we do not allow touch off with no tool mounted, so we set the
         # coresponding widgets unsensitive and set the description acordingly
-        if tool == 0:
+        if tool <= 0:
             self.widgets.lbl_tool_no.set_text( "0" )
             self.widgets.lbl_tool_dia.set_text( "0" )
             self.widgets.lbl_tool_name.set_text( _( "No tool description available" ) )
@@ -3493,8 +3495,9 @@ class gmoccapy( object ):
 
     def on_jump_to_dir_chooser_file_set( self, widget, data = None ):
         if self.log: self._add_alarm_entry( "jump to dir has been set to : %s" % widget.get_filename() )
-        self.prefs.putpref( "jump_to_dir", widget.get_filename(), str )
-        self.widgets.IconFileSelection1.set_property( "jump_to_dir", widget.get_filename() )
+        path = widget.get_filename()
+        self.prefs.putpref( "jump_to_dir", path, str )
+        self.widgets.IconFileSelection1.set_property( "jump_to_dir", path )
 
     def on_grid_size_value_changed( self, widget, data = None ):
         self.widgets.gremlin.set_property( 'grid_size', widget.get_value() )
@@ -3757,6 +3760,7 @@ class gmoccapy( object ):
         self.widgets.gcode_view.set_line_number( line )
 
     def on_btn_load_clicked( self, widget, data = None ):
+        print("load clicked")
         self.widgets.ntb_button.set_current_page( 8 )
         self.widgets.ntb_preview.set_current_page( 3 )
         self.widgets.tbtn_fullsize_preview.set_active( True )
@@ -3790,6 +3794,9 @@ class gmoccapy( object ):
             self.widgets.tbtn_fullsize_preview.set_active( False )
             self.widgets.ntb_button.set_current_page( 2 )
             self._show_iconview_tab( False )
+
+    def on_IconFileSelection1_sensitive( self, widget, buttonname, state ):
+        self.widgets[buttonname].set_sensitive(state)
 
     def on_IconFileSelection1_exit( self, widget ):
         self.widgets.ntb_preview.set_current_page( 0 )
@@ -3915,8 +3922,6 @@ class gmoccapy( object ):
     def on_tbtn_pause_toggled( self, widget, data = None ):
         self._add_alarm_entry( "Pause toggled to be %s" % widget.get_active() )
         widgetlist = ["rbt_forward", "rbt_reverse", "rbt_stop"]
-#        if not self.stepping:
-#            widgetlist.append("btn_step")
         self._sensitize_widgets( widgetlist, widget.get_active() )
 
     def on_btn_stop_clicked( self, widget, data = None ):
@@ -3927,17 +3932,6 @@ class gmoccapy( object ):
 
     def on_btn_run_clicked( self, widget, data = None ):
         self.command.auto( linuxcnc.AUTO_RUN, self.start_line )
-
-#    def on_btn_step_clicked( self, widget, data = None ):
-#        self.stepping = True
-#        self.command.auto( linuxcnc.AUTO_STEP )
-
-#    # this is needed only for stepping through a program, to
-#    # sensitize the widgets according to that mode
-#    def on_btn_load_state_changed( self, widget, state ):
-#        if state == gtk.STATE_INSENSITIVE:
-#            self.stepping = False
-#            self.widgets.tbtn_pause.set_sensitive( True )
 
     def on_btn_from_line_clicked( self, widget, data = None ):
         self._add_alarm_entry( "Restart the program from line clicked" )
@@ -4087,14 +4081,6 @@ class gmoccapy( object ):
             self.on_btn_jog_pressed( widget )
         else:
             self.on_btn_jog_released( widget )
-
-    def _on_axis_limit_changed( self, pin ):
-        if not pin.get() or self.stat.task_state == ( linuxcnc.STATE_ESTOP or linuxcnc.STATE_OFF ):
-            return
-        if self.halcomp["set-max-limit"] == True:
-            self.command.set_max_limit( self.halcomp["axis-to-set"], self.halcomp["limit-value"] )
-        else:
-            self.command.set_min_limit( self.halcomp["axis-to-set"], self.halcomp["limit-value"] )
 
     def _reset_overide( self, pin, type ):
         if pin.get():
@@ -4270,14 +4256,6 @@ class gmoccapy( object ):
         self.halcomp.newpin( "toolchange-changed", hal.HAL_BIT, hal.HAL_OUT )
         pin = self.halcomp.newpin( 'toolchange-change', hal.HAL_BIT, hal.HAL_IN )
         hal_glib.GPin( pin ).connect( 'value_changed', self.on_tool_change )
-
-        # make some pin to be able to enlarge the working limits, i.e. if the tool changer is in that place
-        # and the soft limits are set to not have colision with the changer, you can use this pin to change
-        # the working area, you are responsible to be in the area if you reduce it!
-        self.halcomp.newpin( "axis-to-set", hal.HAL_S32, hal.HAL_IN )
-        self.halcomp.newpin( "set-max-limit", hal.HAL_BIT, hal.HAL_IN )
-        pin = self.halcomp.newpin( "limit-value", hal.HAL_FLOAT, hal.HAL_IN )
-        hal_glib.GPin( pin ).connect( "value_changed", self._on_axis_limit_changed )
 
         # make a pin to reset feed override to 100 %
         pin = self.halcomp.newpin( "reset-feed-override", hal.HAL_BIT, hal.HAL_IN )

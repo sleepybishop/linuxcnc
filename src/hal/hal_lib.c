@@ -189,6 +189,11 @@ int hal_init(const char *name)
 	rtapi_print_msg(RTAPI_MSG_DBG, "HAL: initializing hal_lib\n");
 	rtapi_snprintf(rtapi_name, RTAPI_NAME_LEN, "HAL_LIB_%d", (int)getpid());
 	lib_module_id = rtapi_init(rtapi_name);
+	if (lib_module_id < 0) {
+	    rtapi_print_msg(RTAPI_MSG_ERR,
+		"HAL: ERROR: could not initialize RTAPI\n");
+	    return -EINVAL;
+	}
 
 	/* get HAL shared memory block from RTAPI */
 	lib_mem_id = rtapi_shmem_new(HAL_KEY, lib_module_id, HAL_SIZE);
@@ -3490,4 +3495,6 @@ EXPORT_SYMBOL(halpr_find_funct_by_owner);
 
 EXPORT_SYMBOL(halpr_find_pin_by_sig);
 
+EXPORT_SYMBOL(hal_pin_alias);
+EXPORT_SYMBOL(hal_param_alias);
 #endif /* rtapi */
