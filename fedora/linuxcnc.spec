@@ -5,7 +5,7 @@
 %global _pre      0 
 
 Name:           linuxcnc
-Version:        2.7.0
+Version:        2.7.3
 Release:        1%{?_pre:.%{_pre}}%{?dist}
 Summary:        A software system for computer control of machine tools
 
@@ -16,7 +16,6 @@ Source0:        %{name}-%{version}.tar.gz
 
 BuildRequires:  gcc-c++
 BuildRequires:  gtk2-devel
-BuildRequires:  libgnomeprintui22-devel
 BuildRequires:  mesa-libGL-devel
 BuildRequires:  mesa-libGLU-devel
 BuildRequires:  tcl-devel
@@ -166,6 +165,7 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %attr(0755,-,-) %{_bindir}/mdi
 %attr(0755,-,-) %{_bindir}/milltask
 %attr(0755,-,-) %{_bindir}/monitor-xhc-hb04
+%attr(0755,-,-) %{_bindir}/motion-logger
 %attr(0755,-,-) %{_bindir}/moveoff_gui
 %attr(0755,-,-) %{_bindir}/ngcgui
 %attr(0755,-,-) %{_bindir}/pncconf
@@ -244,7 +244,7 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %lang(fr) %{_datadir}/locale/fr/LC_MESSAGES/gmoccapy.mo
 %lang(hu) %{_datadir}/locale/hu/LC_MESSAGES/gmoccapy.mo
 %lang(pl) %{_datadir}/locale/pl/LC_MESSAGES/gmoccapy.mo
-%lang(rs) %{_datadir}/locale/rs/LC_MESSAGES/gmoccapy.mo
+%lang(sr) %{_datadir}/locale/sr/LC_MESSAGES/gmoccapy.mo
 
 %doc %{_mandir}/man[19]/*
 
@@ -259,6 +259,9 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %{_docdir}/%{name}-%{version}
 
 %changelog
+* Fri Feb  5 2016 Joseph Calderon <@> - 2.7.3-1
+- Update to 2.7.3
+
 * Fri Oct  2 2015 Joseph Calderon <@> - 2.7.0-1
 - Update to 2.7.0 
 
