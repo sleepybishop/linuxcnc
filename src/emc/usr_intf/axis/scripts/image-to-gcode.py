@@ -760,7 +760,7 @@ def main():
     im = im.convert("L") #grayscale
     w, h = im.size
 
-    nim = numarray.fromstring(im.tostring(), 'uint8', h*w).astype('float32')
+    nim = numarray.fromstring(im.tobytes(), 'uint8', h*w).astype('float32')
     nim.shape = [h,w]
     options = ui(im, nim, im_name)
 
