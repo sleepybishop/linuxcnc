@@ -1,0 +1,117 @@
+component max31855_bspi "Support for the MAX31855 Thermocouple-to-Digital converter using hm2 bspi support";
+
+description """The component takes parameters in the form of a comma-separated
+list of bspi (buffered SPI) instance names, for example:
+
+\\fB loadrt max31855_bspi bspi_chans=hm2_5i25.0.bspi.0, hm2_5i25.0.bspi.1\\fR
+
+The BSPI instances are printed to the dmesg buffer during the Hostmot2 setup
+sequence, one for each bspi instance included in the bitfile loaded to each
+installed card during the Hostmot2 setup sequence. Type "dmesg" at the terminal
+prompt to view the output.""";
+
+pin out float temp_celsius.#.in [1] """Temperature output values. -270 - 1800 deg celsius, 0.25 deg resolution""";
+
+option extra_setup yes;
+option count_function yes;
+
+variable uint32_t *MAX31855_0_READ;
+variable uint32_t *MAX31855_0_WRITE;
+
+license "GPL";
+author "Andy Pugh / Cliff Blackburn / Joseph Calderon";
+
+include "../../../src/hal/drivers/mesa-hostmot2/hostmot2.h";
+;;
+
+// to parse the modparam
+char *bspi_chans[16] = {0,};
+RTAPI_MP_ARRAY_STRING(bspi_chans, 16, "BSPI Channel names");
+
+float read_celsius(uint32_t v) {
+    if (v & 0x7) {
+        return -500.0; /* fault bit(s) set, should be NaN */
+    }
+
+    /* thermocouple temperature is in bits 31:18 */
+    if (v & 0x80000000) {
+        v = 0xFFFFC000 | ((v >> 18) & 0x00003FFFF); /* extend sign bit */
+    } else {
+        v >>= 18;
+    }
+
+    return v/4.0; /* 0.25 degree resolution */
+}
+
+float read_farenheit(uint32_t v) {
+    float f = read_celsius(v);
+
+    f *= 9.0;
+    f /= 5.0;
+    f += 32;
+    return f;
+}
+
+static int read(void *subdata) {
+    struct __comp_state *__comp_inst = subdata;
+    int i;
+		
+    uint32_t v = *MAX31855_0_READ;
+    float f = read_celsius((int)(302.25*4)<<18);
+    temp_celsius_in(0) = f;
+
+    return 0;
+}
+
+static int write(void *subdata) {
+    return 0;
+}
+
+EXTRA_SETUP(){
+    int i, r;
+    char *name = bspi_chans[extra_arg]; // This is the string which identifies board and instance
+
+    // Set up channel descriptors
+    //hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo)
+
+    // MAX31855 on channel 0, CS0, ~ 4 MHz, SPI MODE 1 (CPOL: 0, CPHA: 1), 32 bits
+    r = hm2_bspi_setup_chan(name, 0, 0, 32, 4, 0, 0, 1, 0, 0);
+
+    if (r < 0) {
+        HM2_ERR_NO_LL("There have been %i errors during channel setup, "
+											"quitting\n", -r);
+        return -EINVAL;
+		}
+
+		r += hm2_bspi_write_chan(name, 0, 0x00000000);
+
+		if (r < 0) {
+			HM2_ERR_NO_LL("There have been %i errors during MAX31855 setup, "
+										"quitting\n", -r);
+			return -EINVAL;
+		}
+
+    r += hm2_tram_add_bspi_frame(name, 0, &MAX31855_0_WRITE, &MAX31855_0_READ);
+
+    // This is required, or nothing happens.
+    r += hm2_allocate_bspi_tram(name);
+
+    // Tell the bspi driver which function to call
+    r += hm2_bspi_set_read_function(name, &read, __comp_inst);
+
+    // dummy write function
+    r += hm2_bspi_set_write_function(name, &write, __comp_inst);
+
+    if (r < 0) {
+        HM2_ERR_NO_LL("There have been %i errors during TRAM allocation setup, "
+                      "quitting\n", -r);
+        return -EINVAL;
+    }
+    return 0;
+}
+
+int get_count(void) {
+    int i;
+    for (i= 0; bspi_chans[i] != NULL && i < 16 ; i++){}
+    return i;
+}
