@@ -24,32 +24,103 @@ author "Andy Pugh / Cliff Blackburn / Joseph Calderon";
 include "../../../src/hal/drivers/mesa-hostmot2/hostmot2.h";
 ;;
 
+#include "rtapi_math.h"
+
 // to parse the modparam
 char *bspi_chans[16] = {0,};
 RTAPI_MP_ARRAY_STRING(bspi_chans, 16, "BSPI Channel names");
 
-float read_celsius(uint32_t v) {
-    if (v & 0x7) {
-        return -500.0; /* fault bit(s) set, should be NaN */
-    }
-
-    /* thermocouple temperature is in bits 31:18 */
-    if (v & 0x80000000) {
-        v = 0xFFFFC000 | ((v >> 18) & 0x00003FFFF); /* extend sign bit */
-    } else {
-        v >>= 18;
-    }
-
-    return v/4.0; /* 0.25 degree resolution */
+static float accpoly(float *v, size_t n, float p) {
+  int i;
+  float ret = 0;
+  for (i = 0; i < n; i++) {
+    ret += v[i] * pow(p, i);
+  }
+  return ret;
 }
 
-float read_farenheit(uint32_t v) {
-    float f = read_celsius(v);
+static float read_celsius(int32_t v) {
+  if (v & 0x7) {
+    return NAN; /* fault bit(s) set */
+  }
 
-    f *= 9.0;
-    f /= 5.0;
-    f += 32;
-    return f;
+  /* thermocouple temperature is in bits 31:18 */
+  if (v & 0x80000000) {
+    v = 0xffffc000 | ((v >> 18) & 0x0003ffff); /* extend sign bit */
+  } else {
+    v >>= 18;
+  }
+  return v / 4.0; /* 0.25 degree resolution */
+}
+
+static float read_internal(int32_t v) {
+  if (v & 0x7) {
+    return NAN; /* fault bit(s) set */
+  }
+
+  /* internal temperature is in bits 15:4 */
+  v = 0x0000ffff & v;
+  if (v & 0x8000) {
+    v = 0xfffff000 | ((v >> 4) & 0x00000fff); /* extend sign bit */
+  } else {
+    v >>= 4;
+  }
+  return v / 16.0; /* 0.0625 degree resolution */
+}
+
+static float read_celsius_adjusted(int32_t sensor_data) {
+  float temp_raw = read_celsius(sensor_data);
+  float temp_internal = read_internal(sensor_data);
+  float voltage_internal = 0, voltage_thermocouple = 0, temp_corrected = 0;
+
+  /* NIST K-Type table (http://srdata.nist.gov/its90/download/type_k.tab) */
+  float coeff[][11] = {
+      {-0.0176004134, 0.0389212035, 1.85587705e-05, -9.94575942e-08,
+       3.18409465e-10, -5.60728439e-13, 5.60750581e-16, -3.20207199e-19,
+       9.71511487e-23, -1.21047216e-26, 0},
+      {0, 0.0394501276, 2.36223732e-05, -3.28589067e-07, -4.99048269e-09,
+       -6.75090608e-11, -5.74103265e-13, -3.10888726e-15, -1.0451609e-17,
+       -1.9889267e-20, -1.63226981e-23},
+      {0, 25.1734619, -1.16628778, -1.08336377, -0.897735417, -0.373423755,
+       -0.0866326466, -0.0104505979, -0.000519205758, 0, 0},
+      {0, 25.0835495, 0.0786010623, -0.250313103, 0.0831526965, -0.0122803403,
+       0.000980403624, -4.41302982e-05, 1.05773404e-06, -1.05275504e-08, 0},
+      {-131.805801, 48.3022194, -1.64603102, 0.0546473116, -0.000965071493,
+       8.80219341e-06, -3.1108101e-08, 0, 0, 0, 0}};
+  int coeff_cols = sizeof(coeff[0]) / sizeof(float);
+
+  /* determine thermocouple voltage by substracting internal temp and adjusting
+   * for K-type thermocouple */
+  voltage_thermocouple = (temp_raw - temp_internal) * 0.041276;
+
+  if (temp_internal >= 0) {
+    float a[] = {0.118597597, -0.000118343203, 126.968597};
+    /* for positive temps additional exponential coefficients are needed */
+    voltage_internal += accpoly(coeff[0], coeff_cols, temp_internal);
+    voltage_internal += a[0] * exp(a[1] * pow((temp_internal - a[2]), 2));
+  } else if (temp_internal < 0) {
+    voltage_internal += accpoly(coeff[1], coeff_cols, temp_internal);
+  }
+
+  float voltage_total = voltage_thermocouple + voltage_internal;
+
+  /* linearize temperature depending on voltage range */
+  if (voltage_total < 0) {
+    /* Temperature is between -200 and 0C. */
+    temp_corrected += accpoly(coeff[2], coeff_cols, voltage_total);
+  } else if (voltage_total < 20.644) {
+    /* Temperature is between 0C and 500C. */
+    temp_corrected += accpoly(coeff[3], coeff_cols, voltage_total);
+  } else if (voltage_total < 54.886) {
+    /* Temperature is between 500C and 1372C. */
+    temp_corrected += accpoly(coeff[4], coeff_cols, voltage_total);
+  } else {
+    /* NIST only has data for K-type thermocouples from -200C to +1372C. If the
+     * temperature is not in that range, set temp to impossible value. */
+    temp_corrected = NAN;
+  }
+
+  return temp_corrected;
 }
 
 static int read(void *subdata) {
