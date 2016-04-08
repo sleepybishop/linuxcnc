@@ -128,7 +128,7 @@ static int read(void *subdata) {
     int i;
 		
     uint32_t v = *MAX31855_0_READ;
-    float f = read_celsius((int)(302.25*4)<<18);
+    float f = read_celsius(v);
     temp_celsius_in(0) = f;
 
     return 0;
@@ -152,14 +152,6 @@ EXTRA_SETUP(){
         HM2_ERR_NO_LL("There have been %i errors during channel setup, "
 											"quitting\n", -r);
         return -EINVAL;
-		}
-
-		r += hm2_bspi_write_chan(name, 0, 0x00000000);
-
-		if (r < 0) {
-			HM2_ERR_NO_LL("There have been %i errors during MAX31855 setup, "
-										"quitting\n", -r);
-			return -EINVAL;
 		}
 
     r += hm2_tram_add_bspi_frame(name, 0, &MAX31855_0_WRITE, &MAX31855_0_READ);
