@@ -10,13 +10,13 @@ sequence, one for each bspi instance included in the bitfile loaded to each
 installed card during the Hostmot2 setup sequence. Type "dmesg" at the terminal
 prompt to view the output.""";
 
-pin out float temp_celsius.#.in [1] """Temperature output values. -270 - 1800 deg celsius, 0.25 deg resolution""";
+pin out float temp_celsius.#.in [1] """Temperature output values. [-200,1350] deg celsius""";
 
 option extra_setup yes;
 option count_function yes;
 
-variable uint32_t *MAX31855_0_READ;
-variable uint32_t *MAX31855_0_WRITE;
+variable unsigned *MAX31855_0_READ;
+variable unsigned *MAX31855_0_WRITE;
 
 license "GPL";
 author "Andy Pugh / Cliff Blackburn / Joseph Calderon";
@@ -146,7 +146,8 @@ EXTRA_SETUP(){
     //hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo)
 
     // MAX31855 on channel 0, CS0, ~ 4 MHz, SPI MODE 1 (CPOL: 0, CPHA: 1), 32 bits
-    r = hm2_bspi_setup_chan(name, 0, 0, 32, 4, 0, 0, 1, 0, 0);
+    r  = hm2_bspi_setup_chan(name, 0, 0, 32, 0.0025, 0, 1, 0, 0, 0);
+//		r += hm2_bspi_setup_chan(name, 0, 1, 32, 0.0025, 0, 1, 0, 0, 0);
 
     if (r < 0) {
         HM2_ERR_NO_LL("There have been %i errors during channel setup, "
