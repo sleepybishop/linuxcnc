@@ -13,15 +13,15 @@ description """The component requires at lest 3 pins to bitbang spi protocol, fo
 
 """;
 
-pin in  bit data.#.in [8 : (personality & 0xf)]  "pin(s) connected to data out";
+pin in  bit data.#.in [15 : (personality & 0xf)]  "pin(s) connected to data out";
 pin out bit cs.out         "pin connected to cs, pulled low to shift data, pulled high for data refresh";
 pin out bit clk.out        "pin connected to clk";
 
-pin out float temp_celsius.#.in [8] """Temperature output values. [-200,1350] deg celsius""";
-pin out bit fault.#.in [8 : (personality & 0xf)]  "fault condition detected";
-pin out unsigned fault_code.#.in [8 : (personality & 0xf)]  "fault code 0x1  = open sensor, 0x2 short to gnd, 0x3 short to vcc";
+pin out float temp_celsius.#.in [15 : (personality & 0xf)] """Temperature output values. [-200,1350] deg celsius""";
+pin out bit fault.#.in [15 : (personality & 0xf)]  "fault condition detected";
+pin out unsigned fault_code.#.in [15 : (personality & 0xf)]  "fault code 0x1  = open sensor, 0x2 short to gnd, 0x3 short to vcc";
 
-variable unsigned data_frame [8];
+variable unsigned data_frame [15];
 variable unsigned state = 1;
 
 function bitbang_spi fp;
@@ -141,7 +141,7 @@ FUNCTION(bitbang_spi) {
       cs = 0;
     }
   } else {
-    int i, n = (personality > 8) ? 8 : personality;
+    int i, n = (personality > 15) ? 15 : personality;
     /* with cs low pull data bits when clock is high */
     if (clk_out) {
       for (i = 0; i < n; i++) {
