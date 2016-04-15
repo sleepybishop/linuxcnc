@@ -41,6 +41,14 @@ static float accpoly(float *v, size_t n, float p) {
   return ret;
 }
 
+static float to_kelvin(float celsius) {
+  return celsius + 273.15;
+}
+
+static float to_fahrenheit(float celsius) {
+  return celsius * 1.80 + 32.0;
+}
+
 static float read_celsius(int32_t v) {
   if (v & 0x7) {
     return NAN; /* fault bit(s) set */
@@ -132,7 +140,7 @@ FUNCTION(bitbang_spi) {
   int delay = (state >> 7) & 0x3ff;
   int cs = state & 0x1;
 
-  clk_out = delay & 0x1;
+  clk_out ^= 0x1;
   if (cs) {
     /* data refreshes when cs is pulled high */
     delay--;
