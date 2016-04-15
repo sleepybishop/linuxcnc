@@ -2,36 +2,40 @@ component max31855 "Support for the MAX31855 Thermocouple-to-Digital converter u
 
 description """The component requires at least 3 pins to bitbang spi protocol, for example:
 
-\\fB loadrt max31855\\fR
+\\fB loadrt max31855 personality=1\\fR
 
 \\fB setp hm2_6i25.0.gpio.023.is_output true\\fR
 \\fB setp hm2_6i25.0.gpio.024.is_output true\\fR
 
 \\fB net spi.clk.in    hm2_6i25.0.gpio.023.out     max31855.0.clk.out\\fR
 \\fB net spi.cs.in     hm2_6i25.0.gpio.024.out     max31855.0.cs.out\\fR
-\\fB net spi.data1.in  hm2_6i25.0.gpio.033.in_not  max31855.0.data.in\\fR
+\\fB net spi.data0.in  hm2_6i25.0.gpio.033.in_not  max31855.0.data.0.in\\fR
 
-\\fB addf max31855.0.bitbang-spi  servo-thread \\fR
+\\fB addf max31855.0.bitbang-spi servo-thread \\fR
 
 
 The MAX31855 supports a range of -270C to 1800C, however linearization data 
 is only available for the -200C to 1350C range, beyond which raw temperature is returned.
 
 Temperature pins are provided for readings in Celsius, Fahrenheit and Kelvin,
-temperature output is not updated during fault conditions.
+temperature values are not updated while a fault condition is present.
+
+The personality parameter is used to indicate the number of sensors.
+Multiple sensors share the clk and cs pins, but connect to discrete data input pins.
+A maximum of 15 sensors are supported.
 
 """;
 
-pin in  bit data.#.in [15 : (personality & 0xf)]  "Pin(s) connected to data out";
-pin out bit cs.out         "Pin connected to cs, pulled low to shift data, pulled high for data refresh";
-pin out bit clk.out        "Pin connected to clk";
+pin in  bit data.#.in [15 : (personality & 0xf)]  "Pin(s) connected to data out.";
+pin out bit cs.out         "Pin connected to cs, pulled low to shift data, pulled high for data refresh.";
+pin out bit clk.out        "Pin connected to clk.";
 
 pin out float temp_celsius.# [15 : (personality & 0xf)] """Temperature output values in Celsius.""";
 pin out float temp_fahrenheit.# [15 : (personality & 0xf)] """Temperature in Fahrenheit.""";
 pin out float temp_kelvin.# [15 : (personality & 0xf)] """Temperature in Kelvin.""";
 
-pin out bit fault.# [15 : (personality & 0xf)]  "Fault condition detected";
-pin out unsigned fault_flags.# [15 : (personality & 0xf)]  "Fault flags 0x1  = open sensor, 0x2 short to gnd, 0x3 short to vcc";
+pin out bit fault.# [15 : (personality & 0xf)]  "Fault condition detected.";
+pin out unsigned fault_flags.# [15 : (personality & 0xf)]  "Fault flags: 0x1  = open sensor, 0x2 short to gnd, 0x3 short to vcc.";
 
 variable unsigned data_frame [15];
 variable unsigned state = 1;
