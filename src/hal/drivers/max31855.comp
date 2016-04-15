@@ -1,6 +1,6 @@
 component max31855 "Support for the MAX31855 Thermocouple-to-Digital converter using bitbanged spi";
 
-description """The component requires at lest 3 pins to bitbang spi protocol, for example:
+description """The component requires at least 3 pins to bitbang spi protocol, for example:
 
 \\fB loadrt max31855\\fR
 
@@ -11,15 +11,27 @@ description """The component requires at lest 3 pins to bitbang spi protocol, fo
 \\fB net spi.cs.in     hm2_6i25.0.gpio.024.out     max31855.0.cs.out\\fR
 \\fB net spi.data1.in  hm2_6i25.0.gpio.033.in_not  max31855.0.data.in\\fR
 
+\\fB addf max31855.0.bitbang-spi  servo-thread \\fR
+
+
+The MAX31855 supports a range of -270C to 1800C, however linearization data 
+is only available for the -200C to 1350C range, beyond which raw temperature is returned.
+
+Temperature pins are provided for readings in Celsius, Fahrenheit and Kelvin,
+temperature output is not updated during fault conditions.
+
 """;
 
-pin in  bit data.#.in [15 : (personality & 0xf)]  "pin(s) connected to data out";
-pin out bit cs.out         "pin connected to cs, pulled low to shift data, pulled high for data refresh";
-pin out bit clk.out        "pin connected to clk";
+pin in  bit data.#.in [15 : (personality & 0xf)]  "Pin(s) connected to data out";
+pin out bit cs.out         "Pin connected to cs, pulled low to shift data, pulled high for data refresh";
+pin out bit clk.out        "Pin connected to clk";
 
-pin out float temp_celsius.#.in [15 : (personality & 0xf)] """Temperature output values. [-200,1350] deg celsius""";
-pin out bit fault.#.in [15 : (personality & 0xf)]  "fault condition detected";
-pin out unsigned fault_code.#.in [15 : (personality & 0xf)]  "fault code 0x1  = open sensor, 0x2 short to gnd, 0x3 short to vcc";
+pin out float temp_celsius.# [15 : (personality & 0xf)] """Temperature output values in Celsius.""";
+pin out float temp_fahrenheit.# [15 : (personality & 0xf)] """Temperature in Fahrenheit.""";
+pin out float temp_kelvin.# [15 : (personality & 0xf)] """Temperature in Kelvin.""";
+
+pin out bit fault.# [15 : (personality & 0xf)]  "Fault condition detected";
+pin out unsigned fault_flags.# [15 : (personality & 0xf)]  "Fault flags 0x1  = open sensor, 0x2 short to gnd, 0x3 short to vcc";
 
 variable unsigned data_frame [15];
 variable unsigned state = 1;
@@ -155,22 +167,22 @@ FUNCTION(bitbang_spi) {
       for (i = 0; i < n; i++) {
         data_frame[i] |= (data_in(i) << nbit);
       }
-
       nbit--;
     }
     if (nbit < 0) {
       for (i = 0; i < n; i++) {
         float f = read_celsius_adjusted((int32_t)data_frame[i]);
-        fault_in(i) = (data_frame[i] & 0x7) ? TRUE : FALSE;
-        fault_code_in(i) = data_frame[i] & 0x7;
+        fault(i) = (data_frame[i] & 0x7) ? TRUE : FALSE;
+        fault_flags(i) = data_frame[i] & 0x7;
         if (isnan(f)) {
-          rtapi_print("max31855.%d fault %x\n", i, data_frame[i] & 0x7);
+          rtapi_print("max31855: sensor %d detected fault %x\n", i, data_frame[i] & 0x7);
         } else {
-          temp_celsius_in(i) = f;
+          temp_celsius(i) = f;
+          temp_fahrenheit(i) = to_fahrenheit(f);
+          temp_kelvin(i) = to_kelvin(f);
         }
         data_frame[i] = 0;
       }
-
       nbit = 0;
       cs = 1;
     }
