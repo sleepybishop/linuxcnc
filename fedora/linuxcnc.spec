@@ -48,6 +48,7 @@ Requires:       blt
 Requires:       tclx
 Requires:       tkimg
 Requires:       python-mtTkinter
+Requires:       python-xlib
 Requires:       pygtkglext
 Requires:       boost-python
 Requires:       python-pillow-tk
