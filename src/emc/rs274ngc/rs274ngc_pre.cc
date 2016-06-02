@@ -2096,6 +2096,13 @@ char * Interp::error_text(int error_code,        //!< code number of error
 
         return error_text;
     }
+    else if (error_code == INTERP_FILE_NOT_OPEN)
+    {
+        strncpy(error_text, "File not open", max_size);
+        error_text[max_size-1] = 0;
+
+        return error_text;
+    }
 
     error_text[0] = 0;
     return error_text;
@@ -2509,7 +2516,7 @@ const char *strstore(const char *s)
     if (s == NULL)
         throw invalid_argument("strstore(): NULL argument");
     pair< set<string>::iterator, bool > pair = stringtable.insert(s);
-    return string(*pair.first).c_str();
+    return pair.first->c_str();
 }
 
 context_struct::context_struct()

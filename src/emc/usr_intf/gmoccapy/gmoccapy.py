@@ -44,9 +44,7 @@ import gettext            # to extract the strings to be translated
 
 from gladevcp.gladebuilder import GladeBuilder
 
-from time import strftime   # needed to add a time stamp with alarm entrys
-from time import localtime  # needed to add a time stamp with alarm entrys
-from PIL import ImageChops
+from time import strftime   # needed for the clock in the GUI
 
 # Throws up a dialog with debug info when an error is encountered
 def excepthook( exc_type, exc_obj, exc_tb ):
@@ -88,7 +86,7 @@ if debug:
 
 # constants
 #         # gmoccapy  #"
-_RELEASE = " 1.5.6.1"
+_RELEASE = " 1.5.6.3"
 _INCH = 0                         # imperial units are active
 _MM = 1                           # metric units are active
 _TEMPDIR = tempfile.gettempdir()  # Now we know where the tempdir is, usualy /tmp
@@ -1185,9 +1183,6 @@ class gmoccapy( object ):
     def _init_IconFileSelection( self ):
         self.widgets.IconFileSelection1.set_property( "start_dir", self.get_ini_info.get_program_prefix() )
 
-        iconsize = 48
-        self.widgets.IconFileSelection1.set_property( "icon_size", iconsize )
-
         file_ext = self.get_ini_info.get_file_ext()
         filetypes = ""
         for ext in file_ext:
@@ -1908,7 +1903,7 @@ class gmoccapy( object ):
         # Only in manual mode jogging with keyboard is allowed
         # in this case we do not return true, otherwise entering code in MDI history
         # and the integrated editor will not work
-        # we also check if we are in settings or terminal or alarm page
+        # we also check if we are in settings or user page
         if self.stat.task_mode != linuxcnc.MODE_MANUAL or not self.widgets.ntb_main.get_current_page() == 0:
             return
 
