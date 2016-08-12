@@ -5,7 +5,7 @@
 %global _pre      0 
 
 Name:           linuxcnc
-Version:        2.7.4
+Version:        2.7.6
 Release:        1%{?_pre:.%{_pre}}%{?dist}
 Summary:        A software system for computer control of machine tools
 
@@ -93,7 +93,8 @@ cd src
     --with-realtime=uspace \
     --without-libusb-1.0 \
     --with-tkConfig=%{_libdir}/tkConfig.sh \
-    --with-tclConfig=%{_libdir}/tclConfig.sh
+    --with-tclConfig=%{_libdir}/tclConfig.sh \
+    --enable-non-distributable=yes
 make %{?_smp_mflags} V=1
 
 
