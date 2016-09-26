@@ -5,7 +5,7 @@
 %global _pre      0 
 
 Name:           linuxcnc
-Version:        2.7.6
+Version:        2.7.7
 Release:        1%{?_pre:.%{_pre}}%{?dist}
 Summary:        A software system for computer control of machine tools
 
