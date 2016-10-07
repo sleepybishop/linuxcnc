@@ -25,15 +25,8 @@ gettext.install("linuxcnc", localedir=os.path.join(BASE, "share", "locale"), uni
 
 from PIL import Image
 
-try:
-    import numpy as numarray
-    import numpy.core
-    olderr = numpy.core.seterr(divide='ignore')
-    plus_inf = (numarray.array((1.,))/0.)[0]
-    numpy.core.seterr(**olderr)
-except ImportError:
-    import numarray, numarray.ieeespecial
-    plus_inf = numarray.ieeespecial.inf
+import numpy.core
+plus_inf = numpy.core.Inf
 
 from rs274.author import Gcode
 import rs274.options
@@ -63,7 +56,11 @@ def make_tool_shape(f, wdia, resp):
     dia = int(wdia*res+.5)
     wrad = wdia/2.
     if dia < 2: dia = 2
+<<<<<<< HEAD
     n = numarray.array([[plus_inf] * dia] * dia, dtype="float32")
+=======
+    n = numpy.array([[plus_inf] * dia] * dia, dtype=numpy.float32)
+>>>>>>> upstream/2.7
     hdia = dia / 2.
     l = []
     for x in range(dia):
@@ -275,9 +272,15 @@ class Converter:
             tw, th = rough.shape
             w1 = w + tw
             h1 = h + th
+<<<<<<< HEAD
             nim1 = numarray.zeros((w1, h1), dtype='float32') + base_image.min()
             nim1[tw/2:tw/2+w, th/2:th/2+h] = base_image
             self.image = numarray.zeros((w,h), dtype="float32")
+=======
+            nim1 = numpy.zeros((w1, h1), dtype=numpy.float32) + base_image.min()
+            nim1[tw/2:tw/2+w, th/2:th/2+h] = base_image
+            self.image = numpy.zeros((w,h), dtype=numpy.float32)
+>>>>>>> upstream/2.7
             for j in range(0, w):
                 progress(j,w)
                 for i in range(0, h):
@@ -760,7 +763,7 @@ def main():
     im = im.convert("L") #grayscale
     w, h = im.size
 
-    nim = numarray.fromstring(im.tobytes(), 'uint8', h*w).astype('float32')
+    nim = numpy.fromstring(im.tobytes(), 'uint8', h*w).astype('float32')
     nim.shape = [h,w]
     options = ui(im, nim, im_name)
 
@@ -787,7 +790,7 @@ def main():
         tw, th = tool.shape
         w1 = w + 2*tw
         h1 = h + 2*th
-        nim1 = numarray.zeros((w1, h1), dtype='float32') + pixel
+        nim1 = numpy.zeros((w1, h1), dtype='float32') + pixel
         nim1[tw:tw+w, th:th+h] = nim
         nim = nim1
         w, h = w1, h1
