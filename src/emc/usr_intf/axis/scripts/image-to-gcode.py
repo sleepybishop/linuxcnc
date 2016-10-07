@@ -56,11 +56,7 @@ def make_tool_shape(f, wdia, resp):
     dia = int(wdia*res+.5)
     wrad = wdia/2.
     if dia < 2: dia = 2
-<<<<<<< HEAD
-    n = numarray.array([[plus_inf] * dia] * dia, dtype="float32")
-=======
-    n = numpy.array([[plus_inf] * dia] * dia, dtype=numpy.float32)
->>>>>>> upstream/2.7
+    n = numpy.array([[plus_inf] * dia] * dia, dtype="float32")
     hdia = dia / 2.
     l = []
     for x in range(dia):
@@ -272,15 +268,9 @@ class Converter:
             tw, th = rough.shape
             w1 = w + tw
             h1 = h + th
-<<<<<<< HEAD
-            nim1 = numarray.zeros((w1, h1), dtype='float32') + base_image.min()
+            nim1 = numpy.zeros((w1, h1), dtype='float32') + base_image.min()
             nim1[tw/2:tw/2+w, th/2:th/2+h] = base_image
-            self.image = numarray.zeros((w,h), dtype="float32")
-=======
-            nim1 = numpy.zeros((w1, h1), dtype=numpy.float32) + base_image.min()
-            nim1[tw/2:tw/2+w, th/2:th/2+h] = base_image
-            self.image = numpy.zeros((w,h), dtype=numpy.float32)
->>>>>>> upstream/2.7
+            self.image = numpy.zeros((w,h), dtype="float32")
             for j in range(0, w):
                 progress(j,w)
                 for i in range(0, h):
