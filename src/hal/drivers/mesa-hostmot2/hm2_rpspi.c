@@ -130,7 +130,7 @@ SPI_CS_RXD		0x00020000
 		1 = RX FIFO contains at least 1 byte.
 */
 static int hm2_rpspi_write(hm2_lowlevel_io_t *llio, uint32_t addr, void *buffer, int size) {
-	rtapi_print_msg(RTAPI_MSG_ERR, "hm2_rpspi_write addr: %08x, size: %d", addr, size);
+	//rtapi_print_msg(RTAPI_MSG_ERR, "hm2_rpspi_write addr: %08x, size: %d", addr, size);
 	hm2_rpspi_t *this = (hm2_rpspi_t*) llio;
 	if(size == 0) return 0;
 	if(size % 4) return -EINVAL;
@@ -183,7 +183,7 @@ static int hm2_rpspi_write(hm2_lowlevel_io_t *llio, uint32_t addr, void *buffer,
 
 /*************************************************/
 static int hm2_rpspi_read(hm2_lowlevel_io_t *llio, uint32_t addr, void *buffer, int size) {
-	rtapi_print_msg(RTAPI_MSG_ERR, "hm2_rpspi_read addr: %08x, size: %d", addr, size);
+	//rtapi_print_msg(RTAPI_MSG_ERR, "hm2_rpspi_read addr: %08x, size: %d", addr, size);
 	
 	hm2_rpspi_t *this = (hm2_rpspi_t*) llio;
 	if(size == 0) return 0;
@@ -202,12 +202,13 @@ static int hm2_rpspi_read(hm2_lowlevel_io_t *llio, uint32_t addr, void *buffer, 
 	//BCM2835_SPICS = SPI_CS_TA|SPI_CS_CPHA|SPI_CS_CLEAR_TX|SPI_CS_CLEAR_RX;
 	BCM2835_SPICS |= SPI_CS_TA|SPI_CS_CLEAR_TX|SPI_CS_CLEAR_RX;
 
+	/*
 	rtapi_print_msg(RTAPI_MSG_ERR, "Out-Data: ");
 	for (i=0; i<msgsize; i++) {
 		rtapi_print_msg(RTAPI_MSG_ERR, "%08x:", this->txBuf[i]);
 	} 
 		rtapi_print_msg(RTAPI_MSG_ERR, "1 BCM2835_SPICS: %08x:", BCM2835_SPICS);
-	
+	*/
 	
 	tbuff = (uint8_t *)this->txBuf;
 	rbuff = (uint8_t *)this->rxBuf;
@@ -226,7 +227,7 @@ static int hm2_rpspi_read(hm2_lowlevel_io_t *llio, uint32_t addr, void *buffer, 
 		/* wait until transfer is finished */
 		while (!(BCM2835_SPICS & SPI_CS_DONE));
 		
-		rtapi_print_msg(RTAPI_MSG_ERR, "2 BCM2835_SPICS: %08x:", BCM2835_SPICS);
+		//rtapi_print_msg(RTAPI_MSG_ERR, "2 BCM2835_SPICS: %08x:", BCM2835_SPICS);
 		
 		if((BCM2835_SPICS & SPI_CS_RXR) || (BCM2835_SPICS & SPI_CS_RXF))
 			rtapi_print_msg(RTAPI_MSG_ERR, "RX-FIFO is full!\n");
@@ -241,16 +242,18 @@ static int hm2_rpspi_read(hm2_lowlevel_io_t *llio, uint32_t addr, void *buffer, 
 		rbuff += 4;
 	}
 	
+	/*
 	rtapi_print_msg(RTAPI_MSG_ERR, "In-Data: ");
 	for (i=0; i<msgsize; i++) {
 		rtapi_print_msg(RTAPI_MSG_ERR, "%08x:", this->rxBuf[i]);
 	}
 	rtapi_print_msg(RTAPI_MSG_ERR, "\n"); 
+	*/
 	
 	/* Stop transfer */
 	BCM2835_SPICS &= ~SPI_CS_TA;
 	
-	rtapi_print_msg(RTAPI_MSG_ERR, "3 BCM2835_SPICS: %08x:", BCM2835_SPICS);
+	//rtapi_print_msg(RTAPI_MSG_ERR, "3 BCM2835_SPICS: %08x:", BCM2835_SPICS);
 	
 	/*buff = (char *)this->rxBuf;
 	buff += 4; //skip the cookie */
@@ -284,7 +287,7 @@ static int read_ident(hm2_rpspi_t *board, char *ident) {
 
 /*************************************************/
 static int probe_board(hm2_rpspi_t *board, uint16_t spiclkdiv) {
-	rtapi_print_msg(RTAPI_MSG_ERR,"probe %d\n", spiclkdiv);
+//	rtapi_print_msg(RTAPI_MSG_ERR,"probe %d\n", spiclkdiv);
    
 	board->spiclkdiv = spiclkdiv;
 	board->spibpf = 32;
@@ -307,6 +310,15 @@ static int probe_board(hm2_rpspi_t *board, uint16_t spiclkdiv) {
 		board->llio.ioport_connector_name[2] = "P3";
 		board->llio.num_leds = 2;
 		board->llio.fpga_part_number = "xc6slx9tq144";
+	} else if (!memcmp(ident, "EMBMMOJO", 8)) {
+		base = "hm2_mojo";
+		board->llio.num_ioport_connectors = 3;
+		board->llio.pins_per_connector = 24;
+		board->llio.ioport_connector_name[0] = "P1";
+		board->llio.ioport_connector_name[1] = "P2";
+		board->llio.ioport_connector_name[2] = "P3";
+		board->llio.num_leds = 8;
+		board->llio.fpga_part_number = "xc6slx9tq144";
 	} else {
 		int i=0;
 		for(i=0; i<sizeof(ident); i++)
@@ -315,7 +327,7 @@ static int probe_board(hm2_rpspi_t *board, uint16_t spiclkdiv) {
 		return -1;
 	}
 
-	rtapi_print_msg(RTAPI_MSG_ERR, "Base:%s.%d", base, board->nr);
+	//rtapi_print_msg(RTAPI_MSG_ERR, "Base:%s.%d", base, board->nr);
 	rtapi_snprintf(board->llio.name, sizeof(board->llio.name),
 		"%s.%d", base, board->nr);
 	board->llio.comp_id = comp_id;

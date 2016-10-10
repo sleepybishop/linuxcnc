@@ -111,6 +111,7 @@ static void hm2_read(void *void_hm2, long period) {
     hm2_sserial_process_tram_read(hm2, period);
     hm2_bspi_process_tram_read(hm2, period);
     hm2_absenc_process_tram_read(hm2, period);
+    hm2_avr_process_tram_read(hm2);
     //UARTS need to be explicity handled by an external component
 
     hm2_tp_pwmgen_process_read(hm2); // check the status of the fault bit
@@ -138,6 +139,7 @@ static void hm2_write(void *void_hm2, long period) {
     // they only write to the FPGA if certain pins & params have changed
     hm2_ioport_write(hm2);    // handles gpio.is_output but not gpio.out (that's done in tram_write() above)
     hm2_watchdog_write(hm2, period);  // in case the user has written to the watchdog.timeout_ns param
+    hm2_avr_write(hm2);    // update avr adc config if needed
     hm2_pwmgen_write(hm2);    // update pwmgen registers if needed
     hm2_tp_pwmgen_write(hm2); // update Three Phase PWM registers if needed
     hm2_stepgen_write(hm2);   // update stepgen registers if needed
@@ -276,6 +278,7 @@ const char *hm2_get_general_function_name(int gtag) {
         case HM2_GTAG_UART_RX:         return "UART Receive Channel";
         case HM2_GTAG_UART_TX:         return "UART Transmit Channel";
         case HM2_GTAG_HM2DPLL:         return "Hostmot2 DPLL";
+        case HM2_GTAG_AVR:             return "AVR ADC Interface";
         default: {
             static char unknown[100];
             rtapi_snprintf(unknown, 100, "(unknown-gtag-%d)", gtag);
@@ -346,6 +349,7 @@ static int hm2_parse_config_string(hostmot2_t *hm2, char *config_string) {
     hm2->config.num_uarts = -1;
     hm2->config.num_dplls = -1;
     hm2->config.num_leds = -1;
+    hm2->config.num_avrs = -1;
     hm2->config.enable_raw = 0;
     hm2->config.firmware = NULL;
 
@@ -445,7 +449,9 @@ static int hm2_parse_config_string(hostmot2_t *hm2, char *config_string) {
         } else if (strncmp(token, "num_dplls=", 10) == 0) {
             token += 10;
             hm2->config.num_dplls = simple_strtol(token, NULL, 0);
-
+        } else if (strncmp(token, "num_avrs=", 12) == 0) {
+            token += 12;                                           
+            hm2->config.num_avrs = simple_strtol(token, NULL, 0); 
         } else if (strncmp(token, "enable_raw", 10) == 0) {
             hm2->config.enable_raw = 1;
 
@@ -479,6 +485,7 @@ static int hm2_parse_config_string(hostmot2_t *hm2, char *config_string) {
     HM2_DBG("    num_stepgens=%d\n", hm2->config.num_stepgens);
     HM2_DBG("    num_bspis=%d\n", hm2->config.num_bspis);
     HM2_DBG("    num_uarts=%d\n", hm2->config.num_uarts);
+    HM2_DBG("    num_avrs=%d\n", hm2->config.num_avrs);
     HM2_DBG("    enable_raw=%d\n",   hm2->config.enable_raw);
     HM2_DBG("    firmware=%s\n",   hm2->config.firmware ? hm2->config.firmware : "(NULL)");
 
@@ -931,6 +938,10 @@ static int hm2_parse_module_descriptors(hostmot2_t *hm2) {
                 
             case HM2_GTAG_LED:
                 md_accepted = hm2_led_parse_md(hm2, md_index);
+                break;
+
+            case HM2_GTAG_AVR:
+                md_accepted = hm2_avr_parse_md(hm2, md_index);
                 break;
 
             default:
@@ -1659,6 +1670,7 @@ void rtapi_app_exit(void) {
 // this pushes our idea of what things are like into the FPGA's poor little mind
 void hm2_force_write(hostmot2_t *hm2) {
     hm2_watchdog_force_write(hm2);
+    hm2_avr_force_write(hm2);
     hm2_ioport_force_write(hm2);
     hm2_encoder_force_write(hm2);
     hm2_pwmgen_force_write(hm2);
