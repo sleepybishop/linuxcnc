@@ -1,0 +1,21 @@
+pkgname=mesaflash
+pkgver=3.3.0
+pkgrel=1
+pkgdesc='Configuration and diagnostic tool for Mesa Electronics PCI(E)/ETH/EPP/USB/SPI boards'
+arch=('i686' 'x86_64')
+url='https://github.com/micges/mesaflash'
+license=('GPL')
+depends=('pciutils')
+source=("git+https://github.com/micges/mesaflash.git")
+sha1sums=('SKIP')
+
+build() {
+  cd "$srcdir/$pkgname"
+
+  make
+}
+
+package() {
+  cd "$srcdir/$pkgname"
+  make DESTDIR="$pkgdir/usr" install
+}
