@@ -81,13 +81,48 @@ static uint32_t write_command(uint16_t addr, unsigned nelem) {
     return (addr << 16) | 0xB000 | (increment ? 0x800 : 0) | (nelem << 4);
 }
 
+static bool canDo32 = true;
+
+void reorderBuffer(unsigned char *pBuf, int numWords)
+{
+    int lcv;
+    for (lcv = 0; lcv < numWords; lcv++)
+    {
+        pBuf[0] ^= pBuf[3];
+        pBuf[3] ^= pBuf[0];
+        pBuf[0] ^= pBuf[3];
+        pBuf[1] ^= pBuf[2];
+        pBuf[2] ^= pBuf[1];
+        pBuf[1] ^= pBuf[2];
+        pBuf += 4;
+    }
+}
+
 static int do_pending(hm2_spi_t *this) {
-    if(this->nbuf == 0) return 0;
+    if(this->nbuf == 0)
+    {
+        if (canDo32)	// don't change default behavior
+        {
+            return 0;
+        }
+        else		// saw "finish_write" failures on RPi3
+        {
+            //fprintf(stderr,"nothing to process!!!\n");
+            return 1;
+        }
+    }
 
     struct spi_ioc_transfer t;
+    unsigned char *pBuf = (unsigned char *)this->trxbuf;
+
     t = this->settings;
-    t.tx_buf = t.rx_buf = (uint64_t)(uintptr_t)this->trxbuf;
     t.len = 4 * this->nbuf;
+    if (!canDo32)
+    {
+        // first we address byte ordering
+        reorderBuffer(pBuf, this->nbuf);
+    }
+    t.tx_buf = t.rx_buf = (unsigned long)pBuf;
 
     int r = ioctl(this->fd, SPI_IOC_MESSAGE(1), &t);
     if(r < 0) {
@@ -95,6 +130,11 @@ static int do_pending(hm2_spi_t *this) {
             "hm2_spi: SPI_IOC_MESSAGE: %s\n", strerror(errno));
         this->nbuf = 0;
         return -errno;
+    }
+
+    if (!canDo32)
+    {
+        reorderBuffer((unsigned char *)this->trxbuf, this->nbuf);
     }
 
     // because linux manages SPI chip select behind our backs, we can't know
@@ -215,7 +255,13 @@ static int spidev_open_and_configure(char *dev, int rate) {
     if(r < 0) goto fail_errno;
 
     r = spidev_set_bits_per_word(fd, 32);
-    if(r < 0) goto fail_errno;
+    if (r < 0)
+    {
+	//fprintf(stderr,"fall back to 8-bit xfer\n");
+        canDo32 = false;
+        r = spidev_set_bits_per_word(fd, 8);
+        if(r < 0) goto fail_errno;
+    }
 
     r = spidev_set_max_speed_hz(fd, rate);
     if(r < 0) goto fail_errno;
@@ -256,7 +302,14 @@ static int probe(char *dev, int rate) {
     if(board->fd < 0) return board->fd;
 
     board->settings.speed_hz = rate;
-    board->settings.bits_per_word = 32;
+    if (canDo32)
+    {
+        board->settings.bits_per_word = 32;
+    }
+    else
+    {
+        board->settings.bits_per_word = 8;
+    }
 
     int r = check_cookie(board);
     if(r < 0) goto fail;
