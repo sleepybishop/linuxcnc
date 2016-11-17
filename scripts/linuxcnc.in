@@ -884,11 +884,10 @@ case $EMCDISPLAY in
     result=$?
   ;;
   linuxcncrsh)
-    # all other displays are assumed to be commands on the PATH
     if ! program_available $EMCDISPLAY; then
-        echo "Can't execute DISPLAY program $EMCDISPLAY $EMCDISPLAYARGS $EXTRA_ARGS"
-        Cleanup
-        exit 1
+      echo "Can't execute DISPLAY program $EMCDISPLAY $EMCDISPLAYARGS $EXTRA_ARGS"
+      Cleanup
+      exit 1
     fi
     $EMCDISPLAY -- -ini "$INIFILE" $EMCDISPLAYARGS $EXTRA_ARGS
     result=$?
