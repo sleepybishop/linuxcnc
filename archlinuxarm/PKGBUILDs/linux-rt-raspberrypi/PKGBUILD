@@ -7,13 +7,12 @@
 buildarch=20
 
 pkgbase=linux-rt-raspberrypi
-_commit=c2a1d975537fcac01da80ce34f10bc491620a64e
-_aufs_commit=7d174ae40b4c9c876ee51aa50fa4ee1f3747de23
+_commit=8b0a53e9f9d3a2c2e07b2341ccbf5eb4adc8100f
 _srcname=linux-${_commit}
 _kernelname=${pkgbase#linux}
 _desc="Raspberry Pi"
-pkgver=4.4.23
-pkgrel=1
+pkgver=4.4.32
+pkgrel=2
 bfqver=v7r11
 arch=('armv6h' 'armv7h')
 url="http://www.kernel.org/"
@@ -21,9 +20,8 @@ license=('GPL2')
 makedepends=('xmlto' 'docbook-xsl' 'kmod' 'inetutils' 'bc' 'git')
 options=('!strip')
 source=("https://github.com/raspberrypi/linux/archive/${_commit}.tar.gz"
-	"https://www.kernel.org/pub/linux/kernel/projects/rt/4.4/patch-4.4.21-rt31.patch.gz"
-        "https://github.com/sfjro/aufs4-standalone/archive/${_aufs_commit}.tar.gz"
-        "aufs_4_4_rt.patch"
+	"https://www.kernel.org/pub/linux/kernel/projects/rt/4.4/patch-4.4.30-rt41.patch.gz"
+        "git+https://github.com/sfjro/aufs4-standalone.git#branch=aufs${pkgver%.*}"
         "bfq1.patch::ftp://teambelgium.net/bfq/patches/${pkgver%.*}.0-${bfqver}/0001-block-cgroups-kconfig-build-bits-for-BFQ-${bfqver}-${pkgver%.*}.0.patch"
         "bfq2.patch::ftp://teambelgium.net/bfq/patches/${pkgver%.*}.0-${bfqver}/0002-block-introduce-the-BFQ-${bfqver}-I-O-sched-for-${pkgver%.*}.0.patch"
         "bfq3.patch::ftp://teambelgium.net/bfq/patches/${pkgver%.*}.0-${bfqver}/0003-block-bfq-add-Early-Queue-Merge-EQM-to-BFQ-${bfqver}-for.patch"
@@ -35,17 +33,16 @@ source=("https://github.com/raspberrypi/linux/archive/${_commit}.tar.gz"
 
 md5sums=('SKIP'
          'SKIP'
-         'a405d4c0f77374b1c357f815267dc573'
-         'd6485df7ed531519c7b72d6beabe710d'
-         'c1d7fcfe88edb658375089c0a9cc1811'
-         '953133d5e387de2ad79ac0ae5c27cb6b'
-         'f0387e673975e9f2a5e05136948edece'
-         '4a410ab9a1eefe82e158d36df02b3589'
-         '8c3cb6d8f0609b43f09d083b4006ec5a'
-         'f95eb9c22c18722e30fc28a5640aeba5'
-         '60bc3624123c183305677097bcd56212'
-         'a5e85ed9120c9dcb14844c6602836f23'
-         'SKIP')
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+	       'SKIP')
 
 prepare() {
   cd "${srcdir}/${_srcname}"
@@ -69,7 +66,7 @@ prepare() {
   patch -Np1 -i "${srcdir}/bfq3.patch"
 
   msg2 "Add RT patch"
-  patch -Np1 -i "${srcdir}/patch-4.4.21-rt31.patch"
+  patch -Np1 -i "${srcdir}/patch-4.4.30-rt41.patch"
 
   msg "Prepare to build"
   [[ $CARCH == "armv6h" ]] && cat "${srcdir}/config.v6" > ./.config
