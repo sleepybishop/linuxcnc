@@ -1552,21 +1552,14 @@ label .info.tool \
 	-anchor w \
 	-borderwidth 2 \
 	-relief sunken \
-	-textvariable tool \
+	-textvariable ::tool \
 	-width 30
-
-label .info.offset \
-	-anchor w \
-	-borderwidth 2 \
-	-relief sunken \
-	-textvariable offset \
-	-width 25
 
 label .info.position \
 	-anchor w \
 	-borderwidth 2 \
 	-relief sunken \
-	-textvariable position \
+	-textvariable ::position \
 	-width 25
 
 # Pack widget .info.task_state
@@ -1575,7 +1568,8 @@ pack .info.task_state \
 
 # Pack widget .info.tool
 pack .info.tool \
-	-side left
+	-side left \
+	-fill x -expand 1
 
 # Pack widget .info.position
 pack .info.position \
