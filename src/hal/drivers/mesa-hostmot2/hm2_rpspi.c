@@ -537,9 +537,9 @@ static platform_t check_platform(void)
 	/* NUL terminate the buffer */
 	buf[fsize] = '\0';
 
-	if (NULL != strstr(buf, "BCM2708"))
+	if (NULL != strstr(buf, "BCM2708") || NULL != strstr(buf, "BCM2735") )
 		return RPI;
-	else if (NULL != strstr(buf, "BCM2709"))
+	else if (NULL != strstr(buf, "BCM2709") || NULL != strstr(buf, "BCM2736") || NULL != strstr(buf, "BCM2737"))
 		return RPI_2;	//for RPI 3 too
 	else
 		return UNSUPPORTED;
