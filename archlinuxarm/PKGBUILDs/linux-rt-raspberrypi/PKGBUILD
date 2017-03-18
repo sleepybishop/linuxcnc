@@ -2,75 +2,45 @@
 # Maintainer: Kevin Mihelich <kevin@archlinuxarm.org>
 # Maintainer: Oleg Rakhmanov <oleg@archlinuxarm.org>
 
-# NOTE: Packages replace linux-raspberrypi-latest, remove if that package comes back
-
 buildarch=20
 
 pkgbase=linux-rt-raspberrypi
-_commit=8b0a53e9f9d3a2c2e07b2341ccbf5eb4adc8100f
+_commit=a102c13bd969e0dc21f6b56dc5af1b5f72a3307b
 _srcname=linux-${_commit}
 _kernelname=${pkgbase#linux}
 _desc="Raspberry Pi"
-pkgver=4.4.32
-pkgrel=2
-bfqver=v7r11
+pkgver=4.9.15
+pkgrel=1
 arch=('armv6h' 'armv7h')
 url="http://www.kernel.org/"
 license=('GPL2')
 makedepends=('xmlto' 'docbook-xsl' 'kmod' 'inetutils' 'bc' 'git')
 options=('!strip')
 source=("https://github.com/raspberrypi/linux/archive/${_commit}.tar.gz"
-	"https://www.kernel.org/pub/linux/kernel/projects/rt/4.4/patch-4.4.30-rt41.patch.gz"
-        "git+https://github.com/sfjro/aufs4-standalone.git#branch=aufs${pkgver%.*}"
-        "bfq1.patch::ftp://teambelgium.net/bfq/patches/${pkgver%.*}.0-${bfqver}/0001-block-cgroups-kconfig-build-bits-for-BFQ-${bfqver}-${pkgver%.*}.0.patch"
-        "bfq2.patch::ftp://teambelgium.net/bfq/patches/${pkgver%.*}.0-${bfqver}/0002-block-introduce-the-BFQ-${bfqver}-I-O-sched-for-${pkgver%.*}.0.patch"
-        "bfq3.patch::ftp://teambelgium.net/bfq/patches/${pkgver%.*}.0-${bfqver}/0003-block-bfq-add-Early-Queue-Merge-EQM-to-BFQ-${bfqver}-for.patch"
         'https://archlinuxarm.org/builder/src/brcmfmac43430-sdio.bin' 'https://archlinuxarm.org/builder/src/brcmfmac43430-sdio.txt'
+	'https://www.kernel.org/pub/linux/kernel/projects/rt/4.9/patch-4.9.13-rt12.patch.gz'
         'config.txt'
         'cmdline.txt'
-        'config.v6'
-        'config.v7')
-
-md5sums=('SKIP'
-         'SKIP'
-         'SKIP'
-         'SKIP'
-         'SKIP'
-         'SKIP'
-         'SKIP'
-         'SKIP'
-         'SKIP'
-         'SKIP'
-         'SKIP'
-	       'SKIP')
+        'config'
+        'linux.preset'
+        '99-linux.hook')
+md5sums=('8c43601602bd9e0d8fc5e84610f580f4'
+         '4a410ab9a1eefe82e158d36df02b3589'
+         '8c3cb6d8f0609b43f09d083b4006ec5a'
+         '52004c3602041fc40a33c279a0b0760c'
+         '7c6b37a1353caccf6d3786bb4161c218'
+         '60bc3624123c183305677097bcd56212'
+         '688dfa837866b3acccb7663286ce8ed1'
+         '552c43bf6c0225bc213b31ee942b7000'
+         '982f9184dfcfbe52110795cf73674334')
 
 prepare() {
   cd "${srcdir}/${_srcname}"
 
-#  msg2 "AUFS patches"
-#  (cd ${srcdir}/aufs4-standalone-${_aufs_commit}; patch -Np0 -i "${srcdir}/aufs_4_4_rt.patch")
-
-#  cp -ru "${srcdir}/aufs4-standalone-${_aufs_commit}/Documentation" .
-#  cp -ru "${srcdir}/aufs4-standalone-${_aufs_commit}/fs" .
-#  cp -ru "${srcdir}/aufs4-standalone-${_aufs_commit}/include/uapi/linux/aufs_type.h" ./include/linux
-#  cp -ru "${srcdir}/aufs4-standalone-${_aufs_commit}/include/uapi/linux/aufs_type.h" ./include/uapi/linux
-
-#  patch -Np1 -i "${srcdir}/aufs4-standalone-${_aufs_commit}/aufs4-kbuild.patch"
-#  patch -Np1 -i "${srcdir}/aufs4-standalone-${_aufs_commit}/aufs4-base.patch"
-#  patch -Np1 -i "${srcdir}/aufs4-standalone-${_aufs_commit}/aufs4-mmap.patch"
-#  patch -Np1 -i "${srcdir}/aufs4-standalone-${_aufs_commit}/aufs4-standalone.patch"
-
-  msg2 "Add BFQ patches"
-  patch -Np1 -i "${srcdir}/bfq1.patch"
-  patch -Np1 -i "${srcdir}/bfq2.patch"
-  patch -Np1 -i "${srcdir}/bfq3.patch"
-
   msg2 "Add RT patch"
-  patch -Np1 -i "${srcdir}/patch-4.4.30-rt41.patch"
+  patch -Np1 -i "${srcdir}/patch-4.9.13-rt12.patch"
 
-  msg "Prepare to build"
-  [[ $CARCH == "armv6h" ]] && cat "${srcdir}/config.v6" > ./.config
-  [[ $CARCH == "armv7h" ]] && cat "${srcdir}/config.v7" > ./.config
+  cat "${srcdir}/config" > ./.config
 
   # add pkgrel to extraversion
   sed -ri "s|^(EXTRAVERSION =)(.*)|\1 \2-${pkgrel}|" Makefile
@@ -109,15 +79,14 @@ build() {
 
   #yes "" | make config
 
-  msg "Building!"
   make ${MAKEFLAGS} zImage modules dtbs
 }
 
 _package() {
   pkgdesc="The Linux Kernel and modules - ${_desc}"
-  depends=('coreutils' 'linux-firmware' 'module-init-tools>=3.16')
+  depends=('coreutils' 'linux-firmware' 'kmod' 'mkinitcpio>=0.7')
   optdepends=('crda: to set the correct wireless channels of your country')
-  provides=('kernel26' "linux=${pkgver}" 'aufs_friendly')
+  provides=('kernel26' "linux=${pkgver}")
   conflicts=('kernel26' 'linux')
   install=${pkgname}.install
   backup=('boot/config.txt' 'boot/cmdline.txt')
@@ -134,8 +103,10 @@ _package() {
   make INSTALL_MOD_PATH="${pkgdir}" modules_install
   make INSTALL_DTBS_PATH="${pkgdir}/boot" dtbs_install
 
-  [[ $CARCH == "armv6h" ]] && perl scripts/mkknlimg --dtok arch/$KARCH/boot/zImage "${pkgdir}/boot/kernel.img"
-  [[ $CARCH == "armv7h" ]] && perl scripts/mkknlimg --dtok arch/$KARCH/boot/zImage "${pkgdir}/boot/kernel7.img"
+  [[ $CARCH == "armv6h" ]] && perl scripts/mkknlimg --dtok arch/$KARCH/boot/zImage "${pkgdir}/boot/kernel.img" \
+                           && rm -f "${pkgdir}"/boot/bcm{2836,2709,2710}*.dtb
+  [[ $CARCH == "armv7h" ]] && perl scripts/mkknlimg --dtok arch/$KARCH/boot/zImage "${pkgdir}/boot/kernel7.img" \
+                           && rm -f "${pkgdir}"/boot/bcm{2835,2708}*.dtb
   cp arch/$KARCH/boot/dts/overlays/README "${pkgdir}/boot/overlays"
 
   # set correct depmod command for install
@@ -144,17 +115,26 @@ _package() {
     -e  "s/KERNEL_VERSION=.*/KERNEL_VERSION=${_kernver}/g" \
     -i "${startdir}/${pkgname}.install"
 
+  # install mkinitcpio preset file for kernel
+  install -D -m644 "${srcdir}/linux.preset" "${pkgdir}/etc/mkinitcpio.d/${pkgbase}.preset"
+  sed \
+    -e "1s|'linux.*'|'${pkgbase}'|" \
+    -e "s|ALL_kver=.*|ALL_kver=\"${_kernver}\"|" \
+    -i "${pkgdir}/etc/mkinitcpio.d/${pkgbase}.preset"
+
+  # install pacman hook for initramfs regeneration
+  sed "s|%PKGBASE%|${pkgbase}|g" "${srcdir}/99-linux.hook" |
+    install -D -m644 /dev/stdin "${pkgdir}/usr/share/libalpm/hooks/99-${pkgbase}.hook"
+
   # remove build and source links
   rm -f "${pkgdir}"/lib/modules/${_kernver}/{source,build}
   # remove the firmware
   rm -rf "${pkgdir}/lib/firmware"
-  # gzip -9 all modules to save 100MB of space
-  find "${pkgdir}" -name '*.ko' |xargs -P 2 -n 1 gzip -9
   # make room for external modules
-  ln -s "../extramodules-${pkgver}-${_kernelname:-ARCH}" "${pkgdir}/lib/modules/${_kernver}/extramodules"
+  ln -s "../extramodules-${_basekernel}${_kernelname:--ARCH}" "${pkgdir}/lib/modules/${_kernver}/extramodules"
   # add real version for building modules and running depmod from post_install/upgrade
-  mkdir -p "${pkgdir}/lib/modules/extramodules-${pkgver}-${_kernelname:-ARCH}"
-  echo "${_kernver}" > "${pkgdir}/lib/modules/extramodules-${pkgver}-${_kernelname:-ARCH}/version"
+  mkdir -p "${pkgdir}/lib/modules/extramodules-${_basekernel}${_kernelname:--ARCH}"
+  echo "${_kernver}" > "${pkgdir}/lib/modules/extramodules-${_basekernel}${_kernelname:--ARCH}/version"
 
   # Now we call depmod...
   depmod -b "$pkgdir" -F System.map "$_kernver"
@@ -186,18 +166,13 @@ _package-headers() {
   mkdir -p "${pkgdir}/usr/lib/modules/${_kernver}/build/include"
 
   for i in acpi asm-generic config crypto drm generated keys linux math-emu \
-    media net pcmcia scsi sound trace uapi video xen; do
+    media net pcmcia scsi soc sound trace uapi video xen; do
     cp -a include/${i} "${pkgdir}/usr/lib/modules/${_kernver}/build/include/"
   done
-
-  [[ $CARCH == "armv6h" ]] && MACH="mach-bcm2708"
-  [[ $CARCH == "armv7h" ]] && MACH="mach-bcm2709"
 
   # copy arch includes for external modules
   mkdir -p ${pkgdir}/usr/lib/modules/${_kernver}/build/arch/$KARCH
   cp -a arch/$KARCH/include ${pkgdir}/usr/lib/modules/${_kernver}/build/arch/$KARCH/
-  mkdir -p ${pkgdir}/usr/lib/modules/${_kernver}/build/arch/$KARCH/$MACH
-  cp -a arch/$KARCH/$MACH/include ${pkgdir}/usr/lib/modules/${_kernver}/build/arch/$KARCH/$MACH/
 
   # copy files necessary for later builds, like nvidia and vmware
   cp Module.symvers "${pkgdir}/usr/lib/modules/${_kernver}/build"
