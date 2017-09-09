@@ -1,0 +1,60 @@
+component thermistor "Support for generic thermistors connected via adc";
+
+description """Usage:
+
+\\fB loadrt thermistor personality=1\\fR
+
+\\fB net adc_counts    hm2_mojo.0.avr.00.adc.00.value     thermistor.0.adc_in\\fR
+
+\\fB addf thermistor.0.adclut servo-thread \\fR
+
+
+The temperature range returned depends on the thermistor.
+
+Temperature pins are provided for readings in Celsius, Fahrenheit and Kelvin,
+
+The personality parameter is used to indicate the number of thermistors.
+A maximum of 15 sensors are supported.
+
+""";
+
+pin in  u32 data.#.in [15 : (personality & 0xf)]  "Pin(s) with adc counts.";
+pin in  u32 type.#.in [15 : (personality & 0xf)] "Thermistor type.";
+pin out float temp_celsius.# [15 : (personality & 0xf)] """Temperature output values in Celsius.""";
+pin out float temp_fahrenheit.# [15 : (personality & 0xf)] """Temperature in Fahrenheit.""";
+pin out float temp_kelvin.# [15 : (personality & 0xf)] """Temperature in Kelvin.""";
+
+function adclut fp;
+license "GPL";
+author "Joseph Calderon";
+
+;;
+
+#include "rtapi_math.h"
+
+static float to_kelvin(float celsius) {
+  return celsius + 273.15;
+}
+
+static float to_fahrenheit(float celsius) {
+  return celsius * 1.80 + 32.0;
+}
+
+static float read_celsius(uint8_t type, uint16_t c) {
+  double coeff[][2] = {
+    { -41.560, 290.154 } // generic NTC 3950 100K
+  };
+
+  return coeff[type][0]*log(c*1.0) + coeff[type][1];
+}
+
+FUNCTION(adclut) {
+  int i = 0;
+
+  uint8_t type = type_in(i);
+  uint32_t counts = data_in(i);
+  float f = read_celsius(type, counts);
+  temp_celsius(i) = f;
+  temp_fahrenheit(i) = to_fahrenheit(f);
+  temp_kelvin(i) = to_kelvin(f);
+}
