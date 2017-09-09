@@ -484,7 +484,7 @@ become_master:
             close(fd);
             goto become_master;
         }
-        if(result < 0) { perror("connect"); exit(1); }
+        if(result < 0) { fprintf(stderr, "connect %s: %s", addr.sun_path, strerror(errno)); exit(1); }
         return slave(fd, args);
     } else {
         perror("bind"); exit(1);
@@ -788,6 +788,50 @@ int Posix::task_delete(int id)
   return 0;
 }
 
+static int find_rt_cpu_number() {
+    if(getenv("RTAPI_CPU_NUMBER")) return atoi(getenv("RTAPI_CPU_NUMBER"));
+
+    cpu_set_t cpuset_orig;
+    int r = sched_getaffinity(getpid(), sizeof(cpuset_orig), &cpuset_orig);
+    if(r < 0)
+        // if getaffinity fails, (it shouldn't be able to), just use CPU#0
+        return 0;
+
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    long top_probe = sysconf(_SC_NPROCESSORS_CONF);
+    // in old glibc versions, it was an error to pass to sched_setaffinity bits
+    // that are higher than an imagined/probed kernel-side CPU mask size.
+    // this caused the message
+    //     sched_setaffinity: Invalid argument
+    // to be printed at startup, and the probed CPU would not take into
+    // account CPUs masked from this process by default (whether by
+    // isolcpus or taskset).  By only setting bits up to the "number of
+    // processes configured", the call is successful on glibc versions such as
+    // 2.19 and older.
+    for(long i=0; i<top_probe && i<CPU_SETSIZE; i++) CPU_SET(i, &cpuset);
+
+    r = sched_setaffinity(getpid(), sizeof(cpuset), &cpuset);
+    if(r < 0)
+        // if setaffinity fails, (it shouldn't be able to), go on with
+        // whatever the default CPUs were.
+        perror("sched_setaffinity");
+
+    r = sched_getaffinity(getpid(), sizeof(cpuset), &cpuset);
+    if(r < 0) {
+        // if getaffinity fails, (it shouldn't be able to), copy the
+        // original affinity list in and use it
+        perror("sched_getaffinity");
+        CPU_AND(&cpuset, &cpuset_orig, &cpuset);
+    }
+
+    int top = -1;
+    for(int i=0; i<CPU_SETSIZE; i++) {
+        if(CPU_ISSET(i, &cpuset)) top = i;
+    }
+    return top;
+}
+
 int Posix::task_start(int task_id, unsigned long int period_nsec)
 {
   struct rtapi_task *task = get_task(task_id);
@@ -801,10 +845,7 @@ int Posix::task_start(int task_id, unsigned long int period_nsec)
   memset(&param, 0, sizeof(param));
   param.sched_priority = task->prio;
 
-  cpu_set_t cpuset;
-  CPU_ZERO(&cpuset);
   int nprocs = sysconf( _SC_NPROCESSORS_ONLN );
-  CPU_SET(nprocs-1, &cpuset); // assumes processor numbers are contiguous
 
   pthread_attr_t attr;
   if(pthread_attr_init(&attr) < 0)
@@ -817,9 +858,14 @@ int Posix::task_start(int task_id, unsigned long int period_nsec)
       return -errno;
   if(pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED) < 0)
       return -errno;
-  if(nprocs > 1)
+  if(nprocs > 1) {
+      const static int rt_cpu_number = find_rt_cpu_number();
+      cpu_set_t cpuset;
+      CPU_ZERO(&cpuset);
+      CPU_SET(rt_cpu_number, &cpuset);
       if(pthread_attr_setaffinity_np(&attr, sizeof(cpuset), &cpuset) < 0)
           return -errno;
+  }
   if(pthread_create(&task->thr, &attr, &wrapper, reinterpret_cast<void*>(task)) < 0)
       return -errno;
 
