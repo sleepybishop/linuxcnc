@@ -1,5 +1,5 @@
 pkgname=linuxcnc
-pkgver=2.7.8
+pkgver=2.7.11
 pkgrel="1"
 pkgdesc="A software system for computer control of machine tools."
 arch=('i686' 'x86_64')
