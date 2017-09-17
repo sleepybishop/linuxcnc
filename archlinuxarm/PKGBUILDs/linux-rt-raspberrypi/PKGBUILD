@@ -4,12 +4,12 @@
 
 buildarch=20
 
-pkgbase=linux-rt-raspberrypi
-_commit=a102c13bd969e0dc21f6b56dc5af1b5f72a3307b
+pkgbase=linux-raspberrypi
+_commit=12bafdab8214b23223603b75845c5c88f7444b6f
 _srcname=linux-${_commit}
 _kernelname=${pkgbase#linux}
 _desc="Raspberry Pi"
-pkgver=4.9.15
+pkgver=4.9.50
 pkgrel=1
 arch=('armv6h' 'armv7h')
 url="http://www.kernel.org/"
@@ -17,28 +17,28 @@ license=('GPL2')
 makedepends=('xmlto' 'docbook-xsl' 'kmod' 'inetutils' 'bc' 'git')
 options=('!strip')
 source=("https://github.com/raspberrypi/linux/archive/${_commit}.tar.gz"
+        'https://www.kernel.org/pub/linux/kernel/projects/rt/4.9/patch-4.9.47-rt37.patch.gz'
         'https://archlinuxarm.org/builder/src/brcmfmac43430-sdio.bin' 'https://archlinuxarm.org/builder/src/brcmfmac43430-sdio.txt'
-	'https://www.kernel.org/pub/linux/kernel/projects/rt/4.9/patch-4.9.13-rt12.patch.gz'
         'config.txt'
         'cmdline.txt'
         'config'
         'linux.preset'
         '99-linux.hook')
-md5sums=('8c43601602bd9e0d8fc5e84610f580f4'
-         '4a410ab9a1eefe82e158d36df02b3589'
-         '8c3cb6d8f0609b43f09d083b4006ec5a'
-         '52004c3602041fc40a33c279a0b0760c'
-         '7c6b37a1353caccf6d3786bb4161c218'
-         '60bc3624123c183305677097bcd56212'
-         '688dfa837866b3acccb7663286ce8ed1'
-         '552c43bf6c0225bc213b31ee942b7000'
-         '982f9184dfcfbe52110795cf73674334')
+md5sums=('SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP')
 
 prepare() {
   cd "${srcdir}/${_srcname}"
 
   msg2 "Add RT patch"
-  patch -Np1 -i "${srcdir}/patch-4.9.13-rt12.patch"
+  patch -Np1 -i "${srcdir}/patch-4.9.47-rt37.patch"
 
   cat "${srcdir}/config" > ./.config
 
