@@ -195,6 +195,8 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %attr(0755,-,-) %{_bindir}/linuxcnc_info
 %attr(0755,-,-) %{_bindir}/linuxcnc_var
 %attr(0755,-,-) %{_bindir}/latency*
+%attr(0755,-,-) %{_bindir}/hy_gt_vfd
+%attr(0755,-,-) %{_bindir}/mitsub_vfd
 
 %{python_sitelib}/*
 %{_exec_prefix}/lib/tcltk/*
