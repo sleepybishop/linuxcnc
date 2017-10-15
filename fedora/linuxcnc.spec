@@ -2,11 +2,11 @@
 %global _without_docs 1
 
 # pre-release settings
-%global _pre      0 
+%global _pre      1 
 
 Name:           linuxcnc
-Version:        2.7.11
-Release:        1%{?_pre:.%{_pre}}%{?dist}
+Version:        2.8.0
+Release:        0%{?_pre:.%{_pre}}%{?dist}
 Summary:        A software system for computer control of machine tools
 
 License:        GPLv2
@@ -263,6 +263,9 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %{_docdir}/%{name}-%{version}
 
 %changelog
+* Sat Oct 14 2017 Joseph Calderon <@> - 2.8.0~pre1
+- Update to 2.8.0
+
 * Fri Feb  5 2016 Joseph Calderon <@> - 2.7.3-1
 - Update to 2.7.3
 
