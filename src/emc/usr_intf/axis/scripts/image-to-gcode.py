@@ -17,7 +17,7 @@
 ## jepler@unpy.net
 
 import sys, os
-BASE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
+BASE = "/usr"
 sys.path.insert(0, os.path.join(BASE, "lib", "python"))
 
 import gettext;
@@ -63,7 +63,7 @@ def make_tool_shape(f, wdia, resp):
     dia = int(wdia*res+.5)
     wrad = wdia/2.
     if dia < 2: dia = 2
-    n = numpy.array([[plus_inf] * dia] * dia, dtype=numpy.float32)
+    n = numpy.array([[plus_inf] * dia] * dia, dtype="float32")
     hdia = dia / 2.
     l = []
     for x in range(dia):
@@ -275,9 +275,9 @@ class Converter:
             tw, th = rough.shape
             w1 = w + tw
             h1 = h + th
-            nim1 = numpy.zeros((w1, h1), dtype=numpy.float32) + base_image.min()
+            nim1 = numpy.zeros((w1, h1), dtype='float32') + base_image.min()
             nim1[tw/2:tw/2+w, th/2:th/2+h] = base_image
-            self.image = numpy.zeros((w,h), dtype=numpy.float32)
+            self.image = numpy.zeros((w,h), dtype="float32")
             for j in range(0, w):
                 progress(j,w)
                 for i in range(0, h):
@@ -495,7 +495,7 @@ class ArcEntryCut:
 
 def ui(im, nim, im_name):
     import Tkinter
-    import ImageTk
+    from PIL import ImageTk
     import pickle
     import nf
 
@@ -786,7 +786,7 @@ def main():
         tw, th = tool.shape
         w1 = w + 2*tw
         h1 = h + 2*th
-        nim1 = numpy.zeros((w1, h1), dtype=numpy.float32) + pixel
+        nim1 = numpy.zeros((w1, h1), dtype='float32') + pixel
         nim1[tw:tw+w, th:th+h] = nim
         nim = nim1
         w, h = w1, h1

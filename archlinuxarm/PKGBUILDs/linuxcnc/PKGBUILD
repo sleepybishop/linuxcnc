@@ -1,0 +1,42 @@
+pkgname=linuxcnc
+pkgver=2.7.11
+pkgrel="1"
+pkgdesc="A software system for computer control of machine tools."
+arch=('i686' 'x86_64')
+license=('GPL2')
+curl="http://linuxcnc.org/"
+depends=('bc' 'bwidget' 'tcl' 'tk' 'python2-imaging' 'tkimg' 'tclx' 'boost' 'boost-libs')
+install=$pkgname.install
+source=("$pkgname-$pkgver.tar.gz")
+md5sums=('SKIP')
+
+makedepends=('git')
+
+prepare() {
+  cd $srcdir/$pkgname-$pkgver/
+}
+
+build () {
+  find . -iname fixpaths.py -o -iname checkglade|xargs perl -p -i -e "s/python/python2/"
+  cd $srcdir/$pkgname-$pkgver/src
+  pwd
+  ./autogen.sh
+  ./configure --with-realtime=uspace --with-python=/usr/bin/python2.7 --without-x --disable-gtk --without-libusb-1.0 --without-libmodbus --prefix=/usr --enable-non-distributable=yes || return 1
+
+  make clean
+  make || return 1
+}
+
+package() {
+  cd $srcdir/$pkgname-$pkgver/src
+  make install DESTDIR=${pkgdir} || return 1
+
+  # copy tcl libs
+  mkdir -p "${pkgdir}/usr/lib/tcl8.6/"
+  cp -R "${pkgdir}/usr/lib/tcltk/linuxcnc" "${pkgdir}/usr/lib/tcl8.6/"
+
+  # install yapps for halcompile to work
+  mkdir "${pkgdir}/usr/lib/python2.7/site-packages/yapps"
+  cp -PR $srcdir/$pkgname-$pkgver/lib/python/yapps/* "${pkgdir}/usr/lib/python2.7/site-packages/yapps/"
+}
+

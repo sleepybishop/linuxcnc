@@ -121,6 +121,7 @@
 #define HM2_GTAG_BISS              (24) 
 #define HM2_GTAG_FABS              (25) 
 #define HM2_GTAG_HM2DPLL           (26) 
+#define HM2_GTAG_AVR               (27)
 #define HM2_GTAG_LIOPORT           (64) // Not supported
 #define HM2_GTAG_LED               (128)
 
@@ -619,6 +620,51 @@ typedef struct {
 
 } hm2_tp_pwmgen_t;
 
+//
+// AVR ADC
+//
+
+typedef struct {
+
+    struct {
+
+        struct {
+            hal_u32_t *value;
+//            hal_bit_t *enable;
+        } pin;
+
+	/*
+        struct {
+            hal_bit_t aref_sel;
+            hal_bit_t hi_power;
+            hal_u32_t prescaler;
+        } param;
+	*/
+
+    } hal;
+
+    /*
+    rtapi_u8  written_aref_sel;
+    rtapi_u8  written_hi_power;
+    rtapi_u32 written_prescaler;
+    rtapi_u8  written_enable;
+    */
+} hm2_avradc_instance_t;
+
+typedef struct {
+    int num_instances;
+    hm2_avradc_instance_t *instance;
+
+    rtapi_u32 adc_addr;
+    rtapi_u32 *adc_reg;
+
+    /*
+    rtapi_u32 enable_addr;
+    rtapi_u32 enable_reg;
+    */
+
+    rtapi_u8  version;
+} hm2_avr_t;
 
 // 
 // ioport
@@ -1019,6 +1065,7 @@ typedef struct {
         int num_uarts;
         int num_pktuarts;
         int num_dplls;
+        int num_avrs;
         char sserial_modes[4][8];
         int enable_raw;
         char *firmware;
@@ -1062,6 +1109,7 @@ typedef struct {
     hm2_watchdog_t watchdog;
     hm2_dpll_t dpll;
     hm2_led_t led;
+    hm2_avr_t avr;
 
     hm2_raw_t *raw;
 
@@ -1337,6 +1385,23 @@ void hm2_watchdog_process_tram_read(hostmot2_t *hm2);
 int hm2_led_parse_md(hostmot2_t *hm2, int md_index);
 void hm2_led_write(hostmot2_t *hm2);
 void hm2_led_cleanup(hostmot2_t *hm2);
+
+
+
+
+// 
+// avr related functions
+// 
+
+int hm2_avr_parse_md(hostmot2_t *hm2, int md_index);
+void hm2_avr_print_module(hostmot2_t *hm2);
+void hm2_avr_cleanup(hostmot2_t *hm2);
+void hm2_avr_prepare_tram_write(hostmot2_t *hm2);
+void hm2_avr_write(hostmot2_t *hm2);
+void hm2_avr_force_write(hostmot2_t *hm2);
+void hm2_avr_process_tram_read(hostmot2_t *hm2);
+
+
 
 //
 // the raw interface lets you peek and poke the hostmot2 instance from HAL

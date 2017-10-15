@@ -866,6 +866,15 @@ static int probe_board(hm2_rpspi_t *board) {
 		board->llio.ioport_connector_name[2] = "P3";
 		board->llio.num_leds = 2;
 		board->llio.fpga_part_number = "xc6slx9tq144";
+	} else if (!memcmp(ident, "EMBMMOJO", 8)) {
+		base = "hm2_mojo";
+		board->llio.num_ioport_connectors = 3;
+		board->llio.pins_per_connector = 24;
+		board->llio.ioport_connector_name[0] = "P1";
+		board->llio.ioport_connector_name[1] = "P2";
+		board->llio.ioport_connector_name[2] = "P3";
+		board->llio.num_leds = 8;
+		board->llio.fpga_part_number = "xc6slx9tq144";
 	} else {
 		int i;
 		for(i = 0; i < sizeof(ident) - 1; i++) {

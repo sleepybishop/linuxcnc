@@ -118,6 +118,10 @@ from gmoccapy import notification  # this is the module we use for our error han
 from gmoccapy import preferences   # this handles the preferences
 from gmoccapy import getiniinfo    # this handles the INI File reading so checking is done in that module
 from gmoccapy import dialogs       # this takes the code of all our dialogs
+try:
+    from gmoccapy import player    # a class to handle sounds
+except ImportError:
+    pass
 
 _AUDIO_AVAILABLE = False
 try:

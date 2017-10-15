@@ -1,0 +1,9 @@
+running linuxcnc on fedora requires kernel-rt unless running only in simulation mode.
+
+source rpms for kernel-rt can be obtained and built on your platform from:
+http://ccrma.stanford.edu/planetccrma/mirror/fedora/linux/planetcore/22/SRPMS/
+
+or you can install the planet ccrma repos and install the prebuilt rpm
+
+http://ccrma.stanford.edu/planetccrma/software/
+http://ccrma.stanford.edu/planetccrma/software/installplanettwenty.html
