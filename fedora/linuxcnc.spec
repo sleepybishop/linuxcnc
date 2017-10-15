@@ -160,7 +160,6 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %attr(0755,-,-) %{_bindir}/inivar
 %attr(0755,-,-) %{_bindir}/io
 %attr(0755,-,-) %{_bindir}/iov2
-%attr(0755,-,-) %{_bindir}/keystick
 %attr(0755,-,-) %{_bindir}/maho600gui
 %attr(0755,-,-) %{_bindir}/max5gui
 %attr(0755,-,-) %{_bindir}/mb2hal
@@ -179,7 +178,6 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %attr(0755,-,-) %{_bindir}/rs274
 %attr(0755,-,-) %{_bindir}/scaragui
 %attr(0755,-,-) %{_bindir}/schedrmt
-%attr(0755,-,-) %{_bindir}/shuttlexpress
 %attr(0755,-,-) %{_bindir}/sim_pin
 %attr(0755,-,-) %{_bindir}/simulate_probe
 %attr(0755,-,-) %{_bindir}/stepconf
@@ -189,7 +187,6 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %attr(0755,-,-) %{_bindir}/vfs11_vfd
 %attr(0755,-,-) %{_bindir}/wj200_vfd
 %attr(0755,-,-) %{_bindir}/xhc-hb04-accels
-%attr(0755,-,-) %{_bindir}/xlinuxcnc
 %attr(0755,-,-) %{_bindir}/linuxcnc
 %attr(0755,-,-) %{_bindir}/linuxcnc[a-z]*
 %attr(0755,-,-) %{_bindir}/linuxcnc_info
@@ -197,6 +194,19 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %attr(0755,-,-) %{_bindir}/latency*
 %attr(0755,-,-) %{_bindir}/hy_gt_vfd
 %attr(0755,-,-) %{_bindir}/mitsub_vfd
+%attr(0755,-,-) %{_bindir}/halcmd_twopass
+%attr(0755,-,-) %{_bindir}/lineardelta
+%attr(0755,-,-) %{_bindir}/linuxcnc_module_helper
+%attr(0755,-,-) %{_bindir}/panelui
+%attr(0755,-,-) %{_bindir}/pyui
+%attr(0755,-,-) %{_bindir}/rotarydelta
+%attr(0755,-,-) %{_bindir}/scorbot-er-3
+%attr(0755,-,-) %{_bindir}/shuttle
+%attr(0755,-,-) %{_bindir}/teach-in
+%attr(0755,-,-) %{_bindir}/thermistor
+%attr(0755,-,-) %{_bindir}/update_ini
+%attr(0755,-,-) %{_bindir}/xyzac-trt-gui
+%attr(0755,-,-) %{_bindir}/xyzbc-trt-gui
 
 %{python_sitelib}/*
 %{_exec_prefix}/lib/tcltk/*
@@ -249,6 +259,7 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %lang(hu) %{_datadir}/locale/hu/LC_MESSAGES/gmoccapy.mo
 %lang(pl) %{_datadir}/locale/pl/LC_MESSAGES/gmoccapy.mo
 %lang(sr) %{_datadir}/locale/sr/LC_MESSAGES/gmoccapy.mo
+%lang(zh_CN) %{_datadir}/locale/zh_CN/LC_MESSAGES/gmoccapy.mo
 
 %doc %{_mandir}/man[19]/*
 
