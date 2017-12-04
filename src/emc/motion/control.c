@@ -520,6 +520,7 @@ static void process_probe_inputs(void)
 
     // don't error
     char probe_suppress = probe_type & 1;
+    int axis_num;
 
     // trigger when the probe clears, instead of the usual case of triggering when it trips
     char probe_whenclears = !!(probe_type & 2);
@@ -579,12 +580,22 @@ static void process_probe_inputs(void)
                 aborted=1;
             }
 
-            // abort any jogs
+            // abort any joint jogs
             if(joint->free_tp.enable == 1) {
                 joint->free_tp.enable = 0;
                 // since homing uses free_tp, this protection of aborted
                 // is needed so the user gets the correct error.
                 if(!aborted) aborted=2;
+            }
+        }
+        for (axis_num = 0; axis_num < EMCMOT_MAX_AXIS; axis_num++) {
+            emcmot_axis_t *axis;
+            axis = &axes[axis_num];
+            // abort any coordinate jogs
+            if (axis->teleop_tp.enable) {
+                axis->teleop_tp.enable = 0;
+                axis->teleop_tp.curr_vel = 0.0;
+                aborted = 3;
             }
         }
 
@@ -593,7 +604,10 @@ static void process_probe_inputs(void)
         }
 
         if(aborted == 2) {
-            reportError(_("Probe tripped during a jog."));
+            reportError(_("Probe tripped during a joint jog."));
+        }
+        if(aborted == 3) {
+            reportError(_("Probe tripped during a coordinate jog."));
         }
     }
     old_probeVal = emcmotStatus->probeVal;
@@ -855,6 +869,7 @@ static void handle_jjogwheels(void)
     static int first_pass = 1;	/* used to set initial conditions */
 
     for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
+        double jaccel_limit;
 	/* point to joint data */
 	joint_data = &(emcmot_hal_data->joint[joint_num]);
 	joint = &joints[joint_num];
@@ -863,6 +878,13 @@ static void handle_jjogwheels(void)
 	    continue;
 	}
 
+        // disallow accel bogus fractions
+        if (    (*(joint_data->jjog_accel_fraction) > 1) 
+             || (*(joint_data->jjog_accel_fraction) < 0) ) {
+            jaccel_limit = joint->acc_limit;
+        } else {
+            jaccel_limit = (*(joint_data->jjog_accel_fraction)) * joint->acc_limit;
+        }
 
 	/* get counts from jogwheel */
 	new_jjog_counts = *(joint_data->jjog_counts);
@@ -951,7 +973,7 @@ static void handle_jjogwheels(void)
 	if ( *(joint_data->jjog_vel_mode) ) {
             double v = joint->vel_limit * emcmotStatus->net_feed_scale;
 	    /* compute stopping distance at max speed */
-	    stop_dist = v * v / ( 2 * joint->acc_limit);
+	    stop_dist = v * v / ( 2 * jaccel_limit);
 	    /* if commanded position leads the actual position by more
 	       than stopping distance, discard excess command */
 	    if ( pos > joint->pos_cmd + stop_dist ) {
@@ -963,7 +985,7 @@ static void handle_jjogwheels(void)
         /* set target position and use full velocity and accel */
         joint->free_tp.pos_cmd = pos;
         joint->free_tp.max_vel = joint->vel_limit;
-        joint->free_tp.max_acc = joint->acc_limit;
+        joint->free_tp.max_acc = jaccel_limit;
 	/* lock out other jog sources */
 	joint->wheel_jjog_active = 1;
         /* and let it go */
@@ -993,8 +1015,18 @@ static void handle_ajogwheels(void)
     if ( emcmotStatus->on_soft_limit ) { return; }
 
     for (axis_num = 0; axis_num < EMCMOT_MAX_AXIS; axis_num++) {
+        double aaccel_limit;
         axis = &axes[axis_num];
-	axis_data = &(emcmot_hal_data->axis[axis_num]);
+        axis_data = &(emcmot_hal_data->axis[axis_num]);
+
+        // disallow accel bogus fractions
+        if (   (*(axis_data->ajog_accel_fraction) > 1)
+            || (*(axis_data->ajog_accel_fraction) < 0) ) {
+            aaccel_limit = axis->acc_limit;
+        } else {
+            aaccel_limit = *(axis_data->ajog_accel_fraction) * axis->acc_limit;
+        }
+
 	new_ajog_counts = *(axis_data->ajog_counts);
 	delta = new_ajog_counts - axis->old_ajog_counts;
 	axis->old_ajog_counts = new_ajog_counts;
@@ -1025,7 +1057,7 @@ static void handle_ajogwheels(void)
 	if ( *(axis_data->ajog_vel_mode) ) {
             double v = axis->vel_limit;
 	    /* compute stopping distance at max speed */
-	    stop_dist = v * v / ( 2 * axis->acc_limit);
+	    stop_dist = v * v / ( 2 * aaccel_limit);
 	    /* if commanded position leads the actual position by more
 	       than stopping distance, discard excess command */
 	    if ( pos > axis->pos_cmd + stop_dist ) {
@@ -1038,7 +1070,7 @@ static void handle_ajogwheels(void)
 	if (pos < axis->min_pos_limit) { break; }
         axis->teleop_tp.pos_cmd = pos;
         axis->teleop_tp.max_vel = axis->vel_limit;
-        axis->teleop_tp.max_acc = axis->acc_limit;
+        axis->teleop_tp.max_acc = aaccel_limit;
 	axis->wheel_ajog_active = 1;
         axis->teleop_tp.enable  = 1;
     }
@@ -1051,7 +1083,6 @@ static void get_pos_cmds(long period)
     emcmot_joint_t *joint;
     emcmot_axis_t *axis;
     double positions[EMCMOT_MAX_JOINTS];
-    double old_pos_cmd;
     double vel_lim;
 
     /* used in teleop mode to compute the max accell requested */
@@ -1235,11 +1266,8 @@ static void get_pos_cmds(long period)
 	for (joint_num = 0; joint_num < emcmotConfig->numJoints; joint_num++) {
 	    /* point to joint struct */
 	    joint = &joints[joint_num];
-	    /* save old command */
-	    old_pos_cmd = joint->pos_cmd;
-	    /* interpolate to get new one */
-	    joint->pos_cmd = cubicInterpolate(&(joint->cubic), 0, 0, 0, 0);
-	    joint->vel_cmd = (joint->pos_cmd - old_pos_cmd) * servo_freq;
+        /* interpolate to get new position and velocity */
+	    joint->pos_cmd = cubicInterpolate(&(joint->cubic), 0, &(joint->vel_cmd), 0, 0);
 	}
 	/* report motion status */
 	SET_MOTION_INPOS_FLAG(0);
@@ -1298,10 +1326,8 @@ static void get_pos_cmds(long period)
 		       that fail soft limits, but we'll abort at the end of
 		       this cycle so it doesn't really matter */
 		cubicAddPoint(&(joint->cubic), joint->coarse_pos);
-		old_pos_cmd = joint->pos_cmd;
-		/* interpolate to get new one */
-		joint->pos_cmd = cubicInterpolate(&(joint->cubic), 0, 0, 0, 0);
-		joint->vel_cmd = (joint->pos_cmd - old_pos_cmd) * servo_freq;
+        /* interpolate to get new position and velocity */
+	    joint->pos_cmd = cubicInterpolate(&(joint->cubic), 0, &(joint->vel_cmd), 0, 0);
 	    }
 	}
 	else

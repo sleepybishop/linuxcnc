@@ -27,6 +27,8 @@
 
 #import gtk
 #import gtk.glade
+import gi
+gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 #import gobject
 from gi.repository import GObject
@@ -46,6 +48,8 @@ import hal
 import shutil
 import time
 from multifilebuilder_gtk3 import MultiFileBuilder
+reload(sys)
+sys.setdefaultencoding('utf8')
 
 import traceback
 # otherwise, on hardy the user is shown spurious "[application] closed

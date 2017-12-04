@@ -1187,7 +1187,7 @@ def open_file_guts(f, filtered=False, addrecent=True):
                 # "g_mode" neither of which should be sent as a startup code.
                 # In particular, after issuing a non-modal G like G10, that
                 # will appear at s.gcodes[2] which caused issue #269
-                if i in (0, 2): continue
+                if i in (0, 1, 2): continue
                 if g == -1: continue
                 initcodes.append("G%.1f" % (g * .1))
             tool_offset = "G43.1"
@@ -3397,18 +3397,18 @@ while ((s.joints == 0) or (s.kinematics_type < linuxcnc.KINEMATICS_IDENTITY)):
     s.poll()
 
 if s.kinematics_type == linuxcnc.KINEMATICS_IDENTITY:
-    ja_name = "Axes"
+    ja_name = _("Axes")
 else:
-    ja_name = "Joints"
+    ja_name = _("Joints")
 if homing_order_defined:
     widgets.homebutton.configure(text=_("Home All"), command="home_all_joints")
     root_window.tk.call("DynamicHelp::add", widgets.homebutton,
-            "-text", _("Home all %s [Ctrl-Home]" % ja_name))
+            "-text", _("Home all %s [Ctrl-Home]") % ja_name)
     widgets.homemenu.add_command(command=commands.home_all_joints)
     root_window.tk.call("setup_menu_accel", widgets.homemenu, "end",
-            _("Home All %s" % ja_name))
+            _("Home All %s") % ja_name)
 widgets.unhomemenu.add_command(command=commands.unhome_all_joints)
-root_window.tk.call("setup_menu_accel", widgets.unhomemenu, "end", _("Unhome All %s" % ja_name))
+root_window.tk.call("setup_menu_accel", widgets.unhomemenu, "end", _("Unhome All %s") % ja_name)
 
 kinsmodule=inifile.find("KINS", "KINEMATICS")
 kins_is_trivkins = False
@@ -3480,7 +3480,7 @@ num_joints = s.joints
 gave_individual_homing_message = ""
 for jnum in range(num_joints):
     if s.kinematics_type == linuxcnc.KINEMATICS_IDENTITY:
-        ja_name = "Axis"
+        ja_name = _("Axis ")
         ja_id = aletter_for_jnum(jnum)
         if ja_id.lower() in duplicate_coord_letters:
             if ja_id not in gave_individual_homing_message:
@@ -3497,7 +3497,7 @@ for jnum in range(num_joints):
                command=lambda jnum=jnum: commands.home_joint_number(jnum))
         widgets.unhomemenu.add_command(
                command=lambda jnum=jnum: commands.unhome_joint_number(jnum))
-        ja_name = "Joint"
+        ja_name = _("Joint")
         if joint_sequence[jnum] is '':
             ja_id = "%d"%jnum
         elif (int(joint_sequence[jnum]) < 0):

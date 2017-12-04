@@ -162,10 +162,10 @@
     <signal name="mode-manual" handler="on_hal_status_mode_manual" swapped="no"/>
     <signal name="all-homed" handler="on_hal_status_all_homed" swapped="no"/>
     <signal name="not-all-homed" handler="on_hal_status_not_all_homed" swapped="no"/>
-    <signal name="state-on" handler="on_hal_status_state_on" swapped="no"/>
     <signal name="file-loaded" handler="on_hal_status_file_loaded" swapped="no"/>
-    <signal name="mode-mdi" handler="on_hal_status_mode_mdi" swapped="no"/>
     <signal name="state-estop" handler="on_hal_status_state_estop" swapped="no"/>
+    <signal name="mode-mdi" handler="on_hal_status_mode_mdi" swapped="no"/>
+    <signal name="state-on" handler="on_hal_status_state_on" swapped="no"/>
     <signal name="line-changed" handler="on_hal_status_line_changed" swapped="no"/>
     <signal name="state-estop-reset" handler="on_hal_status_state_estop_reset" swapped="no"/>
     <signal name="mode-auto" handler="on_hal_status_mode_auto" swapped="no"/>
@@ -651,6 +651,27 @@
                                             <property name="expand">True</property>
                                             <property name="fill">True</property>
                                             <property name="position">1</property>
+                                          </packing>
+                                        </child>
+                                        <child>
+                                          <object class="GtkEventBox" id="eb_blockheight_label">
+                                            <property name="can_focus">False</property>
+                                            <child>
+                                              <object class="GtkLabel" id="lbl_blockheight">
+                                                <property name="visible">True</property>
+                                                <property name="can_focus">False</property>
+                                                <property name="label" translatable="yes">blockheight = 0.0</property>
+                                                <attributes>
+                                                  <attribute name="foreground" value="#ffffffffffff"/>
+                                                  <attribute name="background" value="#000000000000"/>
+                                                </attributes>
+                                              </object>
+                                            </child>
+                                          </object>
+                                          <packing>
+                                            <property name="expand">False</property>
+                                            <property name="fill">True</property>
+                                            <property name="position">2</property>
                                           </packing>
                                         </child>
                                       </object>
@@ -2289,6 +2310,20 @@
                                                     </attributes>
                                                   </object>
                                                   <packing>
+                                                    <property name="right_attach">3</property>
+                                                    <property name="top_attach">2</property>
+                                                    <property name="bottom_attach">3</property>
+                                                  </packing>
+                                                </child>
+                                                <child>
+                                                  <object class="GtkLabel" id="lbl_vc">
+                                                    <property name="visible">True</property>
+                                                    <property name="can_focus">False</property>
+                                                    <property name="xalign">0.94999998807907104</property>
+                                                    <property name="label" translatable="yes">Vc= 0.00</property>
+                                                  </object>
+                                                  <packing>
+                                                    <property name="left_attach">3</property>
                                                     <property name="right_attach">4</property>
                                                     <property name="top_attach">2</property>
                                                     <property name="bottom_attach">3</property>
