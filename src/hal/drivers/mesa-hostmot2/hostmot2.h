@@ -103,8 +103,8 @@
 #define HM2_GTAG_SSI               (8)
 #define HM2_GTAG_UART_TX           (9)
 #define HM2_GTAG_UART_RX           (10)
-#define HM2_GTAG_PKTUART_TX        (27)  // PktUART uses same addresses as normal UART with 
-#define HM2_GTAG_PKTUART_RX        (28) // the assumption you would not use both in one config
+#define HM2_GTAG_PKTUART_TX        (28)  // PktUART uses same addresses as normal UART with 
+#define HM2_GTAG_PKTUART_RX        (29) // the assumption you would not use both in one config
 #define HM2_GTAG_TRANSLATIONRAM    (11)
 #define HM2_GTAG_MUXED_ENCODER     (12)
 #define HM2_GTAG_MUXED_ENCODER_SEL (13)
@@ -121,7 +121,7 @@
 #define HM2_GTAG_BISS              (24) 
 #define HM2_GTAG_FABS              (25) 
 #define HM2_GTAG_HM2DPLL           (26) 
-#define HM2_GTAG_AVR               (29)
+#define HM2_GTAG_AVR               (27)
 #define HM2_GTAG_LIOPORT           (64) // Not supported
 #define HM2_GTAG_LED               (128)
 
