@@ -121,9 +121,9 @@
 #define HM2_GTAG_BISS              (24) 
 #define HM2_GTAG_FABS              (25) 
 #define HM2_GTAG_HM2DPLL           (26) 
-#define HM2_GTAG_AVR               (27)
 #define HM2_GTAG_LIOPORT           (64) // Not supported
 #define HM2_GTAG_LED               (128)
+#define HM2_GTAG_AVR               (129)
 
 #define HM2_GTAG_RESOLVER          (192)
 #define HM2_GTAG_SMARTSERIAL       (193)
