@@ -1,0 +1,92 @@
+component apa102c_bspi "Support for the APA102C/SK9822 LED Strips using bspi interface";
+
+description """The component takes parameters in the form of a comma-separated
+list of bspi (buffered SPI) instance names, for example:
+
+\\fB loadrt apa102c_bspi bspi_chans=hm2_7i90.0.bspi.1\\fR
+
+The number of leds in the strip and the color are controlled by generated pins.
+
+The color of the leds will be the same across all leds in the chain.
+
+Brightness is controlled by a first byte between 0x00 to 0x1f, followed by bytes
+for blue, green and red.
+
+""";
+
+pin in unsigned num_leds.#.out [1] """Number of leds in chain.""";
+pin in unsigned color.#.out [1] """RGB + brightness settings to send to strip""";
+
+variable unsigned *APA102C_write[1];
+variable unsigned num = 0;
+variable unsigned at = 0;
+variable unsigned data = 0;
+
+option extra_setup yes;
+option count_function yes;
+
+license "GPL";
+author "Joseph Calderon";
+
+include "mesa-hostmot2/hostmot2.h";
+;;
+
+// to parse the modparam
+char *bspi_chans[16] = {0,};
+RTAPI_MP_ARRAY_STRING(bspi_chans, 16, "BSPI Channel names");
+
+#include "rtapi_math.h"
+
+static int write(void *subdata) {
+  struct __comp_state *__comp_inst = subdata;
+
+  if (at == 0) {
+    num = num_leds_out(0);
+    data = color_out(0);
+    *APA102C_write[0] = 0x00000000;
+  } else if (at <= num) {
+    *APA102C_write[0] = data | (0xe0 << 24);
+  } else if (at == num + 1) {
+    *APA102C_write[0] =	0xff000000;
+  } else if (at <= num + 2 + (5 + (num / 16) )) {
+    *APA102C_write[0] =	0x00;
+  }
+  at++;
+  at %= (num + 2) + 5 + (num / 16);
+  return 0;
+}
+
+EXTRA_SETUP(){
+  int i, r;
+  char *name = bspi_chans[extra_arg]; // This is the string which identifies board and instance
+
+  // Set up channel descriptors
+  //hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo)
+  r  = hm2_bspi_setup_chan(name, 0, 0, 32, 200/1000.0f, 0, 0, 0, 0, 1);
+
+  if (r < 0) {
+    HM2_ERR_NO_LL("There have been %i errors during channel setup, quitting\n", -r);
+    return -EINVAL;
+  }
+
+  // Add BSPI Frames
+  r += hm2_tram_add_bspi_frame(name, 0, &APA102C_write[0], 0);
+
+  // This is required, or nothing happens.
+  r += hm2_allocate_bspi_tram(name);
+
+  // Tell the bspi driver which function to call
+  r += hm2_bspi_set_write_function(name, &write, __comp_inst);
+
+  if (r < 0) {
+    HM2_ERR_NO_LL("There have been %i errors during TRAM allocation setup, quitting\n", -r);
+    return -EINVAL;
+  }
+  return 0;
+}
+
+int get_count(void){
+  int i;
+  for (i= 0; bspi_chans[i] != NULL && i < 16 ; i++){}
+  return i;
+}
