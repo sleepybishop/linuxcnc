@@ -885,7 +885,6 @@ static void handle_jjogwheels(void)
         } else {
             jaccel_limit = (*(joint_data->jjog_accel_fraction)) * joint->acc_limit;
         }
-
 	/* get counts from jogwheel */
 	new_jjog_counts = *(joint_data->jjog_counts);
 	delta = new_jjog_counts - joint->old_jjog_counts;
@@ -1135,8 +1134,21 @@ static void get_pos_cmds(long period)
                 /* except if homing, when we set free_tp max vel in do_homing */
             }
             /* set acc limit in free TP */
-            joint->free_tp.max_acc = joint->acc_limit;
             /* execute free TP */
+            if (joint->wheel_jjog_active) {
+                double jaccel_limit;
+                joint_hal_t *joint_data;
+                joint_data = &(emcmot_hal_data->joint[joint_num]);
+                if (    (*(joint_data->jjog_accel_fraction) > 1)
+                     || (*(joint_data->jjog_accel_fraction) < 0) ) {
+                     jaccel_limit = joint->acc_limit;
+                } else {
+                   jaccel_limit = (*(joint_data->jjog_accel_fraction)) * joint->acc_limit;
+                }
+                joint->free_tp.max_acc = jaccel_limit;
+            } else {
+                joint->free_tp.max_acc = joint->acc_limit;
+            }
             simple_tp_update(&(joint->free_tp), servo_period );
             /* copy free TP output to pos_cmd and coarse_pos */
             joint->pos_cmd = joint->free_tp.curr_pos;
@@ -1863,6 +1875,12 @@ static void output_to_hal(void)
 	*(joint_data->f_errored) = GET_JOINT_FERROR_FLAG(joint);
 	*(joint_data->faulted) = GET_JOINT_FAULT_FLAG(joint);
 	*(joint_data->home_state) = joint->home_state;
+
+        // conditionally remove outstanding requests to unlock rotaries:
+        if  ( !GET_MOTION_ENABLE_FLAG() && (joint_is_lockable(joint_num))) {
+             *(joint_data->unlock) = 0;
+        }
+
     }
 
     /* output axis info to HAL for scoping, etc */
