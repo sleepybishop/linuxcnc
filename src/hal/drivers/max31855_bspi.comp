@@ -13,17 +13,17 @@ temperature values are not updated while a fault condition is present.
 
 """;
 
-pin out unsigned raw.#.in [2] "raw data";
+pin out unsigned raw.#.in [3] "raw data";
 
-variable unsigned *MAX31855_read[2];
-variable unsigned *MAX31855_write[2];
+variable unsigned *MAX31855_read[3];
+variable unsigned *MAX31855_write[3];
 
-pin out float temp_celsius.# [2] """Temperature output values in Celsius.""";
-pin out float temp_fahrenheit.# [2] """Temperature in Fahrenheit.""";
-pin out float temp_kelvin.# [2] """Temperature in Kelvin.""";
+pin out float temp_celsius.# [3] """Temperature output values in Celsius.""";
+pin out float temp_fahrenheit.# [3] """Temperature in Fahrenheit.""";
+pin out float temp_kelvin.# [3] """Temperature in Kelvin.""";
 
-pin out bit fault.# [2]  "Fault condition detected.";
-pin out unsigned fault_flags.# [2]  "Fault flags: 0x1  = open sensor, 0x2 short to gnd, 0x3 short to vcc.";
+pin out bit fault.# [3]  "Fault condition detected.";
+pin out unsigned fault_flags.# [3]  "Fault flags: 0x1  = open sensor, 0x2 short to gnd, 0x3 short to vcc.";
 
 option extra_setup yes;
 option count_function yes;
@@ -35,8 +35,8 @@ include "mesa-hostmot2/hostmot2.h";
 ;;
 
 // to parse the modparam
-char *bspi_chans[16] = {0,};
-RTAPI_MP_ARRAY_STRING(bspi_chans, 16, "BSPI Channel names");
+char *bspi_chans[4] = {0,};
+RTAPI_MP_ARRAY_STRING(bspi_chans, 4, "BSPI Channel names");
 
 #include "rtapi_math.h"
 
@@ -145,17 +145,15 @@ static float read_celsius_adjusted(int32_t sensor_data) {
 	
 static int read(void *subdata) {
 	struct __comp_state *__comp_inst = subdata;
-	int i;
+	unsigned int i = 0;
 
-	raw_in(0) = *MAX31855_read[0];
-  raw_in(1) = *MAX31855_read[1];
-
-	for (i = 0; i < 1; i++) {
-	  float f = read_celsius_adjusted(*MAX31855_read[i]);
-		fault(i) = (*MAX31855_read[i] & 0x7) ? TRUE : FALSE;
-		fault_flags(i) = *MAX31855_read[i] & 0x7;
+	for (i = 0; i < 2; i++) {
+    raw_in(i) = *MAX31855_read[i];
+	  float f = read_celsius_adjusted(raw_in(i));
+		fault(i) = (raw_in(i) & 0x7) ? TRUE : FALSE;
+    fault_flags(i) = raw_in(i) & 0x7;
 		if (isnan(f)) {
-			rtapi_print("max31855: sensor %d detected fault %x\n", i, *MAX31855_read[i] & 0x7);
+			//rtapi_print("max31855: sensor %d detected fault %x\n", i, raw_in(i) & 0x7);
 		} else {
 			temp_celsius(i) = f;
 			temp_fahrenheit(i) = to_fahrenheit(f);
@@ -174,6 +172,7 @@ EXTRA_SETUP(){
   //hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo)
   r  = hm2_bspi_setup_chan(name, 0, 0, 32, 200/1000.0f, 0, 0, 0, 0, 0);
   r  = hm2_bspi_setup_chan(name, 1, 1, 32, 200/1000.0f, 0, 0, 0, 0, 0);
+  r  = hm2_bspi_setup_chan(name, 2, 2, 32, 200/1000.0f, 0, 0, 0, 0, 0);
 
   if (r < 0) {
     HM2_ERR_NO_LL("There have been %i errors during channel setup, quitting\n", -r);
@@ -181,8 +180,9 @@ EXTRA_SETUP(){
   }
 
   // Add BSPI Frames
-  r += hm2_tram_add_bspi_frame(name, 0, &MAX31855_write[1], &MAX31855_read[1]);
-  r += hm2_tram_add_bspi_frame(name, 1, &MAX31855_write[0], &MAX31855_read[0]);
+  r += hm2_tram_add_bspi_frame(name, 0, &MAX31855_write[0], &MAX31855_read[0]);
+  r += hm2_tram_add_bspi_frame(name, 1, &MAX31855_write[1], &MAX31855_read[1]);
+  r += hm2_tram_add_bspi_frame(name, 2, &MAX31855_write[2], &MAX31855_read[2]);
 
   // This is required, or nothing happens.
   r += hm2_allocate_bspi_tram(name);
@@ -199,6 +199,6 @@ EXTRA_SETUP(){
 
 int get_count(void){
   int i;
-  for (i= 0; bspi_chans[i] != NULL && i < 16 ; i++){}
+  for (i= 0; bspi_chans[i] != NULL && i < 4; i++){}
   return i;
 }
