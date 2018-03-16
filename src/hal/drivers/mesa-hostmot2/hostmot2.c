@@ -368,11 +368,8 @@ static int hm2_parse_config_string(hostmot2_t *hm2, char *config_string) {
     hm2->config.num_pktuarts = -1;
     hm2->config.num_dplls = -1;
     hm2->config.num_leds = -1;
-<<<<<<< HEAD
     hm2->config.num_avrs = -1;
-=======
     hm2->config.num_ssrs = -1;
->>>>>>> upstream/master
     hm2->config.enable_raw = 0;
     hm2->config.firmware = NULL;
 
@@ -978,13 +975,12 @@ static int hm2_parse_module_descriptors(hostmot2_t *hm2) {
                 md_accepted = hm2_led_parse_md(hm2, md_index);
                 break;
 
-<<<<<<< HEAD
             case HM2_GTAG_AVR:
                 md_accepted = hm2_avr_parse_md(hm2, md_index);
-=======
+                break;
+
             case HM2_GTAG_SSR:
                 md_accepted = hm2_ssr_parse_md(hm2, md_index);
->>>>>>> upstream/master
                 break;
 
             default:

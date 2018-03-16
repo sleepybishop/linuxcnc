@@ -1094,11 +1094,8 @@ typedef struct {
         int num_uarts;
         int num_pktuarts;
         int num_dplls;
-<<<<<<< HEAD
         int num_avrs;
-=======
         int num_ssrs;
->>>>>>> upstream/master
         char sserial_modes[4][8];
         int enable_raw;
         char *firmware;
@@ -1142,11 +1139,8 @@ typedef struct {
     hm2_watchdog_t watchdog;
     hm2_dpll_t dpll;
     hm2_led_t led;
-<<<<<<< HEAD
     hm2_avr_t avr;
-=======
     hm2_ssr_t ssr;
->>>>>>> upstream/master
 
     hm2_raw_t *raw;
 
