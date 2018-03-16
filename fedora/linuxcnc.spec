@@ -24,7 +24,6 @@ BuildRequires:  bwidget
 BuildRequires:  libXaw-devel
 BuildRequires:  python-mtTkinter
 BuildRequires:  boost-devel
-BuildRequires:  pth-devel
 BuildRequires:  libmodbus-devel
 BuildRequires:  blt-devel
 BuildRequires:  readline-devel
@@ -32,6 +31,7 @@ BuildRequires:  gettext
 BuildRequires:  python-devel
 BuildRequires:  python-lxml
 BuildRequires:	libudev-devel
+BuildRequires:  intltool
 # for building docs
 %if ! %{_without_docs}
 BuildRequires:  lyx
