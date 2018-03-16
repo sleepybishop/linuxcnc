@@ -113,9 +113,9 @@ reserved_names = [ 'comp_id', 'fperiod', 'rtapi_app_main', 'rtapi_app_exit', 'ex
 
 def _parse(rule, text, filename=None):
     global P, S
-    S = HalScanner(text, filename=filename)
+    S = HalScanner(text)
     P = Hal(S)
-    return runtime.wrap_error_reporter(P, rule)
+    return yappsrt.wrap_error_reporter(P, rule)
 
 def parse(filename):
     initialize()
@@ -157,7 +157,7 @@ def Warn(msg, *args):
 def Error(msg, *args):
     if args:
         msg = msg % args
-    raise runtime.SyntaxError(S.get_pos(), msg, None)
+    raise yappsrt.SyntaxError(S.get_pos(), msg, None)
 
 def comp(name, doc):
     docs.append(('component', name, doc))
@@ -1112,7 +1112,8 @@ def main():
                 raise SystemExit("Unrecognized file type for mode %s: %r" % (modename[mode], f))
         except:
             try:
-                os.unlink(outfile)
+                if outfile:
+                    os.unlink(outfile)
             except: # os.error:
                 pass
             raise
