@@ -91,12 +91,12 @@ int hm2_bspi_parse_md(hostmot2_t *hm2, int md_index)
         chan->base_address = md->base_address + i * md->instance_stride;
         chan->register_stride = md->register_stride;
         chan->instance_stride = md->instance_stride;
-        chan->cd_addr = md->base_address + md->register_stride + i * sizeof(rtapi_u32);
-        chan->count_addr = md->base_address + 2 * md->register_stride + i * sizeof(rtapi_u32);
+        chan->cd_addr = chan->base_address + md->register_stride + i * 4; //FIXME, check firmware
+        chan->count_addr = chan->base_address + 2 * md->register_stride;
         for (j = 0 ; j < 16 ; j++ ){
             chan->addr[j] = chan->base_address + j * sizeof(rtapi_u32);
         }
-        
+        //fprintf(stderr, "fifo: %08x, desc: %08x, counter: %08x\n", chan->addr[0], chan->cd_addr , chan->count_addr );
     }
     return hm2->bspi.num_instances;
 fail0:
@@ -110,6 +110,7 @@ void hm2_bspi_force_write(hostmot2_t *hm2)
         hm2_bspi_instance_t chan = hm2->bspi.instance[i];
         // write the channel descriptors
         for (j = 15 ; j >=0 ; j--){
+            //fprintf(stderr, "bspi %d writing channel descriptor [%d]: %04x:%08x---%04x\n", i, j, chan.cd_addr, chan.cd[j], chan.addr[j]);
             hm2->llio->write(hm2->llio, chan.cd_addr, &(chan.cd[j]), sizeof(rtapi_u32));
         }
     }
