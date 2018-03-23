@@ -61,8 +61,8 @@ EXTRA_SETUP(){
   char *name = bspi_chans[extra_arg]; // This is the string which identifies board and instance
 
   // Set up channel descriptors
-  //hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo)
-  r  = hm2_bspi_setup_chan(name, 0, 0, 32, 200/1000.0f, 0, 0, 0, 0, 1);
+  //hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo, samplelate)
+  r  = hm2_bspi_setup_chan(name, 0, 0, 32, 200/1000.0f, 0, 0, 0, 0, 1, 0);
 
   if (r < 0) {
     HM2_ERR_NO_LL("There have been %i errors during channel setup, quitting\n", -r);
