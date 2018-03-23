@@ -158,6 +158,9 @@ int hm2_allocate_bspi_tram(char* name)
         HM2_ERR_NO_LL("Can not find BSPI instance %s.\n", name);
         return -1;
     }
+
+    hm2_bspi_force_write(hm2);
+
     r = hm2_allocate_tram_regions(hm2);
     if (r < 0) {
         HM2_ERR("Failed to register TRAM for BSPI %s\n", name);
@@ -256,7 +259,7 @@ int hm2_bspi_setup_chan(char *name, int chan, int cs, int bits, float mhz,
     HM2_DBG("BSPI %s Channel %i setup %x\n", name, chan, buff);
     hm2->bspi.instance[i].cd[chan] = buff;
     hm2->bspi.instance[i].conf_flag[chan] = true;
-    hm2_bspi_force_write(hm2);
+
     return 0;
 }
 
