@@ -43,17 +43,27 @@ variable unsigned *AD7329_read[8];
 license "GPL";
 author "Andy Pugh / Cliff Blackburn";
 
-include "../../../hal/drivers/mesa-hostmot2/hostmot2.h";
+include "mesa-hostmot2/hostmot2.h";
 ;;
 
 // to parse the modparam
 char *bspi_chans[16] = {0,};
 RTAPI_MP_ARRAY_STRING(bspi_chans, 16, "BSPI Channel names");
 
-static int read(void *subdata) {
+static int read(void *subdata, rtapi_u32 *data, int rdcount) {
     struct __comp_state *__comp_inst = subdata;
     int i;
     double aout[8];
+
+    CPLD_read = &data[0];
+    AD7329_read[0] = &data[1];
+    AD7329_read[1] = &data[2];
+    AD7329_read[2] = &data[3];
+    AD7329_read[3] = &data[4];
+    AD7329_read[4] = &data[5];
+    AD7329_read[5] = &data[6];
+    AD7329_read[6] = &data[7];
+    AD7329_read[7] = &data[8];
 
     // Write Misc IO & Reset Watchdog
     *CPLD_write = 0xA00 // "write" command
@@ -206,21 +216,21 @@ EXTRA_SETUP(){
     }
     // Add BSPI Frames
     r += hm2_tram_add_bspi_frame(name, 4, &CPLD_write,
-                            &CPLD_read);
+                            NULL);
 
     for(i = 0; i < 8; i++) {
         r += hm2_tram_add_bspi_frame(name, 3, &AD7329_write[i],
-                                &AD7329_read[i]);
+                                NULL);
     }
 
-    r += hm2_tram_add_bspi_frame(name, 1, &AD5754_1A,0);
-    r += hm2_tram_add_bspi_frame(name, 1, &AD5754_1B,0);
-    r += hm2_tram_add_bspi_frame(name, 1, &AD5754_1C,0);
-    r += hm2_tram_add_bspi_frame(name, 1, &AD5754_1D,0);
-    r += hm2_tram_add_bspi_frame(name, 2, &AD5754_2A,0);
-    r += hm2_tram_add_bspi_frame(name, 2, &AD5754_2B,0);
-    r += hm2_tram_add_bspi_frame(name, 2, &AD5754_2C,0);
-    r += hm2_tram_add_bspi_frame(name, 2, &AD5754_2D,0);
+    r += hm2_tram_add_bspi_frame(name, 1, &AD5754_1A, NULL);
+    r += hm2_tram_add_bspi_frame(name, 1, &AD5754_1B, NULL);
+    r += hm2_tram_add_bspi_frame(name, 1, &AD5754_1C, NULL);
+    r += hm2_tram_add_bspi_frame(name, 1, &AD5754_1D, NULL);
+    r += hm2_tram_add_bspi_frame(name, 2, &AD5754_2A, NULL);
+    r += hm2_tram_add_bspi_frame(name, 2, &AD5754_2B, NULL);
+    r += hm2_tram_add_bspi_frame(name, 2, &AD5754_2C, NULL);
+    r += hm2_tram_add_bspi_frame(name, 2, &AD5754_2D, NULL);
 
     // This is required, or nothing happens.
     r += hm2_allocate_bspi_tram(name);

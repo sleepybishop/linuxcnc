@@ -820,6 +820,8 @@ typedef struct {
     int conf_flag[16];
     rtapi_u16 cd_addr;
     rtapi_u16 count_addr;
+    rtapi_u32 count_reg;
+    rtapi_u32 data_reg[16];
     hal_u32_t *count;
     int num_frames;
     rtapi_u32 clock_freq;
@@ -827,7 +829,7 @@ typedef struct {
     rtapi_u32 register_stride;
     rtapi_u32 instance_stride;
     char name[HAL_NAME_LEN+1];
-    int (*read_function)(void*);
+    int (*read_function)(void*, rtapi_u32 *, int);
     int (*write_function)(void*);
     void *subdata;
 } hm2_bspi_instance_t;
@@ -1352,7 +1354,7 @@ int hm2_tram_add_bspi_frame(char *name, int chan, rtapi_u32 **wbuff, rtapi_u32 *
 int hm2_bspi_setup_chan(char *name, int chan, int cs, int bits, float mhz, 
                         int delay, int cpol, int cpha, int noclear, int noecho,
                         int samplelate);
-int hm2_bspi_set_read_function(char *name, int (*func)(void *subdata), void *subdata);
+int hm2_bspi_set_read_function(char *name, int (*func)(void *subdata, rtapi_u32 *, int));
 int hm2_bspi_set_write_function(char *name, int (*func)(void *subdata), void *subdata);
 
 //
