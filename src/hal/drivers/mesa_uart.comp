@@ -19,7 +19,7 @@ Note that no spaces are allowed in the string unless it is delimited by double
 quotes. 
 
 The UART instance names are printed to the dmesg buffer during the Hostmot2 
-setup sequence, one for each bspi instance included in the bitfile loaded to 
+setup sequence, one for each uart instance included in the bitfile loaded to 
 each installed card during the Hostmot2 setup sequence. Type "dmesg" at the 
 terminal prompt to view the output.
 
