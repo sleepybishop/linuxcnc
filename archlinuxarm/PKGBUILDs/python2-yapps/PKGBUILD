@@ -1,0 +1,23 @@
+pkgname=python2-yapps
+pkgver=2.1.1
+pkgrel=9.1
+pkgdesc="Yet Another Python Parser System"
+url="http://theory.stanford.edu/~amitp/yapps/"
+license=("Public Domain")
+depends=('python2')
+arch=('i686' 'x86_64')
+source=('yapps2.1.1.tar.gz')
+md5sums=('7d5ac9cfb2de690adf26d5e83ca7679f');
+
+build() {
+  # configure
+  cd ${srcdir}/Yapps-${pkgver}
+  python setup.py build
+}
+
+package() {
+  cd ${srcdir}/Yapps-${pkgver}
+  python setup.py install --root=${pkgdir} --prefix=/usr
+  mv ${pkgdir}/usr/bin/yapps2 ${pkgdir}/usr/bin/yapps
+}
+
