@@ -22,7 +22,7 @@ BuildRequires:  tcl-devel
 BuildRequires:  tk-devel
 BuildRequires:  bwidget
 BuildRequires:  libXaw-devel
-BuildRequires:  python-mtTkinter
+BuildRequires:  python-mttkinter
 BuildRequires:  boost-devel
 BuildRequires:  libmodbus-devel
 BuildRequires:  blt-devel
@@ -47,7 +47,7 @@ Requires:       bwidget
 Requires:       blt
 Requires:       tclx
 Requires:       tkimg
-Requires:       python-mtTkinter
+Requires:       python-mttkinter
 Requires:       python-xlib
 Requires:       pygtkglext
 Requires:       boost-python
@@ -150,6 +150,7 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %attr(0755,-,-) %{_bindir}/halsampler
 %attr(0755,-,-) %{_bindir}/halscope
 %attr(0755,-,-) %{_bindir}/halshow
+%attr(0755,-,-) %{_bindir}/halreport
 %attr(0755,-,-) %{_bindir}/halstreamer
 %attr(0755,-,-) %{_bindir}/haltcl
 %attr(0755,-,-) %{_bindir}/halui
@@ -199,6 +200,7 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %attr(0755,-,-) %{_bindir}/linuxcnc_module_helper
 %attr(0755,-,-) %{_bindir}/panelui
 %attr(0755,-,-) %{_bindir}/pyui
+%attr(0755,-,-) %{_bindir}/qtvcp
 %attr(0755,-,-) %{_bindir}/rotarydelta
 %attr(0755,-,-) %{_bindir}/scorbot-er-3
 %attr(0755,-,-) %{_bindir}/shuttle
@@ -235,6 +237,8 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %{_datadir}/gtksourceview-2.0
 %{_datadir}/linuxcnc
 %{_datadir}/gscreen
+%{_datadir}/qtvcp
+
 %lang(de) %{_datadir}/locale/de/LC_MESSAGES/linuxcnc.mo
 %lang(es) %{_datadir}/locale/es/LC_MESSAGES/linuxcnc.mo
 %lang(fi) %{_datadir}/locale/fi/LC_MESSAGES/linuxcnc.mo
