@@ -494,7 +494,7 @@ manual controls are unavailable.
 Many of the items described below are not useful on all machines. 
 When AXIS detects that a particular pin is not connected in HAL, 
 the corresponding item in the Manual Control tab is removed. 
-For instance, if the HAL pin 'motion.spindle-brake' is not connected, 
+For instance, if the HAL pin 'spindle.0.brake' is not connected, 
 then the 'Brake' button will not appear on the screen. 
 If the environment variable 'AXIS_NO_AUTOCONFIGURE' is set, 
 this behavior is disabled and all the items will appear. 
@@ -521,23 +521,40 @@ By default, the available values are '0.1000, 0.0100, 0.0010, 0.0001'
 See the <<sec:display-section,DISPLAY Section>> for more information on setting
 the increments.
 
-.Homing
+.Homing (Identity Kinematics)
 
-If your machine has home switches and a homing sequence defined for
-all axes the button will read 'Home All'. The 'Home All' button or the
-Ctrl-HOME key will home all axes using the homing sequence. Pressing
-the HOME key will home the current axis, even if a homing sequence is
-defined.
+The inifile setting [KINS]JOINTS defines the total number of
+joints for the system.  A joint may be configured with
+a home switch or for 'immediate' homing.  Joints may specify
+a home sequence that organizes the order for homing groups
+of joints.
 
-If your machine has home switches and no homing sequence is defined or
-not all axes have a homing sequence the button will read 'Home' and
-will home the selected axis only. Each axis must be selected and homed
+If *all* joints are configured for homing and have valid
+home sequences, the homing button will show 'Home All'.  Pressing
+the 'Home All' button (or the Ctrl-HOME key) will initiate homing
+for all joints using their defined home sequences.  Pressing the
+HOME key will home the joint corresponding to the currently
+selected axis even if no homing sequence is defined.
+
+If not all axes have valid home sequences, the homing button will
+show 'Home Axis' and will home the joint for the currently
+selected axis only.  Each axis must be selected and homed
 separately.
 
-If your machine does not have home switches defined in the
-configuration the 'Home' button will set the current selected axis
-current position to be the absolute position 0 for that axis and will
-set the 'is-homed' bit for that axis.
+The dropdown menu Machine/Homing provides an alternate method to
+home axes. The dropdown menu Machine/Unhoming provides means to
+unhome axes.
+
+See the <<cha:homing-configuration,Homing Configuration Chapter>> for more
+information.
+
+.Homing (Non-Identity Kinematics)
+
+Operation is similar to that for Identity Kinematics but, prior to
+homing, the selection radiobuttons select joints by number.  The
+homing button will show 'Home All' if all joints are configured
+for homing and have valid home sequences.  Otherwise, the homing
+button will show 'Home Joint'.
 
 See the <<cha:homing-configuration,Homing Configuration Chapter>> for more
 information.
@@ -571,8 +588,8 @@ on an axis is to Unhome it._
 
 The buttons on the first row select the direction for the spindle to
 rotate: Counterclockwise, Stopped, Clockwise. Counterclockwise will
-only show up if the pin 'motion.spindle-reverse' is in the HAL file (it
-can be 'net trick-axis motion.spindle-reverse' ). The buttons on the
+only show up if the pin 'spindle.0.reverse' is in the HAL file (it
+can be 'net trick-axis spindle.0.reverse' ). The buttons on the
 next row increase or decrease the rotation
 speed. The checkbox on the third row allows the spindle brake to be
 engaged or released. Depending on your machine configuration, not all
@@ -616,7 +633,7 @@ then the resulting feed rate will be 72.
 By moving this slider, the programmed spindle speed can be
 modified. For instance, if a program requests S8000 and the slider is
 set to 80%, then the resulting spindle speed will be 6400. This item
-only appears when the HAL pin 'motion.spindle-speed-out' is connected.
+only appears when the HAL pin 'spindle.0.speed-out' is connected.
 
 === Jog Speed
 
@@ -749,7 +766,7 @@ The hal_manualtoolchange component includes a hal pin for a button that
 can be connected to a physical button to complete the tool change and
 remove the window prompt (hal_manualtoolchange.change_button).
 
-The HAL configuration file 'configs/sim/axis_manualtoolchange.hal'
+The HAL configuration file 'lib/hallib/axis_manualtoolchange.hal'
 shows the HAL commands necessary to use this component.
 
 hal_manualtoolchange can be used even when AXIS is not used as the GUI. 

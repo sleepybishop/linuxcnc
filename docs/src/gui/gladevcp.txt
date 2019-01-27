@@ -111,7 +111,7 @@ start Axis in the background and start gladevcp as follows:
 FIXME: I'm not sure how this is supposed to work with axis in one
 directory and gladevcp in a different directory.
 
-FIXME: there is a conflict for motion.spindle-speed-out since it is used by both
+FIXME: there is a conflict for motion.N.spindle-speed-out since it is used by both
    axis.ini: sim_spindle_encoder.hal
    and
    manual-example.ui: manual-example.hal
@@ -994,9 +994,18 @@ text_template::
 These containers are meant to be used to sensitize (grey out) or hide their children. +
 Insensitived children will not respond to input. +
 HAL_HideTable has one HAL BIT input pin which controls if it's child widgets are hidden or not. +
-If the pin is low then child widgets are visible which is the default state. +
+
+<Panel_basename>.<widgetname>::
+
+If the pin is low then child widgets are visible which is the default state.
+
 HAL_Table and HAL_Hbox have one HAL BIT input pin which controls if their child widgets are sensitive or not. +
-If the pin is low then child widgets are inactive which is the default state. +
+These widgets's pin name uses the convention: +
+
+<Panel_basename>.<widgetname>::
+
+If the pin is low then child widgets are inactive which is the default state.
+
 State_Sensitive_table responds to the state to linuxcnc's interpreter. +
 optionally selectable to respond to 'must-be-all-homed','must-be-on' and 'must-be-idle' +
 You can combine them. It will always be insensitive at Estop. +
@@ -1902,6 +1911,27 @@ image::images/hal_sourceview.png[]
 This is for displaying and entering MDI codes. +
 It will automatically gray out when MDI is not available. +
 Eg during Estop and program running.
+
+font_size_tree::
+    a integer value between 8 and 96+
+    will modify the default font size of the treeview +
+    to the selected value +
+font_size_entry::
+    a integer value between 8 and 96+
+    will modify the default font size of the entry +
+    to the selected value +
+use_double_click::
+    True or False, setting this to True will enable the mouse double click +
+    feature and a double click on an entry will submit that command +
+    It is not recommended to use this feature on real machines, as a double +
+    click on a wrong entry may cause dangerous situations
+
+Using goobject to set the above listed properties::
+
+    Using goobject to set the listed properties:
+    [widget name].set_property("font_size_tree", 10)
+    [widget name].set_property("font_size_entry", 20)
+    [widget name].set_property("use_double_click", False)
 
 === Animated function diagrams: HAL widgets in a bitmap
 

@@ -441,11 +441,11 @@ class Private_Data:
             [_("X2 Maximum Limit"),S.MAX_X2 ], [_("Y2 Maximum Limit"),S.MAX_Y2 ], [_("Z2 Maximum Limit"),S.MAX_Z2 ], [_("A2 Maximum Limit"),S.MAX_A2 ],
             [_("X2 Both Limit"),S.BOTH_X2 ], [_("Y2 Both Limit"),S.BOTH_Y2 ], [_("Z2 Both Limit"),S.BOTH_Z2 ], [_("A2 Both Limit"), S.BOTH_A2], ]
 
-        blimits = [["Main Axis",limit],["Tandem Axis",limit2]]
-        bhome = [["Main Axis",home],["Tandem Axis",home2]]
-        bshared = [["Main Axis",home_limits_shared],["Tandem Axis",home_limits_shared2]]
+        blimits = [[_("Main Axis"),limit],[_("Tandem Axis"),limit2]]
+        bhome = [[_("Main Axis"),home],[_("Tandem Axis"),home2]]
+        bshared = [[_("Main Axis"),home_limits_shared],[_("Tandem Axis"),home_limits_shared2]]
         self.human_input_names = [ [_("Unused Input"),S.UNUSED_INPUT],[_("Limits"),blimits],
-            [_("Home"),bhome],[_("Limts/Home Shared"),bshared],
+            [_("home"),bhome],[_("Limts/Home Shared"),bshared],
             [_("Digital"),digital],[_("Axis Selection"),axis_select],[_("Overrides"),override],
             [_("Spindle"),spindle],[_("Operation"),operation],[_("External Control"),control],
             [_("Axis rapid"),rapid],[_("X BLDC Control"),xmotor_control],
@@ -457,7 +457,7 @@ class Private_Data:
              [_("Z2 Tandem PWM"), S.Z2_PWM_PULSE], [_("A2 Tandem PWM"), S.A2_PWM_PULSE]]
         mpwm =[[_("X Axis PWM"), S.X_PWM_PULSE],[_("Y Axis PWM"), S.Y_PWM_PULSE],
             [_("Z Axis PWM"), S.Z_PWM_PULSE],[_("A Axis PWM"), S.A_PWM_PULSE]]
-        tandem_pwm = [["Main Axis",mpwm],["Tandem Axis",tpwm]]
+        tandem_pwm = [[_("Main Axis"),mpwm],[_("Tandem Axis"),tpwm]]
         self.human_pwm_output_names =[ [_("Unused PWM Gen"), S.UNUSED_PWM],[_("Axis PWM"),
             tandem_pwm],[_("Spindle PWM"), S.SPINDLE_PWM_PULSE],
             [_("Custom Signals"),[]] ]
@@ -467,9 +467,9 @@ class Private_Data:
                 [_("A Axis StepGen"),S.A_STEPGEN_STEP] ]
         tandem_step = [ [_("X2 Tandem StepGen"),S.X2_STEPGEN_STEP],[_("Y2 Tandem StepGen"),S.Y2_STEPGEN_STEP],
                 [_("Z2 Tandem StepGen"),S.Z2_STEPGEN_STEP]]
-        bstep = [["Main Axis",main_step],["Tandem Axis",tandem_step]]
+        bstep = [[_("Main Axis"),main_step],[_("Tandem Axis"),tandem_step]]
         self.human_stepper_names = [ [_("Unused StepGen"),S.UNUSED_STEPGEN],
-            ["Axis",bstep],
+            [_("Axis"),bstep],
             [_("Charge Pump StepGen"), S.CHARGE_PUMP_STEP], [_("Spindle StepGen"), S.SPINDLE_STEPGEN_STEP],
             [_("Custom Signals"),[]] ]
         #
@@ -482,7 +482,7 @@ class Private_Data:
                  [_("Z Hand Wheel"), S.Z_MPG_A], [_("A Hand Wheel"), S.A_MPG_A],
                  [_("Multi Hand Wheel"), S.SELECT_MPG_A]]
         over = [[_("Feed Override"),  S.FO_MPG_A], [_("spindle Override"),  S.SO_MPG_A],[_("Max Vel Override"),  S.MVO_MPG_A]]
-        tandem_enc = [["Main Axis",axis],["Tandem Axis",taxis]]
+        tandem_enc = [[_("Main Axis"),axis],[_("Tandem Axis"),taxis]]
         self.human_encoder_input_names = [ [_("Unused Encoder"), S.UNUSED_ENCODER],[_("Axis Encoder"), tandem_enc],
              [_("Spindle Encoder"), S.SPINDLE_ENCODER_A], [_("MPG Jog Controls"), mpg],[_("Override MPG control"), over],
             [_("Custom Signals"),[]] ]
@@ -674,7 +674,7 @@ class Private_Data:
         [S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],],
 
     # 7i92 ####################
-    ["7i92-Internal Data", "7i92", "7i76x2 with one 7i76 ", "5i92", "hm2_eth",
+    ["7i92-Internal Data", "7i92", "7i76x2 with one 7i76 ", "7i92", "hm2_eth",
          1,3, 0,0, 0,3, 0,0, 5,2, 1,2, [],0,0,0,0,0,0,0, 1, 34 , 33, 200, [2,1],
         # TAB 2
         [S.STEPB,0],[S.STEPA,0],[S.STEPB,1],[S.STEPA,1],[S.STEPB,2],[S.STEPA,2],[S.STEPB,3],[S.STEPA,3],[S.STEPB,4],[S.STEPA,4],
@@ -716,6 +716,17 @@ class Private_Data:
         # TAB 1
         [S.TXEN5, 0],[S.TXDATA5, 0],[S.RXDATA5, 0],[S.SS7I77M4, 0],[S.RXDATA4, 0],[S.SS7I77M3, 0],[S.RXDATA3, 0],[S.MXES, 3],[S.MXE0, 3],[S.MXE1, 3],
         [S.MXEI, 3],[S.MXE0, 4],[S.MXE1, 4],[S.MXEI, 4],[S.MXE0, 5],[S.MXE1, 5],[S.MXEI, 5],
+        [S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],],
+
+    ["7i92-Internal Data", "7i92", "7i77_7i76", "7i92", "hm2_eth",
+        6,3, 0,0, 0,3, 0,0, 5,2, 1,5, 0,0,0,0,0,0,0,0, 1, 34 , 33, 200, [2,1],
+        # TAB 2
+        [S.TXEN2, 0],[S.TXDATA2, 0],[S.RXDATA2, 0],[S.SS7I77M1, 0],[S.RXDATA1, 0],[S.SS7I77M0, 0],[S.RXDATA0, 0],[S.MXES, 0],[S.MXE0, 0],[S.MXE1, 0],
+        [S.MXEI, 0],[S.MXE0, 1],[S.MXE1, 1],[S.MXEI, 1],[S.MXE0, 2],[S.MXE1, 2],[S.MXEI, 2],
+        [S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],
+        # TAB 1
+        [S.STEPB,0],[S.STEPA,0],[S.STEPB,1],[S.STEPA,1],[S.STEPB,2],[S.STEPA,2],[S.STEPB,3],[S.STEPA,3],[S.STEPB,4],[S.STEPA,4],
+        [S.SS7I76M3,0],[S.RXDATA3,0],[S.TXDATA4,0],[S.RXDATA4,0],[S.ENCI,0],[S.ENCB,0],[S.ENCA,0],
         [S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],[S.NUSED,0],],
 
     # 7i80HD #################
