@@ -48,7 +48,6 @@ class MyEventFilter(QtCore.QObject):
                 handled = self.w.handler_instance.keypress_event__(receiver,event)
             elif self.has_process_key_handler:
                 if event.isAutoRepeat():return True
-                if event.key() in(16777249,16777248): return True
                 p,k,c,s,ctrl = self.process_event(event,True)
                 handled = self.w.handler_instance.processed_key_event__(receiver,event,p,k,c,s,ctrl)
             if handled: return True
@@ -59,7 +58,6 @@ class MyEventFilter(QtCore.QObject):
                 handled = self.w.handler_instance.keyrelease_event__(event)
             elif self.has_process_key_handler:
                 if event.isAutoRepeat():return True
-                if event.key() in(16777249,16777248): return True
                 p,k,c,s,ctrl = self.process_event(event,False)
                 handled = self.w.handler_instance.processed_key_event__(receiver,event,p,k,c,s,ctrl)
             if handled: return True
@@ -136,17 +134,13 @@ class MyWindow(QtWidgets.QMainWindow):
             return
         except:
             if fname:
+                themes = ''
                 log.error('QSS Filepath Error: {}'.format(qssname))
-                # warnings
-                log.warning("{} theme not available".format(fname))
-                current_theme = QtWidgets.qApp.style().objectName()
-                themes=['\nQTvcp Available system themes:']
+                log.error("{} theme not available".format(fname))
+                current_theme = str(QtWidgets.qApp.style().objectName())
                 for i in (QtWidgets.QStyleFactory.keys()):
-                    if i == current_theme:
-                        themes.append('  * green<{}>'.format(i))
-                    else:
-                        themes.append('  * {}'.format(i))
-                log.info('\n'.join(themes))
+                    themes += (', {}'.format(i))
+                log.error('QTvcp Available system themes: green<{}> {}'.format(current_theme, themes))
 
     def load_extension(self,handlerpath):
         methods,self.handler_module,self.handler_instance = self._load_handlers([handlerpath], self.halcomp,self)

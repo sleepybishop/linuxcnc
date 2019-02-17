@@ -64,6 +64,7 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
         self.launch_halmeter = False
         self.launch_status = False
         self.launch_halshow = False
+        self.launch_halscope = False
         self.mdi = False
         self.auto = False
         self.manual = False
@@ -71,6 +72,7 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
         self.jog_rate = False
         self.feed_over = False
         self.rapid_over = False
+        self.max_velocity_over = False
         self.spindle_over = False
         self.view_change = False
         self.spindle_fwd = False
@@ -231,6 +233,8 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
             pass
         elif self.launch_halshow:
             pass
+        elif self.launch_halscope:
+            pass
         elif self.auto:
             STATUS.connect('mode-auto', lambda w: _safecheck(True))
             STATUS.connect('mode-mdi', lambda w: _safecheck(False))
@@ -247,22 +251,28 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
             STATUS.connect('metric-mode-changed', lambda w, data:  self.incr_action())
             STATUS.connect('jogincrement-changed', lambda w, value, text: _checkincrements(value, text))
 
-        elif self.feed_over or self.rapid_over or self.spindle_over or self.jog_rate:
+        elif self.feed_over or self.rapid_over or self.spindle_over or self.jog_rate or \
+            self.max_velocity_over:
             STATUS.connect('state-estop', lambda w: self.setEnabled(False))
             STATUS.connect('state-estop-reset', lambda w: self.setEnabled(STATUS.machine_is_on()))
             STATUS.connect('state-on', lambda w: _safecheck(True))
             STATUS.connect('state-off', lambda w: _safecheck(False))
         elif self.view_change:
             pass
-        elif self.spindle_fwd or self.spindle_rev or self.spindle_stop or \
-                self.spindle_up or self.spindle_down:
+        elif self.spindle_fwd or self.spindle_rev or self.spindle_up or self.spindle_down:
             STATUS.connect('mode-manual', lambda w: _safecheck(True))
             STATUS.connect('mode-mdi', lambda w: _safecheck(False))
             STATUS.connect('mode-auto', lambda w: _safecheck(False))
             STATUS.connect('state-off', lambda w: self.setEnabled(False))
             STATUS.connect('state-estop', lambda w: self.setEnabled(False))
             STATUS.connect('state-on', lambda w: self.setEnabled(True))
+        elif self.spindle_stop:
+            STATUS.connect('mode-auto', lambda w: self.setEnabled(False))
             STATUS.connect('state-off', lambda w: self.setEnabled(False))
+            STATUS.connect('state-estop', lambda w: self.setEnabled(False))
+            STATUS.connect('spindle-control-changed', lambda w, e, d: self.setEnabled(e and not STATUS.is_auto_mode()))
+            STATUS.connect('spindle-control-changed', lambda w, e, d: _safecheck(not e))
+
         elif self.limits_override:
             STATUS.connect('hard-limits-tripped', lambda w, data: self.setEnabled(data))
         elif self.flood:
@@ -358,6 +368,8 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
             AUX_PRGM.load_status()
         elif self.launch_halshow:
             AUX_PRGM.load_halshow()
+        elif self.launch_halscope:
+            AUX_PRGM.load_halscope()
         elif self.auto:
             ACTION.SET_AUTO_MODE()
         elif self.mdi:
@@ -385,6 +397,13 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
                 ACTION.SET_RAPID_RATE(self.float_alt)
             else:
                 ACTION.SET_RAPID_RATE(self.float)
+            self._toggle_state -= 1
+            self._toggle_state = self._toggle_state * -1
+        elif self.max_velocity_over:
+            if self.toggle_float and not self._toggle_state:
+                ACTION.SET_MAX_VELOCITY_RATE(self.float_alt)
+            else:
+                ACTION.SET_MAX_VELOCITY_RATE(self.float)
             self._toggle_state -= 1
             self._toggle_state = self._toggle_state * -1
         elif self.spindle_over:
@@ -547,7 +566,7 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
                 'spindle_rev', 'spindle_stop', 'spindle_up', 'spindle_down',
                 'limits_override', 'flood', 'mist', 'optional_stop', 'mdi_command',
                 'ini_mdi_command', 'command_text', 'block_delete', 'dro_absolute',
-                'dro_relative', 'dro_dtg')
+                'dro_relative', 'dro_dtg','max_velocity_over', 'launch_halscope')
 
         for i in data:
             if not i == picked:
@@ -716,6 +735,15 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
     def reset_launch_halshow(self):
         self.launch_halshow = False
 
+    def set_launch_halscope(self, data):
+        self.launch_halscope = data
+        if data:
+            self._toggle_properties('launch_halscope')
+    def get_launch_halscope(self):
+        return self.launch_halscope
+    def reset_launch_halscope(self):
+        self.launch_halscope = False
+
     def set_auto(self, data):
         self.auto = data
         if data:
@@ -785,6 +813,15 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
         return self.rapid_over
     def reset_rapid_over(self):
         self.rapid_over = False
+
+    def set_max_velocity_over(self, data):
+        self.max_velocity_over = data
+        if data:
+            self._toggle_properties('max_velocity_over')
+    def get_max_velocity_over(self):
+        return self.max_velocity_over
+    def reset_max_velocity_over(self):
+        self.max_velocity_over = False
 
     def set_spindle_over(self, data):
         self.spindle_over = data
@@ -1028,6 +1065,7 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
     launch_halmeter_action = QtCore.pyqtProperty(bool, get_launch_halmeter, set_launch_halmeter, reset_launch_halmeter)
     launch_status_action = QtCore.pyqtProperty(bool, get_launch_status, set_launch_status, reset_launch_status)
     launch_halshow_action = QtCore.pyqtProperty(bool, get_launch_halshow, set_launch_halshow, reset_launch_halshow)
+    launch_halscope_action = QtCore.pyqtProperty(bool, get_launch_halscope, set_launch_halscope, reset_launch_halscope)
     home_action = QtCore.pyqtProperty(bool, get_home, set_home, reset_home)
     zero_axis_action = QtCore.pyqtProperty(bool, get_zero_axis, set_zero_axis, reset_zero_axis)
     jog_joint_pos_action = QtCore.pyqtProperty(bool, get_jog_joint_pos, set_jog_joint_pos, reset_jog_joint_pos)
@@ -1038,6 +1076,7 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
     jog_rate_action = QtCore.pyqtProperty(bool, get_jog_rate, set_jog_rate, reset_jog_rate)
     feed_over_action = QtCore.pyqtProperty(bool, get_feed_over, set_feed_over, reset_feed_over)
     rapid_over_action = QtCore.pyqtProperty(bool, get_rapid_over, set_rapid_over, reset_rapid_over)
+    max_velocity_over_action = QtCore.pyqtProperty(bool, get_max_velocity_over, set_max_velocity_over, reset_max_velocity_over)
     spindle_over_action = QtCore.pyqtProperty(bool, get_spindle_over, set_spindle_over, reset_spindle_over)
     spindle_fwd_action = QtCore.pyqtProperty(bool, get_spindle_fwd, set_spindle_fwd, reset_spindle_fwd)
     spindle_rev_action = QtCore.pyqtProperty(bool, get_spindle_rev, set_spindle_rev, reset_spindle_rev)

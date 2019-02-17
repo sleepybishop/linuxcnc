@@ -192,8 +192,6 @@ class EditorBase(QsciScintilla):
 
     def __init__(self, parent=None):
         super(EditorBase, self).__init__(parent)
-        # linuxcnc defaults
-        self.idle_line_reset = False
         # don't allow editing by default
         self.setReadOnly(True)
         # Set the default font
@@ -285,6 +283,7 @@ class EditorBase(QsciScintilla):
             return
         self.ensureCursorVisible()
         self.SendScintilla(QsciScintilla.SCI_VERTICALCENTRECARET)
+        self.setModified(False)
 
     def save_text(self):
         with open(self.filepath + 'text', "w") as text_file:
@@ -308,8 +307,12 @@ class GcodeDisplay(EditorBase, _HalWidgetBase):
 
     def __init__(self, parent=None):
         super(GcodeDisplay, self).__init__(parent)
+        # linuxcnc defaults
+        self.idle_line_reset = False
         self._last_filename = None
         self.auto_show_mdi = True
+        self.auto_show_manual = False
+        self.auto_show_preference = True
         self.last_line = None
         #self.setEolVisibility(True)
 
@@ -318,12 +321,14 @@ class GcodeDisplay(EditorBase, _HalWidgetBase):
         if self.auto_show_mdi:
             STATUS.connect('mode-mdi', self.load_mdi)
             STATUS.connect('reload-mdi-history', self.load_mdi)
-            STATUS.connect('machine-log-changed', self.load_manual)
             STATUS.connect('mode-auto', self.reload_last)
-            STATUS.connect('mode-manual', self.load_manual)
-            STATUS.connect('show-preference', self.load_preference)
             STATUS.connect('move-text-lineup', self.select_lineup)
             STATUS.connect('move-text-linedown', self.select_linedown)
+        if self.auto_show_manual:
+            STATUS.connect('mode-manual', self.load_manual)
+            STATUS.connect('machine-log-changed', self.load_manual)
+        if self.auto_show_preference:
+            STATUS.connect('show-preference', self.load_preference)
         STATUS.connect('file-loaded', self.load_program)
         STATUS.connect('line-changed', self.highlight_line)
         if self.idle_line_reset:
@@ -337,6 +342,7 @@ class GcodeDisplay(EditorBase, _HalWidgetBase):
         self.load_text(filename)
         #self.zoomTo(6)
         self.setCursorPosition(0, 0)
+        self.setModified(False)
 
     # when switching from MDI to AUTO we need to reload the
     # last (linuxcnc loaded) program.
@@ -364,17 +370,19 @@ class GcodeDisplay(EditorBase, _HalWidgetBase):
             self.setCursorPosition(self.lines(), 0)
 
     def load_text(self, filename):
-        try:
-            fp = os.path.expanduser(filename)
-            self.setText(open(fp).read())
-        except:
-            LOG.error('File path is not valid: {}'.format(filename))
-            self.setText('')
-            return
+        if filename:
+            try:
+                fp = os.path.expanduser(filename)
+                self.setText(open(fp).read())
+                self.last_line = None
+                self.ensureCursorVisible()
+                self.SendScintilla(QsciScintilla.SCI_VERTICALCENTRECARET)
+                return
+            except:
+                LOG.error('File path is not valid: {}'.format(filename))
+        self.setText('')
 
-        self.last_line = None
-        self.ensureCursorVisible()
-        self.SendScintilla(QsciScintilla.SCI_VERTICALCENTRECARET)
+
 
     def highlight_line(self, w, line):
         if STATUS.is_auto_running():
@@ -451,6 +459,7 @@ class GcodeEditor(QWidget, _HalWidgetBase):
         # so we get the lines percent update
         self.editor.emit_percent = self.emit_percent
         self.editor.setReadOnly(True)
+        self.editor.setModified(False)
 
         ################################
         # add menubar actions
@@ -485,13 +494,13 @@ class GcodeEditor(QWidget, _HalWidgetBase):
         gCodeLexerAction.setCheckable(1)
         gCodeLexerAction.setShortcut('Ctrl+G')
         gCodeLexerAction.setStatusTip('Set Gcode highlighting')
-        gCodeLexerAction.triggered.connect(self.editor.set_gcode_lexer)
+        gCodeLexerAction.triggered.connect(self.gcodeLexerCall)
 
         # Create gcode lexer action
         pythonLexerAction = QAction(QIcon.fromTheme('lexer.png'), '&python\n lexer', self)        
         pythonLexerAction.setShortcut('Ctrl+P')
         pythonLexerAction.setStatusTip('Set Python highlighting')
-        pythonLexerAction.triggered.connect(self.editor.set_python_lexer)
+        pythonLexerAction.triggered.connect(self.pythonLexerCall)
 
         # Create toolbar and add action
         toolBar = QToolBar('File')
@@ -576,9 +585,89 @@ class GcodeEditor(QWidget, _HalWidgetBase):
 
         return self.bottomMenu
 
+    # callback functions built for easy class patching ##########
+    # want to refrain from renaming these functions as it will break
+    # any class patch user's use
+    # we split them like this so a user can intercept the callback
+    # but still call the original functionality
+
+    def caseCall(self):
+        self.case()
+    def case(self):
+        self.isCaseSensitive -=1
+        self.isCaseSensitive *=-1
+        print self.isCaseSensitive
+
+    def exitCall(self):
+        self.exit()
+    def exit(self):
+        if self.editor.isModified():
+            result = self.killCheck()
+            if result:
+                self.readOnlyMode()
+
+    def findCall(self):
+        self.find()
+    def find(self):
+        self.editor.search(str(self.searchText.text()),
+                             re=False, case=self.isCaseSensitive,
+                             word=False, wrap= False, fwd=True)
+
+    def gcodeLexerCall(self):
+        self.gcodeLexer()
+    def gcodeLexer(self):
+        self.editor.set_gcode_lexer()
+
+    def nextCall(self):
+        self.next()
+    def next(self):
+        self.editor.search(str(self.searchText.text()),False)
+        self.editor.search_Next()
+
+    def newCall(self):
+        self.new()
+    def new(self):
+        if self.editor.isModified():
+            result = self.killCheck()
+            if result:
+                self.editor.new_text()
+
+    def openCall(self):
+        self.open()
+    def open(self):
+        f = self.getFileName()
+        self.editor.load_text(f)
+        self.editor.setModified(False)
+
+    def pythonLexerCall(self):
+        self.pythonLexer()
+    def pythonLexer(self):
+        self.editor.set_python_lexer()
+
+    def redoCall(self):
+        self.redo()
+    def redo(self):
+        self.editor.redo()
+
+    def replaceCall(self):
+        self.replace()
+    def replace(self):
+        self.editor.replace_text(str(self.replaceText.text()))
+
+    def saveCall(self):
+        self.save()
+    def save(self):
+        self.saveFile()
+
+    def undoCall(self):
+        self.undo()
+    def undo(self):
+        self.editor.undo()
+
+    # helper functions ############################################
+
     def _hal_init(self):
         # name the top and bottom frames so it's easier to style
-        #print '%sBottomButtonFrame'% self.objectName()
         self.bottomMenu.setObjectName('%sBottomButtonFrame'% self.objectName())
         self.topMenu.setObjectName('%sTopButtonFrame'% self.objectName())
 
@@ -591,52 +680,6 @@ class GcodeEditor(QWidget, _HalWidgetBase):
         self.topMenu.hide()
         self.bottomMenu.hide()
         self.editor.setReadOnly(True)
-
-    def openCall(self):
-        print('Open')
-        f = self.getFileName()
-        self.editor.load_text(f)
-        self.editor.setModified(False)
-
-    def saveCall(self):
-        print('save')
-        self.saveFile()
-
-    def newCall(self):
-        if self.editor.isModified():
-            result = self.killCheck()
-            if result:
-                self.editor.new_text()
-
-    def exitCall(self):
-        print('Exit app')
-        if self.editor.isModified():
-            result = self.killCheck()
-            if result:
-                self.readOnlyMode()
-
-    def undoCall(self):
-        self.editor.undo()
-
-    def redoCall(self):
-        self.editor.redo()
-
-    def replaceCall(self):
-        self.editor.replace_text(str(self.replaceText.text()))
-
-    def findCall(self):
-        self.editor.search(str(self.searchText.text()),
-                             re=False, case=self.isCaseSensitive,
-                             word=False, wrap= False, fwd=True)
-
-    def nextCall(self):
-        self.editor.search(str(self.searchText.text()),False)
-        self.editor.search_Next()
-
-    def caseCall(self):
-        self.isCaseSensitive -=1
-        self.isCaseSensitive *=-1
-        print self.isCaseSensitive
 
     def getFileName(self):
         name = QFileDialog.getOpenFileName(self, 'Open File')
@@ -659,10 +702,23 @@ class GcodeEditor(QWidget, _HalWidgetBase):
             file = open(name[0],'w')
             file.write(self.editor.text())
             file.close()
+            self.editor.setModified(False)
 
     def emit_percent(self, percent):
         self.percentDone.emit(percent)
 
+    # designer recognized getter/setters
+    # auto_show_mdi status
+    # These adjust the self.editor instance
+    def set_auto_show_mdi(self, data):
+        self.editor.auto_show_mdi = data
+    def get_auto_show_mdi(self):
+        return self.editor.auto_show_mdi
+    def reset_auto_show_mdi(self):
+        self.editor.auto_show_mdi = True
+    auto_show_mdi_status = pyqtProperty(bool, get_auto_show_mdi, set_auto_show_mdi, reset_auto_show_mdi)
+
+# for direct testing
 if __name__ == "__main__":
     from PyQt5.QtWidgets import *
     from PyQt5.QtCore import *

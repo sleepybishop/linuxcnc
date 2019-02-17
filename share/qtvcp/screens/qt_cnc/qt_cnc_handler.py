@@ -1,25 +1,29 @@
 ############################
 # **** IMPORT SECTION **** #
 ############################
+import sys
+import os
+import linuxcnc
 
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QDialog
+from PyQt5 import QtCore, QtWidgets
+
 from qtvcp.widgets.origin_offsetview import OriginOffsetView as OFFVIEW_WIDGET
 from qtvcp.widgets.tool_offsetview import ToolOffsetView as TOOLVIEW_WIDGET
 from qtvcp.widgets.dialog_widget import CamViewDialog as CAMVIEW
 from qtvcp.widgets.dialog_widget import MacroTabDialog as LATHEMACRO
 from qtvcp.widgets.mdi_line import MDILine as MDI_WIDGET
 from qtvcp.widgets.gcode_editor import GcodeEditor as GCODE
+from qtvcp.widgets.stylesheeteditor import  StyleSheetEditor as SSE
 from qtvcp.lib.keybindings import Keylookup
 
 from qtvcp.core import Status, Action
 
 # Set up logging
 from qtvcp import logger
+LOG = logger.getLogger(__name__)
 
-import linuxcnc
-import sys
-import os
+# Set the log level for this module
+#LOG.setLevel(logger.INFO) # One of DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 ###########################################
 # **** instantiate libraries section **** #
@@ -28,6 +32,7 @@ import os
 KEYBIND = Keylookup()
 STATUS = Status()
 ACTION = Action()
+
 LOG = logger.getLogger(__name__)
 # Set the log level for this module
 #LOG.setLevel(logger.INFO) # One of DEBUG, INFO, WARNING, ERROR, CRITICAL
@@ -46,12 +51,19 @@ class HandlerClass:
     def __init__(self, halcomp,widgets,paths):
         self.hal = halcomp
         self.w = widgets
-        self.PATH = paths.CONFIGPATH
-        self.IMAGE_PATH = paths.IMAGEDIR
+        self.PATH = paths
         self._big_view = -1
+        self.STYLEEDITOR = SSE(widgets,paths)
+
     ##########################################
     # Special Functions called from QTVCP
     ##########################################
+
+    # For changing functions in widgets we can 'class patch'.
+    # class patching must be done before the class is instantiated.
+    # 
+    def class_patch__(self):
+        GCODE.exitCall = self.editor_exit
 
     # at this point:
     # the widgets are instantiated.
@@ -63,7 +75,9 @@ class HandlerClass:
         KEYBIND.add_call('Key_F5','on_keycall_F5')
         KEYBIND.add_call('Key_F6','on_keycall_F6')
         KEYBIND.add_call('Key_F7','on_keycall_F7')
+        KEYBIND.add_call('Key_F12','on_keycall_F12')
         self.w.tooloffsetdialog._geometry_string='0 0 600 400 onwindow '
+
 
     def processed_key_event__(self,receiver,event,is_pressed,key,code,shift,cntrl):
         # when typing in MDI, we don't want keybinding to call functions
@@ -71,21 +85,41 @@ class HandlerClass:
         # We do want ESC, F1 and F2 to call keybinding functions though
         if code not in(QtCore.Qt.Key_Escape,QtCore.Qt.Key_F1 ,QtCore.Qt.Key_F2,
                     QtCore.Qt.Key_F3,QtCore.Qt.Key_F5,QtCore.Qt.Key_F5):
-            if isinstance(receiver, OFFVIEW_WIDGET) or \
-                isinstance(receiver, MDI_WIDGET) or isinstance(receiver, TOOLVIEW_WIDGET):
-                if is_pressed:
-                    receiver.keyPressEvent(event)
-                    event.accept()
-                return True
-            elif isinstance(receiver, GCODE) and STATUS.is_man_mode() == False:
-                if is_pressed:
-                    receiver.keyPressEvent(event)
-                    event.accept()
-                return True
-            elif isinstance(receiver,QDialog):
-                print 'dialog'
-                return True
 
+            # search for the top widget of whatever widget received the event
+            # then check if it's one we want the keypress events to go to
+            flag = False
+            receiver2 = receiver
+            while receiver2 is not None and not flag:
+                if isinstance(receiver2, QtWidgets.QDialog):
+                    flag = True
+                    break
+                if isinstance(receiver2, MDI_WIDGET):
+                    flag = True
+                    break
+                if isinstance(receiver2, GCODE):
+                    flag = True
+                    break
+                receiver2 = receiver2.parent()
+
+            if flag:
+                if isinstance(receiver2, GCODE):
+                    # if in manual do our keybindings - otherwise
+                    # send events to gcode widget
+                    if STATUS.is_man_mode() == False:
+                        if is_pressed:
+                            receiver.keyPressEvent(event)
+                            event.accept()
+                        return True
+                elif is_pressed:
+                    receiver.keyPressEvent(event)
+                    event.accept()
+                    return True
+                else:
+                    event.accept()
+                    return True
+
+        # ok if we got here then try keybindings
         try:
             return KEYBIND.call(self,event,is_pressed,shift,cntrl)
         except NameError as e:
@@ -116,6 +150,8 @@ class HandlerClass:
     #####################
 
     def kb_jog(self, state, joint, direction, fast = False, linear = True):
+        if not STATUS.is_man_mode() or not STATUS.machine_is_on():
+            return
         if linear:
             distance = STATUS.get_jog_increment()
             rate = STATUS.get_jograte()/60
@@ -133,6 +169,9 @@ class HandlerClass:
     # to test that function
     def test_function(self, text=None):
         print text
+
+    def editor_exit(self):
+        self.w.gcodeeditor.exit()
 
     #####################
     # KEY BINDING CALLS #
@@ -161,19 +200,23 @@ class HandlerClass:
     # dialogs
     def on_keycall_F3(self,event,state,shift,cntrl):
         if state:
-            self.w.originoffsetdialog.load_dialog()
+            STATUS.emit('dialog-request',{'NAME':'ORIGINOFFSET'})
     def on_keycall_F4(self,event,state,shift,cntrl):
         if state:
-            self.w.camviewdialog.load_dialog()
+            STATUS.emit('dialog-request',{'NAME':'CAMVIEW'})
     def on_keycall_F5(self,event,state,shift,cntrl):
         if state:
-            self.w.macrotabdialog.load_dialog()
+            STATUS.emit('dialog-request',{'NAME':'MACROTAB'})
     def on_keycall_F6(self,event,state,shift,cntrl):
         if state:
-            self.w.tooloffsetdialog.load_dialog()
+            STATUS.emit('dialog-request',{'NAME':'TOOLOFFSET'})
     def on_keycall_F7(self,event,state,shift,cntrl):
         if state:
-            self.w.versaprobedialog.load_dialog()
+            STATUS.emit('dialog-request',{'NAME':'VERSAPROBE'})
+    def on_keycall_F12(self,event,state,shift,cntrl):
+        if state:
+            self.STYLEEDITOR.load_dialog()
+
 
     # Linear Jogging
     def on_keycall_XPOS(self,event,state,shift,cntrl):
