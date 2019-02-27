@@ -1,0 +1,21 @@
+pkgname=alchitry_loader
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Alchitry FPGA Loader in C99'
+arch=('i686' 'x86_64')
+url='https://github.com/sleepybishop/alchitry_loader'
+license=('MIT')
+depends=('')
+source=("git+https://github.com/sleepybishop/alchitry_loader.git")
+sha1sums=('SKIP')
+
+build() {
+  cd "$srcdir/$pkgname"
+
+  make
+}
+
+package() {
+  cd "$srcdir/$pkgname"
+  make DESTDIR="$pkgdir/usr" install
+}
