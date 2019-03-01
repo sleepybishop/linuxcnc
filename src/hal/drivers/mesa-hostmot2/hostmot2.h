@@ -118,7 +118,7 @@
 #define HM2_GTAG_HM2DPLL           (26) 
 #define HM2_GTAG_LIOPORT           (64) // Not supported
 #define HM2_GTAG_LED               (128)
-#define HM2_GTAG_AVR               (129)
+#define HM2_GTAG_ADC               (129)
 
 #define HM2_GTAG_RESOLVER          (192)
 #define HM2_GTAG_SMARTSERIAL       (193)
@@ -619,7 +619,7 @@ typedef struct {
 } hm2_tp_pwmgen_t;
 
 //
-// AVR ADC
+// ADC
 //
 
 typedef struct {
@@ -647,14 +647,14 @@ typedef struct {
     rtapi_u32 written_prescaler;
     rtapi_u8  written_enable;
     */
-} hm2_avradc_instance_t;
+} hm2_adc_instance_t;
 
 typedef struct {
     int num_instances;
-    hm2_avradc_instance_t *instance;
+    hm2_adc_instance_t *instance;
 
-    rtapi_u32 adc_addr;
-    rtapi_u32 *adc_reg;
+    rtapi_u32 chan_addr;
+    rtapi_u32 *chan_reg;
 
     /*
     rtapi_u32 enable_addr;
@@ -662,7 +662,7 @@ typedef struct {
     */
 
     rtapi_u8  version;
-} hm2_avr_t;
+} hm2_adc_t;
 
 // 
 // ioport
@@ -1098,7 +1098,7 @@ typedef struct {
         int num_uarts;
         int num_pktuarts;
         int num_dplls;
-        int num_avrs;
+        int num_adcs;
         int num_ssrs;
         char sserial_modes[4][8];
         int enable_raw;
@@ -1143,7 +1143,7 @@ typedef struct {
     hm2_watchdog_t watchdog;
     hm2_dpll_t dpll;
     hm2_led_t led;
-    hm2_avr_t avr;
+    hm2_adc_t adc;
     hm2_ssr_t ssr;
 
     hm2_raw_t *raw;
@@ -1421,16 +1421,16 @@ void hm2_led_write(hostmot2_t *hm2);
 void hm2_led_cleanup(hostmot2_t *hm2);
 
 // 
-// avr related functions
+// adc related functions
 // 
 
-int hm2_avr_parse_md(hostmot2_t *hm2, int md_index);
-void hm2_avr_print_module(hostmot2_t *hm2);
-void hm2_avr_cleanup(hostmot2_t *hm2);
-void hm2_avr_prepare_tram_write(hostmot2_t *hm2);
-void hm2_avr_write(hostmot2_t *hm2);
-void hm2_avr_force_write(hostmot2_t *hm2);
-void hm2_avr_process_tram_read(hostmot2_t *hm2);
+int hm2_adc_parse_md(hostmot2_t *hm2, int md_index);
+void hm2_adc_print_module(hostmot2_t *hm2);
+void hm2_adc_cleanup(hostmot2_t *hm2);
+void hm2_adc_prepare_tram_write(hostmot2_t *hm2);
+void hm2_adc_write(hostmot2_t *hm2);
+void hm2_adc_force_write(hostmot2_t *hm2);
+void hm2_adc_process_tram_read(hostmot2_t *hm2);
 
 //
 // SSR functions
