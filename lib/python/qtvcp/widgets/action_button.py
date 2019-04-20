@@ -90,6 +90,8 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
         self.dro_relative = False
         self.dro_absolute = False
         self.dro_dtg = False
+        self.exit = False
+        self.template_label = False
 
         self.toggle_float = False
         self._toggle_state = 0
@@ -102,6 +104,8 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
         self.view_type = 'p'
         self.command_text = ''
         self.ini_mdi_num = 0
+        self._textTemplate = '%1.3f in'
+        self._alt_textTemplate = '%1.2f mm'
 
     ##################################################
     # This gets called by qtvcp_makepins
@@ -306,6 +310,8 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
             STATUS.connect('all-homed', lambda w: self.setEnabled(True))
         elif self.dro_absolute or self.dro_relative or self.dro_dtg:
             pass
+        elif self.exit:
+            pass
 
         # connect a signal and callback function to the button
         if self.isCheckable():
@@ -348,13 +354,13 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
         elif self.pause:
             ACTION.PAUSE()
         elif self.load_dialog:
-            STATUS.emit('load-file-request')
+            STATUS.emit('dialog-request',{'NAME':'LOAD'})
         elif self.camview_dialog:
-            STATUS.emit('dialog-request', 'CAMVIEW')
+            STATUS.emit('dialog-request', {'NAME':'CAMVIEW'})
         elif self.macro_dialog:
-            STATUS.emit('dialog-request', 'MACRO')
+            STATUS.emit('dialog-request', {'NAME':'MACRO'})
         elif self.origin_offset_dialog:
-            STATUS.emit('dialog-request', 'ORIGINOFFSET')
+            STATUS.emit('dialog-request', {'NAME':'ORIGINOFFSET'})
         elif self.zero_axis:
             j = "XYZABCUVW"
             try:
@@ -481,6 +487,8 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
             STATUS.emit('dro-reference-change-request', 1)
         elif self.dro_dtg:
             STATUS.emit('dro-reference-change-request', 2)
+        elif self.exit:
+            self.QTVCP_INSTANCE_.close()
         # defult error case
         elif not self._python_command:
             LOG.error('No action recognised')
@@ -528,6 +536,8 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
             else:
                 incr = 0
                 text = 'Continous'
+            if self.template_label:
+                self._set_alt_text(self.jog_incr_mm)
         else:
             if self.jog_incr_imperial < 0: return
             elif self.jog_incr_imperial:
@@ -536,7 +546,10 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
             else:
                 incr = 0
                 text = 'Continous'
+            if self.template_label:
+                self._set_text(self.jog_incr_imperial)
         ACTION.SET_JOG_INCR(incr , text)
+
         # set an angular increment if not negative
         if self.jog_incr_angle < 0: return
         elif self.jog_incr_angle == 0:
@@ -546,6 +559,13 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
             incr = self.jog_incr_angle
             text = '''%s deg''' % str(self.jog_incr_angle)
         ACTION.SET_JOG_INCR_ANGULAR(incr , text)
+
+    def _set_text(self, data):
+            tmpl = lambda s: str(self._textTemplate) % s
+            self.setText(tmpl(data))
+    def _set_alt_text(self, data):
+            tmpl = lambda s: str(self._alt_textTemplate) % s
+            self.setText(tmpl(data))
 
     #########################################################################
     # This is how designer can interact with our widget properties.
@@ -566,7 +586,8 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
                 'spindle_rev', 'spindle_stop', 'spindle_up', 'spindle_down',
                 'limits_override', 'flood', 'mist', 'optional_stop', 'mdi_command',
                 'ini_mdi_command', 'command_text', 'block_delete', 'dro_absolute',
-                'dro_relative', 'dro_dtg','max_velocity_over', 'launch_halscope')
+                'dro_relative', 'dro_dtg','max_velocity_over', 'launch_halscope',
+                 'exit')
 
         for i in data:
             if not i == picked:
@@ -974,6 +995,15 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
     def reset_dro_dtg(self):
         self.dro_dtg = False
 
+    def set_exit(self, data):
+        self.exit = data
+        if data:
+            self._toggle_properties('exit')
+    def get_exit(self):
+        return self.exit
+    def reset_exit(self):
+        self.exit = False
+
     # NON BOOL VARIABLES------------------
     def set_incr_imperial(self, data):
         self.jog_incr_imperial = data
@@ -1094,6 +1124,15 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
     dro_absolute_action = QtCore.pyqtProperty(bool, get_dro_absolute, set_dro_absolute, reset_dro_absolute)
     dro_relative_action = QtCore.pyqtProperty(bool, get_dro_relative, set_dro_relative, reset_dro_relative)
     dro_dtg_action = QtCore.pyqtProperty(bool, get_dro_dtg, set_dro_dtg, reset_dro_dtg)
+    exit_action = QtCore.pyqtProperty(bool, get_exit, set_exit, reset_exit)
+
+    def set_template_label(self, data):
+        self.template_label = data
+    def get_template_label(self):
+        return self.template_label
+    def reset_template_label(self):
+        self.template_label = False
+    template_label_option = QtCore.pyqtProperty(bool, get_template_label, set_template_label, reset_template_label)
 
     # NON BOOL
     joint_number = QtCore.pyqtProperty(int, get_joint, set_joint, reset_joint)
@@ -1106,6 +1145,31 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
     view_type_string = QtCore.pyqtProperty(str, get_view_type, set_view_type, reset_view_type)
     command_text_string = QtCore.pyqtProperty(str, get_command_text, set_command_text, reset_command_text)
     ini_mdi_number = QtCore.pyqtProperty(int, get_ini_mdi_num, set_ini_mdi_num, reset_ini_mdi_num)
+
+    def set_textTemplate(self, data):
+        self._textTemplate = data
+        try:
+            self._set_text(200.0)
+        except:
+            self.setText('Error 2')
+    def get_textTemplate(self):
+        return self._textTemplate
+    def reset_textTemplate(self):
+        self._textTemplate = '%1.3f in'
+    textTemplate = QtCore.pyqtProperty(str, get_textTemplate, set_textTemplate, reset_textTemplate)
+
+    def set_alt_textTemplate(self, data):
+        self._alt_textTemplate = data
+        try:
+            self._set_text(200.0)
+        except:
+            self.setText('Error 2')
+    def get_alt_textTemplate(self):
+        return self._alt_textTemplate
+    def reset_alt_textTemplate(self):
+        self._alt_textTemplate = '%1.2f mm'
+    alt_textTemplate = QtCore.pyqtProperty(str, get_alt_textTemplate, set_alt_textTemplate, reset_alt_textTemplate)
+
     ##############################
     # required class boiler code #
     ##############################
