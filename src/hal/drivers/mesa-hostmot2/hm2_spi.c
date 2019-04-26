@@ -349,7 +349,7 @@ static int probe(char *dev, int rate) {
     } else if (!memcmp(ident, "ALCHXXAU", 8)) {
          base = "hm2_alch_au";
          board->llio.num_ioport_connectors = 3;
-         board->llio.pins_per_connector = 24;
+         board->llio.pins_per_connector = 32;
          board->llio.ioport_connector_name[0] = "P1";
          board->llio.ioport_connector_name[1] = "P2";
          board->llio.ioport_connector_name[2] = "P3";
