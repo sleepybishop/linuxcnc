@@ -28,7 +28,7 @@ option count_function yes;
 license "GPL";
 author "Joseph Calderon";
 
-include "mesa-hostmot2/hostmot2.h";
+include <hostmot2-serial.h>;
 ;;
 
 // to parse the modparam
