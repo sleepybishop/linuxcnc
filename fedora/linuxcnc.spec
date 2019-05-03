@@ -204,6 +204,7 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %attr(0755,-,-) %{_bindir}/rotarydelta
 %attr(0755,-,-) %{_bindir}/scorbot-er-3
 %attr(0755,-,-) %{_bindir}/shuttle
+%attr(0755,-,-) %{_bindir}/sx1509b
 %attr(0755,-,-) %{_bindir}/teach-in
 %attr(0755,-,-) %{_bindir}/thermistor
 %attr(0755,-,-) %{_bindir}/update_ini
