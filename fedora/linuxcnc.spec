@@ -171,6 +171,7 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %attr(0755,-,-) %{_bindir}/moveoff_gui
 %attr(0755,-,-) %{_bindir}/ngcgui
 %attr(0755,-,-) %{_bindir}/pncconf
+%attr(0755,-,-) %{_bindir}/ar2gui
 %attr(0755,-,-) %{_bindir}/puma560gui
 %attr(0755,-,-) %{_bindir}/pumagui
 %attr(0755,-,-) %{_bindir}/pyngcgui
