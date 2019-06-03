@@ -82,7 +82,7 @@ static int write(void *subdata) {
   int vsense = 0, cscale_val = 0;
 
   for (int i = 0; i < NUM_MOTORS; i++) {
-    if (maxcurrent_out(i) > 0 && maxcurrent_out(i) != currentcfg[i]) {
+    if (maxcurrent_out(i) != currentcfg[i]) {
       currentcfg[i] = maxcurrent_out(i);
       state[i] = 0;
     }
@@ -119,6 +119,9 @@ static int write(void *subdata) {
               break; 
       case 3: {
                 uint32_t chopconf = 0b10011000001000010011; // chopconf defaults
+                if (maxcurrent_out(i) == 0) {
+                  chopconf = 0b10011000001000010000;
+                }
                 *TMC26X_write[i] = chopconf;
                 state[i]++;
               }
