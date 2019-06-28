@@ -5,7 +5,6 @@ pkgdesc='Mojo FPGA Loader in c'
 arch=('i686' 'x86_64')
 url='https://github.com/sleepybishop/cmojoloader'
 license=('GPL')
-depends=('')
 source=("git+https://github.com/sleepybishop/cmojoloader.git")
 sha1sums=('SKIP')
 
