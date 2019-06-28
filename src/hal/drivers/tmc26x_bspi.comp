@@ -155,7 +155,7 @@ EXTRA_SETUP(){
   }
 
   if (r < 0) {
-    HM2_ERR_NO_LL("There have been %i errors during channel setup, quitting\n", -r);
+    rtapi_print_msg(RTAPI_MSG_ERR,  "tmc26x: There have been %i errors during channel setup, quitting\n", -r);
     return -EINVAL;
   }
 
@@ -174,7 +174,7 @@ EXTRA_SETUP(){
   r += hm2_bspi_set_read_function(name, &read, __comp_inst);
 
   if (r < 0) {
-    HM2_ERR_NO_LL("There have been %i errors during TRAM allocation setup, quitting\n", -r);
+    rtapi_print_msg(RTAPI_MSG_ERR,  "tmc26x: There have been %i errors during TRAM allocation, quitting\n", -r);
     return -EINVAL;
   }
   return 0;
