@@ -303,8 +303,10 @@ HEADERS := \
     emc/nml_intf/motion_types.h \
     emc/nml_intf/debugflags.h \
     emc/rs274ngc/interp_internal.hh \
+    emc/rs274ngc/interp_fwd.hh \
     emc/rs274ngc/interp_base.hh \
     emc/rs274ngc/rs274ngc.hh \
+    emc/rs274ngc/saicanon.hh \
     hal/hal.h \
     hal/hal_parport.h \
     hal/drivers/mesa-hostmot2/hostmot2-serial.h \
@@ -566,6 +568,7 @@ install-dirs:
 		$(DESTDIR)$(datadir)/qtvcp/images \
 		$(DESTDIR)$(datadir)/qtvcp/screens \
 		$(DESTDIR)$(datadir)/qtvcp/panels \
+		$(DESTDIR)$(datadir)/qtvcp/widgets_ui \
 		$(DESTDIR)$(datadir)/gmoccapy/images \
 		$(DESTDIR)$(datadir)/glade3/catalogs \
 		$(DESTDIR)$(datadir)/glade3/pixmaps \
@@ -673,7 +676,7 @@ install-python: install-dirs
 	$(FILE) ../lib/python/qtvcp/designer/x86_64/qt5.5/*.gz $(DESTDIR)$(SITEPY)/qtvcp/designer/x86_64/qt5.5
 	$(FILE) ../lib/python/qtvcp/designer/x86_64/qt5.7/*.gz $(DESTDIR)$(SITEPY)/qtvcp/designer/x86_64/qt5.7
 	$(FILE) ../lib/python/qtvcp/designer/x86_64/qt5.9/*.gz $(DESTDIR)$(SITEPY)/qtvcp/designer/x86_64/qt5.9
-	$(FILE) ../lib/python/qtvcp/widgets/*.py ../lib/python/qtvcp/widgets/*.ui $(DESTDIR)$(SITEPY)/qtvcp/widgets
+	$(FILE) ../lib/python/qtvcp/widgets/*.py $(DESTDIR)$(SITEPY)/qtvcp/widgets
 	$(FILE) ../lib/python/qtvcp/widgets/widget_icons/*.png ../lib/python/qtvcp/widgets/widget_icons/*.gif $(DESTDIR)$(SITEPY)/qtvcp/widgets/widget_icons
 	$(FILE) ../lib/python/qtvcp/plugins/*.py $(DESTDIR)$(SITEPY)/qtvcp/plugins
 	$(FILE) ../lib/python/qtvcp/lib/*.py $(DESTDIR)$(SITEPY)/qtvcp/lib
@@ -714,6 +717,7 @@ install-python: install-dirs
 	$(TREE) ../share/qtvcp/images/* $(DESTDIR)$(datadir)/qtvcp/images
 	$(TREE) ../share/qtvcp/screens/* $(DESTDIR)$(datadir)/qtvcp/screens
 	$(TREE) ../share/qtvcp/panels/* $(DESTDIR)$(datadir)/qtvcp/panels
+	$(TREE) ../share/qtvcp/widgets_ui/* $(DESTDIR)$(datadir)/qtvcp/widgets_ui
 	$(FILE) ../share/gmoccapy/images/*.png ../share/gmoccapy/images/*.gif ../share/gmoccapy/images/*.svg $(DESTDIR)$(datadir)/gmoccapy/images
 
 install-kernel-dep:
@@ -859,9 +863,22 @@ hal_gm-objs := hal/drivers/hal_gm.o $(MATHSTUB)
 obj-$(CONFIG_HAL_PPMC) += hal_ppmc.o
 hal_ppmc-objs := hal/drivers/hal_ppmc.o $(MATHSTUB)
 
+#Don't attempt to build Pi / Beaglebone GPIO for RTAI
+ifeq ($(BUILD_SYS),uspace)
+obj-$(CONFIG_HAL_BB_GPIO) += hal_bb_gpio.o
+hal_bb_gpio-objs  :=			\
+    hal/drivers/hal_bb_gpio.o	\
+    $(MATHSTUB)
+obj-$(CONFIG_HAL_PI_GPIO) += hal_pi_gpio.o
+hal_pi_gpio-objs := 				\
+    hal/drivers/hal_pi_gpio.o 		\
+    hal/drivers/cpuinfo.o 		\
+    $(MATHSTUB)
+endif
+
 obj-$(CONFIG_HOSTMOT2) += hostmot2.o hm2_test.o hm2_pci.o hm2_7i43.o hm2_7i90.o setsserial.o
 ifeq ($(BUILD_SYS),uspace)
-obj-$(CONFIG_HOSTMOT2) += hm2_eth.o hm2_spi.o hm2_rpspi.o hal_bb_gpio.o
+obj-$(CONFIG_HOSTMOT2) += hm2_eth.o hm2_spi.o hm2_rpspi.o
 endif
 hostmot2-objs :=			  \
     hal/drivers/mesa-hostmot2/hostmot2.o  \
@@ -906,9 +923,6 @@ hm2_spi-objs  :=			  \
     $(MATHSTUB)
 hm2_rpspi-objs  :=			  \
     hal/drivers/mesa-hostmot2/hm2_rpspi.o   \
-    $(MATHSTUB)
-hal_bb_gpio-objs  :=			  \
-    hal/drivers/hal_bb_gpio.o		  \
     $(MATHSTUB)
 hm2_test-objs :=			  \
     hal/drivers/mesa-hostmot2/hm2_test.o  \
@@ -1127,6 +1141,7 @@ endif
 ../rtlib/hm2_spi$(MODULE_EXT): $(addprefix objects/rt,$(hm2_spi-objs))
 ../rtlib/hm2_rpspi$(MODULE_EXT): $(addprefix objects/rt,$(hm2_rpspi-objs))
 ../rtlib/hal_bb_gpio$(MODULE_EXT): $(addprefix objects/rt,$(hal_bb_gpio-objs))
+../rtlib/hal_pi_gpio$(MODULE_EXT): $(addprefix objects/rt,$(hal_pi_gpio-objs))
 
 ifeq ($(TRIVIAL_BUILD),no)
 READ_RTDEPS = $(wildcard $(RTDEPS))

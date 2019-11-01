@@ -72,6 +72,8 @@
 // Mark strings for translation, but defer translation to userspace
 #define _(s) (s)
 
+extern int motion_num_spindles;
+
 static int rehomeAll;
 
 /* loops through the active joints and checks if any are not homed */
@@ -413,7 +415,7 @@ void emcmotCommandHandler(void *arg, long period)
     emcmot_comp_entry_t *comp_entry;
     char issue_atspeed = 0;
     int abort = 0;
-    char* emsg;
+    char* emsg = "";
 
     /* check for split read */
     if (emcmotCommand->head != emcmotCommand->tail) {
@@ -461,6 +463,14 @@ void emcmotCommandHandler(void *arg, long period)
                }
                abort = 1;
            }
+           if (   !GET_MOTION_TELEOP_FLAG()
+               && (joint_num >= emcmotConfig->numJoints || joint_num <  0)
+              ) {
+               rtapi_print_msg(RTAPI_MSG_ERR,
+                    "Joint jog requested for undefined joint number=%d (min=0,max=%d)",
+                    joint_num,emcmotConfig->numJoints-1);
+               return;
+           }
            if (GET_MOTION_TELEOP_FLAG()) {
                 axis = &axes[axis_num];
                 if ( (axis_num >= 0) && (axis->locking_joint >= 0) ) {
@@ -494,17 +504,17 @@ void emcmotCommandHandler(void *arg, long period)
                     || emcmotCommand->command == EMCMOT_JOG_ABS
                    )
                 && !(GET_MOTION_TELEOP_FLAG())
-                && (joint->home_sequence < 0)
+                && get_home_is_synchronized(joint_num)
                 && !emcmotStatus->homing_active
                ) {
                   if (emcmotConfig->kinType == KINEMATICS_IDENTITY) {
                       rtapi_print_msg(RTAPI_MSG_ERR,
                       "Homing is REQUIRED to jog requested coordinate\n"
-                      "because joint (%d) in home_sequence is negative (%d)\n"
+                      "because joint (%d) home_sequence is synchronized (%d)\n"
                       ,joint_num,joint->home_sequence);
                   } else {
                       rtapi_print_msg(RTAPI_MSG_ERR,
-                      "Cannot jog joint %d because home_sequence is negative (%d)\n"
+                      "Cannot jog joint %d because home_sequence is synchronized (%d)\n"
                       ,joint_num,joint->home_sequence);
                   }
                   return;
@@ -641,14 +651,28 @@ void emcmotCommandHandler(void *arg, long period)
 
 	case EMCMOT_SET_NUM_SPINDLES:
 	    /* set the global NUM_SPINDLES, which must be between 1 and
-	       EMCMOT_MAX_SPINDLES, inclusive */
+	       EMCMOT_MAX_SPINDLES, inclusive and less than or equal to
+	       the number of spindles configured for the motion module
+	       (motion_num_spindles)
+	    */
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SET_NUM_SPINDLES");
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", emcmotCommand->spindle);
-	    if (( emcmotCommand->spindle <= 0 ) ||
-		( emcmotCommand->spindle > EMCMOT_MAX_SPINDLES )) {
-		break;
+	    if (   emcmotCommand->spindle > motion_num_spindles
+	        || emcmotCommand->spindle <= 0
+	        || emcmotCommand->spindle > EMCMOT_MAX_SPINDLES
+	       ) {
+	        reportError("Problem:\n"
+	                    "  motmod configured for %d spindles\n"
+	                    "  but command requests %d spindles\n"
+	                    "  Using: %d spindles",
+	                    motion_num_spindles,
+	                    emcmotCommand->spindle,
+	                    motion_num_spindles
+	                   );
+	        emcmotConfig->numSpindles = motion_num_spindles;
+	    } else {
+	        emcmotConfig->numSpindles = emcmotCommand->spindle;
 	    }
-	    emcmotConfig->numSpindles = emcmotCommand->spindle;
 	    break;
 
 	case EMCMOT_SET_WORLD_HOME:
@@ -1723,7 +1747,7 @@ void emcmotCommandHandler(void *arg, long period)
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SPINDLE_OFF");
 	    spindle_num = emcmotCommand->spindle;
         if (spindle_num >= emcmotConfig->numSpindles){
-            reportError(_("Attempt to stop non-existent spindle"));
+            reportError(_("Attempt to stop non-existent spindle <%d>"),spindle_num);
             emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_COMMAND;
             break;
         }
@@ -1743,12 +1767,12 @@ void emcmotCommandHandler(void *arg, long period)
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SPINDLE_ORIENT");
 	    spindle_num = emcmotCommand->spindle;
         if (spindle_num >= emcmotConfig->numSpindles){
-            reportError(_("Attempt to orient non-existent spindle"));
+            reportError(_("Attempt to orient non-existent spindle <%d>"),spindle_num);
             emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_COMMAND;
             break;
         }
 	    if (spindle_num > emcmotConfig->numSpindles){
-            rtapi_print_msg(RTAPI_MSG_ERR, "spindle number too high in M19");
+            rtapi_print_msg(RTAPI_MSG_ERR, "spindle number <%d> too high in M19",spindle_num);
             break;
 	    }
 	    if (*(emcmot_hal_data->spindle[spindle_num].spindle_orient)) {
@@ -1780,7 +1804,7 @@ void emcmotCommandHandler(void *arg, long period)
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SPINDLE_INCREASE");
 	    spindle_num = emcmotCommand->spindle;
         if (spindle_num >= emcmotConfig->numSpindles){
-            reportError(_("Attempt to increase non-existent spindle"));
+            reportError(_("Attempt to increase non-existent spindle <%d>"),spindle_num);
             emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_COMMAND;
             break;
         }
@@ -1795,7 +1819,7 @@ void emcmotCommandHandler(void *arg, long period)
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SPINDLE_DECREASE");
 	    spindle_num = emcmotCommand->spindle;
         if (spindle_num >= emcmotConfig->numSpindles){
-            reportError(_("Attempt to decreasenon-existent spindle"));
+            reportError(_("Attempt to decreasenon-existent spindle <%d>"),spindle_num);
             emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_COMMAND;
             break;
         }
@@ -1810,7 +1834,7 @@ void emcmotCommandHandler(void *arg, long period)
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SPINDLE_BRAKE_ENGAGE");
 	    spindle_num = emcmotCommand->spindle;
         if (spindle_num >= emcmotConfig->numSpindles){
-            reportError(_("Attempt to engage brake of non-existent spindle"));
+            reportError(_("Attempt to engage brake of non-existent spindle <%d>"),spindle_num);
             emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_COMMAND;
             break;
         }
@@ -1823,7 +1847,7 @@ void emcmotCommandHandler(void *arg, long period)
 	    rtapi_print_msg(RTAPI_MSG_DBG, "SPINDLE_BRAKE_RELEASE");
 	    spindle_num = emcmotCommand->spindle;
         if (spindle_num >= emcmotConfig->numSpindles){
-            reportError(_("Attempt to release brake of non-existent spindle"));
+            reportError(_("Attempt to release brake of non-existent spindle <%d>"),spindle_num);
             emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_COMMAND;
             break;
         }
