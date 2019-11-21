@@ -50,7 +50,7 @@ Requires:       tkimg
 Requires:       python-mttkinter
 Requires:       python-xlib
 Requires:       pygtkglext
-Requires:       boost-python
+Requires:       boost-python2
 Requires:       python-pillow-tk
 Requires:       gstreamer-python
 
