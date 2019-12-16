@@ -91,12 +91,12 @@ int hm2_bspi_parse_md(hostmot2_t *hm2, int md_index)
         chan->base_address = md->base_address + i * md->instance_stride;
         chan->register_stride = md->register_stride;
         chan->instance_stride = md->instance_stride;
-        chan->cd_addr = chan->base_address + md->register_stride + i * 4; //FIXME, check firmware
-        chan->count_addr = chan->base_address + 2 * md->register_stride;
+        chan->cd_addr = md->base_address + md->register_stride + i * sizeof(rtapi_u32);
+        chan->count_addr = md->base_address + 2 * md->register_stride + i * sizeof(rtapi_u32);
         for (j = 0 ; j < 16 ; j++ ){
             chan->addr[j] = chan->base_address + j * sizeof(rtapi_u32);
         }
-        //fprintf(stderr, "fifo: %08x, desc: %08x, counter: %08x\n", chan->addr[0], chan->cd_addr , chan->count_addr );
+        
     }
     return hm2->bspi.num_instances;
 fail0:
@@ -110,7 +110,6 @@ void hm2_bspi_force_write(hostmot2_t *hm2)
         hm2_bspi_instance_t chan = hm2->bspi.instance[i];
         // write the channel descriptors
         for (j = 15 ; j >=0 ; j--){
-            //fprintf(stderr, "bspi %d writing channel descriptor [%d]: %04x:%08x---%04x\n", i, j, chan.cd_addr, chan.cd[j], chan.addr[j]);
             hm2->llio->write(hm2->llio, chan.cd_addr, &(chan.cd[j]), sizeof(rtapi_u32));
         }
     }
@@ -140,9 +139,16 @@ int hm2_tram_add_bspi_frame(char *name, int chan, rtapi_u32 **wbuff, rtapi_u32 *
     } else {
         HM2_ERR("SPI frame must have a write entry for channel (%i) on %s.\n", chan, name);
         return -1;
-    }
-    if(!(hm2->bspi.instance[i].cd[chan] & 0x80000000)) {
-         hm2->bspi.instance[i].num_frames++;
+    }    
+    if (rbuff != NULL){
+        // Don't add a read entry for a no-echo channel
+        if(!(hm2->bspi.instance[i].cd[chan] & 0x80000000)) {
+            r = hm2_register_tram_read_region(hm2,hm2->bspi.instance[i].addr[0], sizeof(rtapi_u32),rbuff);
+            if (r < 0) {
+                HM2_ERR( "Failed to add TRAM read entry for %s\n", name);
+                return -1;
+            }
+        }
     }
     
     return 0;
@@ -158,9 +164,6 @@ int hm2_allocate_bspi_tram(char* name)
         HM2_ERR_NO_LL("Can not find BSPI instance %s.\n", name);
         return -1;
     }
-
-    hm2_bspi_force_write(hm2);
-
     r = hm2_allocate_tram_regions(hm2);
     if (r < 0) {
         HM2_ERR("Failed to register TRAM for BSPI %s\n", name);
@@ -191,18 +194,6 @@ int hm2_bspi_write_chan(char* name, int chan, rtapi_u32 val)
         HM2_ERR("BSPI: hm2->llio->write failure %s\n", name);
     }
     
-    return r;
-}
-
-int hm2_bspi_clear_counter(hostmot2_t *hm2, int i)
-{
-    rtapi_u32 buff = 0; // data is dont care when writing to count register
-    int r;
-    r = hm2->llio->write(hm2->llio, 0x5700, &buff, sizeof(rtapi_u32));
-    if (r < 0) {
-        HM2_ERR("BSPI: hm2->llio->write failure %s\n", hm2->bspi.instance[i].name);
-    }
-
     return r;
 }
 
@@ -259,7 +250,7 @@ int hm2_bspi_setup_chan(char *name, int chan, int cs, int bits, float mhz,
     HM2_DBG("BSPI %s Channel %i setup %x\n", name, chan, buff);
     hm2->bspi.instance[i].cd[chan] = buff;
     hm2->bspi.instance[i].conf_flag[chan] = true;
-
+    hm2_bspi_force_write(hm2);
     return 0;
 }
 
@@ -285,7 +276,7 @@ void hm2_bspi_print_module(hostmot2_t *hm2){
 }
 
 EXPORT_SYMBOL_GPL(hm2_bspi_set_read_function);
-int hm2_bspi_set_read_function(char *name, int (*func)(void *subdata, rtapi_u32 *data, int rdcount), void *subdata){
+int hm2_bspi_set_read_function(char *name, int (*func)(void *subdata), void *subdata){
     hostmot2_t *hm2;
     int i;
     i = hm2_get_bspi(&hm2, name);
@@ -336,30 +327,14 @@ int hm2_bspi_set_write_function(char *name, int (*func)(void *subdata), void *su
 void hm2_bspi_process_tram_read(hostmot2_t *hm2, long period)
 {
     int i, r;
-    int (*func)(void *subdata, rtapi_u32 *, int);
+    int (*func)(void *subdata);
     for (i = 0 ; i < hm2->bspi.num_instances ; i++ ){
-    hm2->llio->read(hm2->llio, hm2->bspi.instance[i].count_addr,
-        &hm2->bspi.instance[i].count_reg, sizeof(rtapi_u32) );
-    int rdcount = (hm2->bspi.instance[i].count_reg     ) & 0x1f;
-    int rwcount = (hm2->bspi.instance[i].count_reg >> 8) & 0x1f;
-    int num_frames = hm2->bspi.instance[i].num_frames;
-
-    if (i==0 && rdcount != num_frames) {
-        //fprintf(stdout, "inst: %d, %08x, (%d), rd %d, rw: %d\n", i, hm2->bspi.instance[i].count_addr, num_frames, rdcount, rwcount);
-    }
-
-    if (rdcount >= num_frames) {
-        hm2->llio->read(hm2->llio, hm2->bspi.instance[i].addr[0],
-        &hm2->bspi.instance[i].data_reg, rdcount * sizeof(rtapi_u32) );
-
         func = hm2->bspi.instance[i].read_function;
         if (func != NULL){
-            r = func(hm2->bspi.instance[i].subdata, hm2->bspi.instance[i].data_reg, rdcount);
+            r = func(hm2->bspi.instance[i].subdata);
             if(r < 0)
                 HM2_ERR("BSPI read function @%p failed (returned %d)\n",
-                    func, r);
-            }
-            hm2_bspi_clear_counter(hm2, i);
+                        func, r);
         }
     }
 }

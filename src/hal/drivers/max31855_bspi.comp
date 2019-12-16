@@ -143,15 +143,22 @@ static float read_celsius_adjusted(int32_t sensor_data) {
   return temp_corrected;
 }
 	
-static int read(void *subdata, rtapi_u32 *data, int rdcount) {
+static int read(void *subdata) {
 	struct __comp_state *__comp_inst = subdata;
-	unsigned int i = 0;
+	unsigned int i = 0, j =0;
+
+	rtapi_u32 *data = *MAX31855_read;
+
+	for (j=0; j<3; j++) {
+		if (data[j] != 0)
+			break;
+	}
 
 	for (i = 0; i < 3; i++) {
-    raw_in(i) = data[i];
+          raw_in(i) = data[j];
 	  float f = read_celsius_adjusted(raw_in(i));
 		fault(i) = (raw_in(i) & 0x7) ? TRUE : FALSE;
-    fault_flags(i) = raw_in(i) & 0x7;
+                fault_flags(i) = raw_in(i) & 0x7;
 		if (isnan(f)) {
 			//rtapi_print("max31855: sensor %d detected fault %x\n", i, raw_in(i) & 0x7);
 		} else {
@@ -180,9 +187,9 @@ EXTRA_SETUP(){
   }
 
   // Add BSPI Frames
-  r += hm2_tram_add_bspi_frame(name, 0, &MAX31855_write[0], NULL);
-  r += hm2_tram_add_bspi_frame(name, 1, &MAX31855_write[1], NULL);
-  r += hm2_tram_add_bspi_frame(name, 2, &MAX31855_write[2], NULL);
+  r += hm2_tram_add_bspi_frame(name, 0, &MAX31855_write[0], &MAX31855_read[0]);
+  r += hm2_tram_add_bspi_frame(name, 1, &MAX31855_write[1], &MAX31855_read[1]);
+  r += hm2_tram_add_bspi_frame(name, 2, &MAX31855_write[2], &MAX31855_read[2]);
 
   // This is required, or nothing happens.
   r += hm2_allocate_bspi_tram(name);

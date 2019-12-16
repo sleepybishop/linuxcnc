@@ -57,9 +57,11 @@ static uint32_t calc_current(double mASetting, double resistor_value, int vsense
   return current_scaling;
 }
 
-static int read(void *subdata, rtapi_u32 *data, int rdcount) {
+static int read(void *subdata) {
   struct __comp_state *__comp_inst = subdata;
   unsigned int i = 0;
+
+  rtapi_u32 *data = *TMC26X_read;
 
   for (i = 0; i < NUM_MOTORS; i++) {
     stalled_in(i)         = ((data[i] >>  0) & 0x1) ? 1 : 0;
@@ -161,7 +163,7 @@ EXTRA_SETUP(){
 
   // Add BSPI Frames
   for(int i = 0; i < NUM_MOTORS; i++) {
-    r += hm2_tram_add_bspi_frame(name, i, &TMC26X_write[i], NULL);
+    r += hm2_tram_add_bspi_frame(name, i, &TMC26X_write[i], &TMC26X_read[i]);
   }
 
   // This is required, or nothing happens.
