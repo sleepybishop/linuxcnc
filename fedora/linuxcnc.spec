@@ -119,6 +119,19 @@ mkdir -p ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/
 #mv $RPM_BUILD_ROOT%{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linuxcnc
 ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linuxcnc
 
+pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_bindir}/*
+pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/M190
+pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/test/plasmac_test.py
+pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/configurator.py
+pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/plasmac_gcode.py
+pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/pmx485.py
+pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/pmx_test.py
+pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/materialverter.py
+pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/axis/vismach/VMC_toolchange/vmcgui
+pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/axis/vismach/rolfmill/rolfmill
+pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/axis/vismach/3axis-tutorial/3axis-tutorial
+pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/gmoccapy/lathe_configs/lathehandler.py
+
 %files
 %defattr(-,root,root)
 %{_sysconfdir}/linuxcnc
@@ -183,6 +196,7 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %attr(0755,-,-) %{_bindir}/sim_pin
 %attr(0755,-,-) %{_bindir}/simulate_probe
 %attr(0755,-,-) %{_bindir}/stepconf
+%attr(0755,-,-) %{_bindir}/svd-ps_vfd
 %attr(0755,-,-) %{_bindir}/tooledit
 %attr(0755,-,-) %{_bindir}/touchy
 %attr(0755,-,-) %{_bindir}/vfdb_vfd
@@ -216,7 +230,6 @@ ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linu
 %{_exec_prefix}/lib/tcltk/*
 %ghost %{_libdir}/tcl8.6/linuxcnc
 
-#%{_libdir}/*.so*
 %{_libdir}/libcanterp.so
 %{_libdir}/libcanterp.so.0
 %{_libdir}/liblinuxcnchal.so
