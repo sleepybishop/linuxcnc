@@ -44,7 +44,7 @@ w('DynamicHelp::configure','-borderwidth','5','-topbackground','yellow','-bg','y
 wsize = inifile.find('PLASMAC','MAXIMISED') or '0'
 if wsize == '0':
     fsizes = ['9','10','11','12','13','14','15','16']
-    heights = ['668','698','736','748','816','858','900','950']
+    heights = ['688','708','736','748','816','858','900','950']
     if (inifile.find('DISPLAY','GLADEVCP') or '0') == '0':
         aspect = 1.5
     else:
@@ -67,7 +67,7 @@ else:
     wxpos = str(pad_width/2)
     wypos = str(pad_height/2)
 w('wm','geometry','.','{0}x{1}-{2}-{3}'.format(width,height,wxpos,wypos))
-print '\nAxis window is {0} x {1}\n'.format(width,height)
+print('\nAxis window is {0} x {1}\n'.format(width,height))
 
 
 ################################################################################
@@ -219,15 +219,15 @@ w('bind',fjogf + '.jog.jogminus','<ButtonRelease-1>','if [is_continuous] {jog_st
 w('button',fjogf + '.jog.jogplus','-command','if ![is_continuous] {jog_plus 1}','-height','1','-text','+')
 w('bind',fjogf + '.jog.jogplus','<Button-1>','if [is_continuous] {jog_plus}')
 w('bind',fjogf + '.jog.jogplus','<ButtonRelease-1>','if [is_continuous] {jog_stop}')
-w('combobox',fjogf + '.jog.jogincr','-editable','0','-textvariable','jogincrement','-value','Continuous','-width','10')
-w(fjogf + '.jog.jogincr','list','insert','end','Continuous')
+w('combobox',fjogf + '.jog.jogincr','-editable','0','-textvariable','jogincrement','-value',_('Continuous'),'-width','10')
+w(fjogf + '.jog.jogincr','list','insert','end',_('Continuous'))
 if increments:
     w(fjogf + '.jog.jogincr','list','insert','end',*increments)
 w('labelframe',fjogf + '.zerohome','-text','Zero','-relief','flat')
 w('button',fjogf + '.zerohome.home','-command','home_joint','-height','1')
-w('setup_widget_accel',fjogf + '.zerohome.home','Home Axis')
+w('setup_widget_accel',fjogf + '.zerohome.home',_('Home Axis'))
 w('button',fjogf + '.zerohome.zero','-command','touch_off_system','-height','1')
-w('setup_widget_accel',fjogf + '.zerohome.zero','Touch Off')
+w('setup_widget_accel',fjogf + '.zerohome.zero',_('Touch Off'))
 # unused, just for tcl hierarchy
 w('button',fjogf + '.zerohome.tooltouch')
 w('checkbutton',fjogf + '.override')
@@ -252,7 +252,7 @@ if homing_order_defined:
         hbName = 'axes'
     else:
         hbName ='joints'
-    widgets.homebutton.configure(text = 'Home All', command = 'home_all_joints')
+    widgets.homebutton.configure(text = _('Home All'), command = 'home_all_joints')
     w('DynamicHelp::add',fjogf + '.zerohome.home','-text','Home all %s [Ctrl-Home]' % hbName)
 else:
     w('DynamicHelp::add',fjogf + '.zerohome.home','-text','Home selected %s [Home]' % ja_name.lower())
@@ -720,7 +720,12 @@ def user_live_update():
                 hal.set_p('plasmac.probe-test','0')
     if (hal.get_value('axis.x.eoffset') or hal.get_value('axis.y.eoffset')) and not hal.get_value('halui.program.is-paused'):
         hal.set_p('plasmac.consumable-change', '0')
-
+    try:
+        if hal.get_value('plasmac_run.preview-tab'):
+            root_window.tk.call('.pane.top.right','raise','preview')
+            hal.set_p('plasmac_run.preview-tab', '0')
+    except:
+        pass
 def user_hal_pins():
     # create new hal pins
     comp.newpin('arc-voltage', hal.HAL_FLOAT, hal.HAL_IN)
@@ -766,7 +771,6 @@ def configure_widgets():
     w(fpausedmotion + '.paused-motion-speed','configure','-from','0','-to','100','-resolution','1')
 
 def consumable_change_setup(ccParm):
-    print('ccParm: {}'.format(ccParm))
     global ccX
     global ccY
     global ccScale
@@ -838,7 +842,7 @@ for button in range(1,6):
         if ccParm:
             consumable_change_setup(ccParm)
         else:
-            print ('consumable change parameters required\n')
+            print('consumable change parameters required\n')
         break
 wLabels = [\
     fmonitor + '.aVlab',\

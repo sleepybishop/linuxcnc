@@ -48,7 +48,7 @@ class QTPanel():
                 if isinstance(widget, ScreenOptions):
                     self._screenOptions = widget
                     try:
-                        self.window['PREFS_'], pref_fn = widget._pref_init()
+                        self.window['PREFS_'], pref_fn = widget._pref_init(path.CONFIGPATH)
                     except Exception as e:
                         LOG.warning('Preference instance error: {}'.format(e))
                         self.window['PREFS_'], pref_fn = (None,None)
@@ -80,6 +80,7 @@ class QTPanel():
     # the window geometry
     def record_preference_geometry(self):
         temp = self._geo_string.replace(' ','')
+        temp = temp.strip('-')
         if temp == '' or temp.isdigit():
             LOG.debug('Saving Main Window geometry to preference file.')
             x = self.window.geometry().x()
