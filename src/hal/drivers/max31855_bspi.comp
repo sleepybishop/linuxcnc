@@ -13,17 +13,17 @@ temperature values are not updated while a fault condition is present.
 
 """;
 
-pin out unsigned raw.#.in [3] "raw data";
+pin out unsigned raw.#.in [1] "raw data";
 
-variable unsigned *MAX31855_read[3];
-variable unsigned *MAX31855_write[3];
+variable unsigned *MAX31855_read[1];
+variable unsigned *MAX31855_write[1];
 
-pin out float temp_celsius.# [3] """Temperature output values in Celsius.""";
-pin out float temp_fahrenheit.# [3] """Temperature in Fahrenheit.""";
-pin out float temp_kelvin.# [3] """Temperature in Kelvin.""";
+pin out float temp_celsius.# [1] """Temperature output values in Celsius.""";
+pin out float temp_fahrenheit.# [1] """Temperature in Fahrenheit.""";
+pin out float temp_kelvin.# [1] """Temperature in Kelvin.""";
 
-pin out bit fault.# [3]  "Fault condition detected.";
-pin out unsigned fault_flags.# [3]  "Fault flags: 0x1  = open sensor, 0x2 short to gnd, 0x3 short to vcc.";
+pin out bit fault.# [8]  "Fault condition detected.";
+pin out unsigned fault_flags.# [8]  "Fault flags: 0x1  = open sensor, 0x2 short to gnd, 0x3 short to vcc.";
 
 option extra_setup yes;
 option count_function yes;
@@ -149,13 +149,8 @@ static int read(void *subdata) {
 
 	rtapi_u32 *data = *MAX31855_read;
 
-	for (j=0; j<3; j++) {
-		if (data[j] != 0)
-			break;
-	}
-
-	for (i = 0; i < 3; i++) {
-          raw_in(i) = data[j];
+	for (i = 0; i < 1; i++) {
+          raw_in(i) = data[i];
 	  float f = read_celsius_adjusted(raw_in(i));
 		fault(i) = (raw_in(i) & 0x7) ? TRUE : FALSE;
                 fault_flags(i) = raw_in(i) & 0x7;
@@ -171,15 +166,19 @@ static int read(void *subdata) {
   return 0;
 }
 
+static int write(void *subdata) {
+	struct __comp_state *__comp_inst = subdata;
+}
+
 EXTRA_SETUP(){
-  int i, r;
+  int i, r = 0;
   char *name = bspi_chans[extra_arg]; // This is the string which identifies board and instance
 
   // Set up channel descriptors
   //hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo, samplelate)
-  r  = hm2_bspi_setup_chan(name, 0, 0, 32, 200/1000.0f, 0, 0, 0, 0, 0, 1);
-  r  = hm2_bspi_setup_chan(name, 1, 1, 32, 200/1000.0f, 0, 0, 0, 0, 0, 1);
-  r  = hm2_bspi_setup_chan(name, 2, 2, 32, 200/1000.0f, 0, 0, 0, 0, 0, 1);
+  for (i = 0; i < 1; i++) {
+    r += hm2_bspi_setup_chan(name, i, i, 32, 200/1000.0f, 0, 0, 0, 0, 0, 0);
+  }
 
   if (r < 0) {
     rtapi_print_msg(RTAPI_MSG_ERR,  "max31855: There have been %i errors during channel setup, quitting\n", -r);
@@ -187,15 +186,16 @@ EXTRA_SETUP(){
   }
 
   // Add BSPI Frames
-  r += hm2_tram_add_bspi_frame(name, 0, &MAX31855_write[0], &MAX31855_read[0]);
-  r += hm2_tram_add_bspi_frame(name, 1, &MAX31855_write[1], &MAX31855_read[1]);
-  r += hm2_tram_add_bspi_frame(name, 2, &MAX31855_write[2], &MAX31855_read[2]);
+  for (i = 0; i < 1; i++) {
+    r += hm2_tram_add_bspi_frame(name, i, &MAX31855_write[i], &MAX31855_read[i]);
+  }
 
   // This is required, or nothing happens.
   r += hm2_allocate_bspi_tram(name);
 
   // Tell the bspi driver which function to call
   r += hm2_bspi_set_read_function(name, &read, __comp_inst);
+  r += hm2_bspi_set_write_function(name, &write, __comp_inst);
 
   if (r < 0) {
     rtapi_print_msg(RTAPI_MSG_ERR,  "max31855: There have been %i errors during TRAM allocation, quitting\n", -r);
