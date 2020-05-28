@@ -144,18 +144,8 @@ Loads the toolbar library.
 in the 'INSTANTIATE LIBRARY' Section add:
 [source,python]
 ----
-TOOLBAR = None
+TOOLBAR = ToolBarActions()
 ----
-Make a global variable
-
-In the 'INITIALIZE SECTION'
-Under the 'def \_\_init__.(self, halcomp, widgets, paths):' function add: +
-[source,python]
-----
-        global TOOLBAR
-        TOOLBAR = ToolBarActions(widgets)
-----
-
 In the 'SPECIAL FUNCTIONS SECTION'
 Under the 'def initialized__(self):' function add: +
 [source,python]
@@ -217,3 +207,82 @@ In the 'GENERAL FUNCTIONS SECTION' add:
             elif tab == self.w.tab_mdi:
                 self.w.mditouchy.run_command()
 ----
+
+== Add a special Max Velocity Slider based on percent
+Some times you want to build a widget to do something not built in. +
+The built in Max velocity slider acts on units per minute, here we show how to do percent: +
+The STATUS command makes sure the slider adjusts if linuxcnc changes the current max velocity. +
+valueChanged.connect() calls a function when the slider is moved. +
+
+In Designer add a QSlider widget called 'mvPercent'
+Then add the code to the handler file.
+[source,python]
+----
+    #############################
+    # SPECIAL FUNCTIONS SECTION #
+    #############################
+
+    def initialized__(self):
+        self.w.mvPercent.setMaximum(100)
+        STATUS.connect('max-velocity-override-changed', lambda w, data: self.w.mvPercent.setValue((data / INFO.MAX_TRAJ_VELOCITY)*100))
+        self.w.mvPercent.valueChanged.connect(self.setMVPercentValue)
+
+    #####################
+    # GENERAL FUNCTIONS #
+    #####################
+
+   def setMVPercentValue(self, value):
+        ACTION.SET_MAX_VELOCITY_RATE(INFO.MAX_TRAJ_VELOCITY * (value/100.0))
+
+----
+== Class Patch the file manager widget
+
+[NOTE]
+Class patching (monkey patching) is a little like black magic - so use it only if needed. +
+
+The File manager widget is designed to load a selected program in linuxcnc. +
+But maybe you want to print the file name first. +
+We can 'class patch' the library to redirect the function call. +
+
+In the 'IMPORT SECTION' add: +
+[source,python]
+----
+from qtvcp.widgets.file_manager import FileManager as FM
+----
+
+Here we are going to keep a reference to the original function, so we can still call it +
+Then we redirect the class to call our custom function in the handler file instead. +
+[source,python]
+----
+    ##########################################
+    # Special Functions called from QTVCP
+    ##########################################
+
+    # For changing functions in widgets we can 'class patch'.
+    # class patching must be done before the class is instantiated.
+    def class_patch__(self):
+        self.old_load = FM.load # keep a reference of the old function
+        FM.load = self.our_load # redirect function to our handle file function
+----
+
+Ok Now we write a custom function to replace the original. +
+This function must have the same signature as the original function. +
+In this example we are still going to call the original function by using the +
+reference to it we recorded earlier. It requires the first argument to be the widget instance +
+which in this case is self.w.filemanager (the name given in the designer editor) +
+
+[source,python]
+----
+    #####################
+    # GENERAL FUNCTIONS #
+    #####################
+
+    def our_load(self,fname):
+        print fname
+        self.old_load(self.w.filemanager,fname)
+----
+
+Now our custom function will print the file path to the terminal before loading the file. +
+Obviously boring but shows the principle. +
+
+

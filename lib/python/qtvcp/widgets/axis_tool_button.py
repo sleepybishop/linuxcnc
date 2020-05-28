@@ -122,7 +122,7 @@ class AxisToolButton(QToolButton, _HalWidgetBase):
             'AXIS':axis,'CURRENT':now,
             'TITLE':'Set %s Origin'% axis,
             'GEONAME':'axisToolButtonDialog_{}'.format(self.dialog_code),
-            'AXIS':self._axis}
+            'AXIS':axis}
             STATUS.emit('dialog-request', mess)
             LOG.debug('message sent:{}'.format (mess))
 
@@ -160,7 +160,6 @@ class AxisToolButton(QToolButton, _HalWidgetBase):
 
     def Home(self):
         #axis, now = self._a_from_j(self._axis)
-        #print axis
         #if axis:
             ACTION.SET_MACHINE_HOMING(self._joint)
             STATUS.emit('update-machine-log', 'Homed Axis %s' % self._joint, 'TIME')

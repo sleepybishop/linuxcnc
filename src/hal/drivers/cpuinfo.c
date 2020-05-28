@@ -35,7 +35,7 @@ char *get_cpuinfo_revision(char *revision)
       return 0;
 
    while(!feof(fp)) {
-      fgets(buffer, sizeof(buffer) , fp);
+      if (fgets(buffer, sizeof(buffer) , fp)){
       sscanf(buffer, "Hardware	: %s", hardware);
       if (strcmp(hardware, "BCM2708") == 0)
          rpi_found = 1;
@@ -44,6 +44,7 @@ char *get_cpuinfo_revision(char *revision)
       else if (strcmp(hardware, "BCM2835") == 0)
          rpi_found = 1;
       sscanf(buffer, "Revision	: %s", revision);
+      }
    }
    fclose(fp);
 
@@ -82,6 +83,7 @@ int get_rpi_revision(void)
       return 4;
    else if ((strcmp(revision, "a03111") == 0) ||
             (strcmp(revision, "b03111") == 0) ||
+            (strcmp(revision, "b03112") == 0) ||
             (strcmp(revision, "c03111") == 0) ||
             (strcmp(revision, "c03112") == 0))
       return 5;

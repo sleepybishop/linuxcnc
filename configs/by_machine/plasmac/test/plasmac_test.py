@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2
 
 '''
 plasmac_test.py.
@@ -105,13 +105,13 @@ class plasmacTest:
     def torch_changed(self, halpin):
         if not halpin.get():
             self.B.get_object('arcVoltage').set_sensitive(0)
-            self.B.get_object('arcVoltage').set_value(99.9)
+            self.B.get_object('arcVoltage').set_value(50.0)
             time.sleep(.1)
             self.B.get_object('arcVoltage').set_sensitive(1)
 
     def __init__(self):
         self.lcnc = linuxCNC()
-        gtk.settings_get_default().set_property('gtk-theme-name', self.lcnc.iniFile.find('PLASMAC', 'THEME'))
+#        gtk.settings_get_default().set_property('gtk-theme-name', self.lcnc.iniFile.find('PLASMAC', 'THEME'))
         self.gui = "./test/plasmac_test.glade"
         self.B = gtk.Builder()
         self.B.add_from_file(self.gui)

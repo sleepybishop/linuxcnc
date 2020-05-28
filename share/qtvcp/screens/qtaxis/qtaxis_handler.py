@@ -94,6 +94,7 @@ class HandlerClass:
         TOOLBAR.configure_submenu(self.w.menuHoming, 'home_submenu')
         TOOLBAR.configure_submenu(self.w.menuUnhome, 'unhome_submenu')
         TOOLBAR.configure_submenu(self.w.menuZeroCoordinateSystem, 'zero_systems_submenu')
+        TOOLBAR.configure_submenu(self.w.menuGridSize, 'grid_size_submenu')
         TOOLBAR.configure_action(self.w.actionEstop, 'estop')
         TOOLBAR.configure_action(self.w.actionMachineOn, 'power')
         TOOLBAR.configure_action(self.w.actionOpen, 'load')
@@ -128,12 +129,17 @@ class HandlerClass:
         TOOLBAR.configure_action(self.w.actionToolOffsetDialog, 'tooloffsetdialog')
         TOOLBAR.configure_action(self.w.actionOriginOffsetDialog, 'originoffsetdialog')
         TOOLBAR.configure_action(self.w.actionCalculatorDialog, 'calculatordialog')
+        TOOLBAR.configure_action(self.w.actionAlphaMode, 'alpha_mode')
+        TOOLBAR.configure_action(self.w.actionInhibitSelection, 'inhibit_selection')
+        TOOLBAR.configure_action(self.w.actionShow_G53_in_DRO,'', self.g53_in_dro_changed)
+        TOOLBAR.configure_statusbar(self.w.statusbar,'message_controls')
         self.w.actionQuickRef.triggered.connect(self.quick_reference)
         self.w.actionMachineLog.triggered.connect(self.launch_log_dialog)
         if not INFO.HOME_ALL_FLAG:
             self.w.actionButton_home.setText("Home Selected")
             self.w.actionButton_home.set_home_select(True)
         self.make_corner_widgets()
+        self.make_progressbar()
 
     def processed_key_event__(self,receiver,event,is_pressed,key,code,shift,cntrl):
         # when typing in MDI, we don't want keybinding to call functions
@@ -174,17 +180,10 @@ class HandlerClass:
                     event.accept()
                     return True
 
-        # ok if we got here then try keybindings
-        try:
-            b = KEYBIND.call(self,event,is_pressed,shift,cntrl)
-            event.accept()
-            return True
-        except NameError as e:
-            LOG.debug('Exception in KEYBINDING: {}'.format (e))
-        except Exception as e:
-            LOG.debug('Exception in KEYBINDING:', exc_info=e)
-            print 'Error in, or no function for: %s in handler file for-%s'%(KEYBIND.convert(event),key)
-            return False
+        # ok if we got here then try keybindings function calls
+        # KEYBINDING will call functions from handler file as
+        # registered by KEYBIND.add_call(KEY,FUNCTION) above
+        return KEYBIND.manage_function_calls(self,event,is_pressed,key,shift,cntrl)
 
     def closing_cleanup__(self):
         TOOLBAR.saveRecentPaths()
@@ -234,6 +233,22 @@ class HandlerClass:
         if num == 0:
             ACTION.SET_MANUAL_MODE()
 
+    def percentLoaded(self, fraction):
+        if fraction <0:
+            self.w.progressbar.setValue(0)
+            self.w.progressbar.setFormat('Progress')
+        else:
+            self.w.progressbar.setValue(fraction)
+            self.w.progressbar.setFormat('Loading: {}%'.format(fraction))
+
+    def percentCompleted(self, fraction):
+        self.w.progressbar.setValue(fraction)
+        if fraction <0:
+            self.w.progressbar.setValue(0)
+            self.w.progressbar.setFormat('Progress')
+        else:
+            self.w.progressbar.setFormat('Completed: {}%'.format(fraction))
+
     #####################
     # general functions #
     #####################
@@ -274,6 +289,9 @@ class HandlerClass:
             self.w['dro_label_g5x_%s'%i].imperial_template = unit + i.upper() + '%9.4f'
             self.w['dro_label_g5x_%s'%i].metric_template = unit + i.upper() + '%10.3f'
             self.w['dro_label_g5x_%s'%i].update_units()
+            self.w['dro_label_g53_%s'%i].imperial_template = i.upper() + '%9.4f'
+            self.w['dro_label_g53_%s'%i].metric_template = i.upper() + '%10.3f'
+            self.w['dro_label_g53_%s'%i].update_units()
         self.w.dro_label_g5x_r.angular_template = unit + 'R      %3.2f'
         self.w.dro_label_g5x_r.update_units()
         self.w.dro_label_g5x_r.update_rotation(None, STATUS.stat.rotation_xy)
@@ -431,6 +449,17 @@ class HandlerClass:
         self.w.tool_stat.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         self.w.tool_stat.setFixedWidth(60)
         self.w.leftTab.setCornerWidget(self.w.tool_stat)
+
+    def make_progressbar(self):
+        self.w.progressbar = QtWidgets.QProgressBar()
+        self.w.progressbar.setRange(0,100)
+        self.w.statusbar.addWidget(self.w.progressbar)
+
+    def g53_in_dro_changed(self, w, data):
+        if data:
+            self.w.widget_dro_g53.show()
+        else:
+            self.w.widget_dro_g53.hide()
 
     #####################
     # KEY BINDING CALLS #

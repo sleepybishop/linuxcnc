@@ -1,6 +1,9 @@
 .PHONY: docs docsclean checkref checkref_en checkref_es checkref_fr checkref_vi
 .PHONY: pdfdocs htmldocs install-doc install-doc-pdf install-doc-html
 
+# To make linuxcnc-python widely available
+export PATH:=$(BASEPWD)/../scripts:$(PATH)
+
 DOC_DIR=../docs
 DOC_SRCDIR=../docs/src
 
@@ -65,6 +68,7 @@ DOC_SRCS_EN := \
 	drivers/opto22.txt \
 	drivers/pico-ppmc.txt \
 	drivers/pluto-p.txt \
+	drivers/pmx485.txt \
 	drivers/servo-to-go.txt \
 	drivers/shuttle.txt \
 	examples/gcode.txt \
@@ -135,6 +139,7 @@ DOC_SRCS_EN := \
 	ladder/ladder-intro.txt \
 	lathe/lathe-user.txt \
 	motion/kinematics.txt \
+    motion/dh-parameters.txt \
 	motion/pid-theory.txt \
 	motion/tweaking-steppers.txt \
 	motion/5-axis-kinematics.txt \
@@ -440,7 +445,7 @@ $(DOC_DIR)/html/index.html: $(DOC_SRCDIR)/index.tmpl objects/index.incl $(DOC_SR
 $(DOC_SRCDIR)/%.pdf: $(DOC_SRCDIR)/%.txt
 	$(ECHO) Building $@
 	@rm -f $@
-	$(A2X) -L -d book -vf pdf $< || (X=$$?; rm $@; exit $$X)
+	$(A2X) -L -d book -vf pdf $< || (X=$$?; rm -f $@; exit $$X)
 	@test -f $@
 
 depends/%.d: $(DOC_SRCDIR)/%.txt $(DOC_SRCDIR)/asciideps
@@ -451,7 +456,7 @@ depends/%.d: $(DOC_SRCDIR)/%.txt $(DOC_SRCDIR)/asciideps
 
 objects/%.links-stamp: $(DOC_SRCDIR)/%.txt $(DOC_SRCDIR)/links.xslt
 	@mkdir -p `dirname $@`
-	asciidoc -f $(DOC_SRCDIR)/attribute-colon.conf -a "scriptdir=$(DOC_SRCDIR)/" -d book -o- -b docbook $< | xsltproc $(DOC_SRCDIR)/links.xslt - > $@.tmp || (X=$$?; rm $@; exit $$X)
+	asciidoc -f $(DOC_SRCDIR)/attribute-colon.conf -a "scriptdir=$(DOC_SRCDIR)/" -d book -o- -b docbook $< | xsltproc $(DOC_SRCDIR)/links.xslt - > $@.tmp || (X=$$?; rm -f $@; exit $$X)
 	sh move-if-change $@.tmp $(patsubst %-stamp,%,$@)
 	touch $@
 
@@ -494,7 +499,7 @@ $(DOC_TARGETS_HTML): $(DOC_DIR)/html/%.html: $(DOC_SRCDIR)/%.html
 # document tree (docs/html in the git repo).  This is where the CSS files
 # and javascript files will be installed.
 $(DOC_SRCDIR)/%.html: STYLES_SCRIPTS=$(shell \
-    D=$$(python -c "print '../' * '$*'.count('/')"); \
+    D=$$($(BASEPWD)/../scripts/linuxcnc-python -c "print('../' * '$*'.count('/'))"); \
     if [ ! -z $$D ]; then \
         echo "-a 'scriptsdir=$$D' -a 'stylesdir=$$D'"; \
     fi \
@@ -511,7 +516,7 @@ $(patsubst %.txt,$(DOC_SRCDIR)/%.html,$(DOC_SRCS_EN_SMALL)): $(DOC_SRCDIR)/%.htm
 	         -a "relindir=$(shell dirname $*)" \
 	         -a "linksfile=objects/xref_en.links" \
 		 -a stylesheet=linuxcnc.css \
-		 -d book -a toc -a numbered -b xhtml11 $< || (X=$$?; rm $@; exit $$X)
+		 -d book -a toc -a numbered -b xhtml11 $< || (X=$$?; rm -f $@; exit $$X)
 
 $(patsubst %.txt,$(DOC_SRCDIR)/%.html,$(DOC_SRCS_FR_SMALL)): $(DOC_SRCDIR)/%.html: $(DOC_SRCDIR)/%.txt objects/xref_fr.links $(LOC_LANG_MAP)
 	asciidoc -f $(DOC_SRCDIR)/xhtml11.conf \
@@ -524,7 +529,7 @@ $(patsubst %.txt,$(DOC_SRCDIR)/%.html,$(DOC_SRCS_FR_SMALL)): $(DOC_SRCDIR)/%.htm
 	         -a "relindir=$(shell dirname $*)" \
 	         -a "linksfile=objects/xref_fr.links" \
 		 -a stylesheet=linuxcnc.css \
-		 -d book -a toc -a numbered -b xhtml11 $< || (X=$$?; rm $@; exit $$X)
+		 -d book -a toc -a numbered -b xhtml11 $< || (X=$$?; rm -f $@; exit $$X)
 
 $(patsubst %.txt,$(DOC_SRCDIR)/%.html,$(DOC_SRCS_ES_SMALL)): $(DOC_SRCDIR)/%.html: $(DOC_SRCDIR)/%.txt objects/xref_es.links $(LOC_LANG_MAP)
 	asciidoc -f $(DOC_SRCDIR)/xhtml11.conf \
@@ -535,7 +540,7 @@ $(patsubst %.txt,$(DOC_SRCDIR)/%.html,$(DOC_SRCS_ES_SMALL)): $(DOC_SRCDIR)/%.htm
 	         -a "relindir=$(shell dirname $*)" \
 	         -a "linksfile=objects/xref_es.links" \
 		 -a stylesheet=linuxcnc.css \
-		 -d book -a toc -a numbered -b xhtml11 $< || (X=$$?; rm $@; exit $$X)
+		 -d book -a toc -a numbered -b xhtml11 $< || (X=$$?; rm -f $@; exit $$X)
 
 default: docs
 $(DOC_DIR)/html/xref_fr.html: objects/xref_fr.xml $(DOC_SRCDIR)/xref.xsl $(DOC_SRCDIR)/docs.xml $(DOC_SRCDIR)/terms.xml

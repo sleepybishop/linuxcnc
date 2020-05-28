@@ -119,13 +119,19 @@ class HandlerClass:
                     '\n')
             print('*** creating new material configuration file, {}'.format(self.materialFile))
 
-    def write_material(self, *items):
+    def write_materials(self, *items):
         mat = []
         for item in items[1:]:
             mat.append(item)
         self.materialFileDict[items[0]] = mat
-        iter = self.builder.get_object('materials').append()
-        self.builder.get_object('materials').set(iter, 0, '{:05d}: {}'.format(int(items[0]), items[1]))
+
+    def display_materials(self):
+        self.materialList = []
+        self.builder.get_object('materials').clear()
+        for key in sorted(self.materialFileDict):
+            iter = self.builder.get_object('materials').append()
+            self.builder.get_object('materials').set(iter, 0, '{:05d}: {}'.format(key, self.materialFileDict[key][0]))
+            self.materialList.append(key)
 
     def get_material(self):
         self.getMaterial = 1
@@ -146,7 +152,7 @@ class HandlerClass:
         g_press = self.builder.get_object('gas-pressure').get_value()
         c_mode = self.builder.get_object('cut-mode').get_value()
         t_item = 0
-        self.write_material(t_number,t_name,k_width,thc_enable,p_height,p_delay,pj_height,pj_delay,c_height,c_speed,c_amps,c_volts,pause,g_press,c_mode,t_item)
+        self.write_materials(t_number,t_name,k_width,thc_enable,p_height,p_delay,pj_height,pj_delay,c_height,c_speed,c_amps,c_volts,pause,g_press,c_mode,t_item)
         with open(self.materialFile, 'r') as f_in:
             firstpass = True
             required = ['PIERCE_HEIGHT', 'PIERCE_DELAY', 'CUT_HEIGHT', 'CUT_SPEED']
@@ -157,14 +163,14 @@ class HandlerClass:
                 elif line.startswith('[MATERIAL_NUMBER_') and line.strip().endswith(']'):
                     newMaterial = True
                     if not firstpass:
-                        self.write_material(t_number,t_name,k_width,thc_enable,p_height,p_delay,pj_height,pj_delay,c_height,c_speed,c_amps,c_volts,pause,g_press,c_mode,t_item)
+                        self.write_materials(t_number,t_name,k_width,thc_enable,p_height,p_delay,pj_height,pj_delay,c_height,c_speed,c_amps,c_volts,pause,g_press,c_mode,t_item)
                         for item in required:
                             if item not in received:
                                 self.dialog_error('Materials Error', '\n{} is missing from Material #{}'.format(item, t_number))
                     firstpass = False
                     t_number = int(line.rsplit('_', 1)[1].strip().strip(']'))
                     self.materialNumList.append(t_number)
-                    t_name = k_width = thc_enable = p_height = p_delay = pj_height = pj_delay = c_height = c_speed = c_amps = c_volts =  pause = 0.0
+                    t_name = k_width = thc_enable = p_height = p_delay = pj_height = pj_delay = c_height = c_speed = c_amps = c_volts =  pause = g_press = c_mode = 0.0
                     t_item += 1
                     received = []
                 elif line.startswith('NAME'):
@@ -222,14 +228,12 @@ class HandlerClass:
                     if line.split('=')[1].strip():
                         c_mode = float(line.split('=')[1].strip())
             if t_number:
-                self.write_material(t_number,t_name,k_width,thc_enable,p_height,p_delay,pj_height,pj_delay,c_height,c_speed,c_amps,c_volts,pause,g_press,c_mode,t_item)
+                self.write_materials(t_number,t_name,k_width,thc_enable,p_height,p_delay,pj_height,pj_delay,c_height,c_speed,c_amps,c_volts,pause,g_press,c_mode,t_item)
                 for item in required:
                     if item not in received:
                         self.dialog_error('Materials Error', '\n{} is missing from Material #{}'.format(item, t_number))
+        self.display_materials()
         self.builder.get_object('material').set_active(0)
-        self.materialList = []
-        for material in (self.materialFileDict.keys()):
-            self.materialList.append(material)
         self.getMaterial = 0
 
     def on_save_clicked(self,widget,data=None):
@@ -251,11 +255,58 @@ class HandlerClass:
 
     def on_reload_clicked(self,widget,data=None):
         self.materialUpdate = True
-        self.load_settings()
+        material = self.builder.get_object('material').get_active()
+        if widget:
+            self.load_settings()
         self.materialFileDict = {}
         self.materialNumList = []
         self.get_material()
+        self.builder.get_object('material').set_active(material)
         self.materialUpdate = False
+        hal.set_p('plasmac_run.material-reload', '0')
+
+    def on_material_reload_pin(self, halpin):
+        if halpin.get():
+            self.on_reload_clicked(1)
+
+    def on_temp_material_pin(self, halpin):
+        if halpin.get():
+            t_number = 0
+            t_name = 'Temporary'
+            t_item = 0
+            with open(self.tmpMaterialFile, 'r') as f_in:
+                for line in f_in:
+                    if line.startswith('kerf-width'):
+                        k_width = float(line.split('=')[1].strip()) 
+                    elif line.startswith('thc-enable'):
+                        thc_enable = int(line.split('=')[1].strip())
+                    elif line.startswith('pierce-height'):
+                        p_height = float(line.split('=')[1].strip())
+                    elif line.startswith('pierce-delay'):
+                        p_delay = float(line.split('=')[1].strip())
+                    elif line.startswith('puddle-jump-height'):
+                        pj_height = float(line.split('=')[1].strip())
+                    elif line.startswith('puddle-jump-delay'):
+                        pj_delay = float(line.split('=')[1].strip())
+                    elif line.startswith('cut-height'):
+                        c_height = float(line.split('=')[1].strip())
+                    elif line.startswith('cut-feed-rate'):
+                        c_speed = float(line.split('=')[1].strip())
+                    elif line.startswith('cut-amps'):
+                        c_amps = float(line.split('=')[1].strip())
+                    elif line.startswith('cut-volts'):
+                        c_volts = float(line.split('=')[1].strip())
+                    elif line.startswith('pause-at-end'):
+                        pause = float(line.split('=')[1].strip())
+                    elif line.startswith('gas-pressure'):
+                        g_press = float(line.split('=')[1].strip())
+                    elif line.startswith('cut-mode'):
+                        c_mode = float(line.split('=')[1].strip())
+            self.write_materials(t_number,t_name,k_width,thc_enable,p_height,p_delay,pj_height,pj_delay,c_height,c_speed,c_amps,c_volts,pause,g_press,c_mode,t_item)
+            self.display_materials()
+            self.change_material(0, 'tmp')
+            self.builder.get_object('material').set_active(0)
+            hal.set_p('plasmac_run.temp-material', '0')
 
     def on_new_clicked(self, widget):
         response, num, nam = self.dialog_common('Add Material',\
@@ -264,45 +315,50 @@ class HandlerClass:
                                                 'OK',\
                                                 'Cancel')
         if not num or not nam:
-            self.dialog_error('\nNumber and Name are required')
+            self.dialog_error('New Material Error','\nNumber and Name are required')
             return
         else:
             try:
                 num = int(num)
             except:
-                self.dialog_error('\nMaterial number must be an integer')
+                self.dialog_error('New Material Error','\nMaterial number must be an integer')
                 return
             if num in self.materialNumList:
-                self.dialog_error('\nMaterial number {} is in use'.format(num))
+                self.dialog_error('New Material Error','\nMaterial number {} is in use'.format(num))
                 return
+            active = self.builder.get_object('material').get_active_text().split(': ', 1)[0].lstrip('0')
+            active = int(active) if active else 0
             shutil.copy(self.materialFile,'{}.bkp'.format(self.materialFile))
             outFile = open('{}'.format(self.materialFile), 'a')
             outFile.write('[MATERIAL_NUMBER_{}]  \n'.format(num))
             outFile.write('NAME               = {}\n'.format(nam))
-            outFile.write('KERF_WIDTH         = {}\n'.format(self.materialFileDict[0][1]))
+            outFile.write('KERF_WIDTH         = {}\n'.format(self.materialFileDict[active][1]))
             if self.materialFileDict[0][2] == True:
                 thc = 1
             else:
                 thc = 0
-            outFile.write('THC                = {}\n'.format(thc))
-            outFile.write('PIERCE_HEIGHT      = {}\n'.format(self.materialFileDict[0][3]))
-            outFile.write('PIERCE_DELAY       = {}\n'.format(self.materialFileDict[0][4]))
-            outFile.write('PUDDLE_JUMP_HEIGHT = {}\n'.format(self.materialFileDict[0][5]))
-            outFile.write('PUDDLE_JUMP_DELAY  = {}\n'.format(self.materialFileDict[0][6]))
-            outFile.write('CUT_HEIGHT         = {}\n'.format(self.materialFileDict[0][7]))
-            outFile.write('CUT_SPEED          = {}\n'.format(self.materialFileDict[0][8]))
-            outFile.write('CUT_AMPS           = {}\n'.format(self.materialFileDict[0][9]))
-            outFile.write('CUT_VOLTS          = {}\n'.format(self.materialFileDict[0][10]))
-            outFile.write('PAUSE_AT_END       = {}\n\n'.format(self.materialFileDict[0][11]))
-            outFile.write('GAS_PRESSURE       = {}\n'.format(self.materialFileDict[0][12]))
-            outFile.write('CUT_MODE           = {}\n'.format(self.materialFileDict[0][13]))
+            if self.materialFileDict[active][2]:
+                outFile.write('THC                = 1\n')
+            else:
+                outFile.write('THC                = 0\n')
+            outFile.write('PIERCE_HEIGHT      = {}\n'.format(self.materialFileDict[active][3]))
+            outFile.write('PIERCE_DELAY       = {}\n'.format(self.materialFileDict[active][4]))
+            outFile.write('PUDDLE_JUMP_HEIGHT = {}\n'.format(self.materialFileDict[active][5]))
+            outFile.write('PUDDLE_JUMP_DELAY  = {}\n'.format(self.materialFileDict[active][6]))
+            outFile.write('CUT_HEIGHT         = {}\n'.format(self.materialFileDict[active][7]))
+            outFile.write('CUT_SPEED          = {}\n'.format(self.materialFileDict[active][8]))
+            outFile.write('CUT_AMPS           = {}\n'.format(self.materialFileDict[active][9]))
+            outFile.write('CUT_VOLTS          = {}\n'.format(self.materialFileDict[active][10]))
+            outFile.write('PAUSE_AT_END       = {}\n'.format(self.materialFileDict[active][11]))
+            outFile.write('GAS_PRESSURE       = {}\n'.format(self.materialFileDict[active][12]))
+            outFile.write('CUT_MODE           = {}\n\n'.format(self.materialFileDict[active][13]))
             outFile.close()
             self.materialUpdate = True
             self.load_settings()
             self.materialFileDict = {}
             self.materialNumList = []
             self.get_material()
-            self.builder.get_object('material').set_active(len(self.materialNumList))
+            self.builder.get_object('material').set_active(self.materialList.index(num))
             self.materialUpdate = False
 
     def on_delete_clicked(self, widget):
@@ -312,16 +368,16 @@ class HandlerClass:
                                                 'OK',\
                                                 'Cancel')
         if not num:
-            self.dialog_error('\nNumber is required')
+            self.dialog_error('Delete Material Error','\nNumber is required')
             return
         else:
             try:
                 num = int(num)
             except:
-                self.dialog_error('\nMaterial number must be an integer')
+                self.dialog_error('Delete Material Error','\nMaterial number must be an integer')
                 return
             if not num in self.materialNumList:
-                self.dialog_error('\nMaterial number {} is not in use'.format(num))
+                self.dialog_error('Delete Material Error','\nMaterial number {} is not in use'.format(num))
                 return
             response = self.dialog_ok_cancel('Delete Material',\
                                              'Are you sure?',\
@@ -378,13 +434,14 @@ class HandlerClass:
             self.builder.get_object('thc-enable-label').set_text('THC DISABLED')
 
     def on_material_changed(self,widget):
-        if self.getMaterial: return
-        if self.autoChange == False:
-            self.manualChange = True
-            material, name = self.builder.get_object('material').get_active_text().split(': ', 1)
-            self.change_material(int(material),'box')
-        else:
-            self.autoChange = False
+        if self.builder.get_object('material').get_active_text():
+            if self.getMaterial: return
+            if self.autoChange == False:
+                self.manualChange = True
+                material, name = self.builder.get_object('material').get_active_text().split(': ', 1)
+                self.change_material(int(material),'box')
+            else:
+                self.autoChange = False
 
     def material_change_number_changed(self,halpin):
         if self.getMaterial: return
@@ -428,13 +485,9 @@ class HandlerClass:
             hal.set_p('plasmac_run.material-change-number',str(material))
         else:
             print('material not in material list')
-#            if material < self.oldMaterial:
-#                self.change_material(self.materialList[self.materialList.index(self.oldMaterial) - 1])
-#            else:
-#                self.change_material(self.materialList[self.materialList.index(self.oldMaterial) + 1])
         if material in self.materialList:
             if self.autoChange:
-                self.builder.get_object('material').set_active(self.materialFileDict[material][len(self.materialFileDict[material]) - 1])
+                self.builder.get_object('material').set_active(self.materialList.index(material))
         self.oldMaterial = material
 
     def first_material_changed(self, halpin):
@@ -468,20 +521,20 @@ class HandlerClass:
         # set_digits = number of digits after decimal
         # configure  = (value, lower limit, upper limit, step size, 0, 0)
         self.builder.get_object('cornerlock-enable').set_active(1)
-        self.builder.get_object('cut-amps').set_digits(1)
-        self.builder.get_object('cut-amps-adj').configure(45,0,999,0.1,0,0)
+        self.builder.get_object('cut-amps').set_digits(0)
+        self.builder.get_object('cut-amps-adj').configure(45,0,999,1,0,0)
         self.builder.get_object('cut-mode').set_digits(0)
         self.builder.get_object('cut-mode-adj').configure(1,1,3,1,0,0)
         self.builder.get_object('cut-volts').set_digits(1)
         self.builder.get_object('cut-volts-adj').configure(122,50,300,0.1,0,0)
-        self.builder.get_object('gas-pressure').set_digits(1)
-        self.builder.get_object('gas-pressure-adj').configure(0,-0.1,250,0.1,0,0)
+        self.builder.get_object('gas-pressure').set_digits(0)
+        self.builder.get_object('gas-pressure-adj').configure(0,0,0,1,0,0)
         self.builder.get_object('kerfcross-enable').set_active(0)
         self.builder.get_object('ohmic-probe-enable').set_active(1)
         self.builder.get_object('pause-at-end').set_digits(1)
         self.builder.get_object('pause-at-end-adj').configure(0,0,9,0.1,0,0)
         self.builder.get_object('pierce-delay').set_digits(1)
-        self.builder.get_object('pierce-delay-adj').configure(0.5,0,10,0.1,0,0)
+        self.builder.get_object('pierce-delay-adj').configure(0.0,0,10,0.1,0,0)
         self.builder.get_object('puddle-jump-height').set_digits(0)
         self.builder.get_object('puddle-jump-height-adj').configure(0,0,200,1,0,0)
         self.builder.get_object('puddle-jump-delay').set_digits(2)
@@ -492,7 +545,7 @@ class HandlerClass:
             self.builder.get_object('kerf-width').set_digits(2)
             self.builder.get_object('kerf-width-adj').configure(0.5,0,5,0.01,0,0)
             self.builder.get_object('cut-feed-rate').set_digits(0)
-            self.builder.get_object('cut-feed-rate-adj').configure(4000,0,9999,1,0,0)
+            self.builder.get_object('cut-feed-rate-adj').configure(4000,0,19999,1,0,0)
             self.builder.get_object('cut-height').set_digits(2)
             self.builder.get_object('cut-height-adj').configure(1,0,25,0.01,0,0)
             self.builder.get_object('pierce-height').set_digits(2)
@@ -502,54 +555,21 @@ class HandlerClass:
             self.builder.get_object('y-single-cut').set_digits(0)
             self.builder.get_object('y-single-cut-adj').configure(0,-9999,9999,1,0,0)
         elif self.i.find('TRAJ', 'LINEAR_UNITS').lower() == 'inch':
-            self.builder.get_object('kerf-width').set_digits(3)
-            self.builder.get_object('kerf-width-adj').configure(0.02,0,0.25,1,0,0)
+            self.builder.get_object('kerf-width').set_digits(4)
+            self.builder.get_object('kerf-width-adj').configure(0.02,0,1,0.0001,0,0)
             self.builder.get_object('cut-feed-rate').set_digits(1)
-            self.builder.get_object('cut-feed-rate-adj').configure(160,0,400,0.1,0,0)
+            self.builder.get_object('cut-feed-rate-adj').configure(160,0,999,0.1,0,0)
             self.builder.get_object('cut-height').set_digits(3)
             self.builder.get_object('cut-height-adj').configure(0.04,0,1,0.001,0,0)
             self.builder.get_object('pierce-height').set_digits(3)
             self.builder.get_object('pierce-height-adj').configure(0.16,0,1,0.001,0,0)
-            self.builder.get_object('x-single-cut').set_digits(1)
-            self.builder.get_object('x-single-cut-adj').configure(0,-999,999,0.1,0,0)
-            self.builder.get_object('y-single-cut').set_digits(1)
-            self.builder.get_object('y-single-cut-adj').configure(0,-999,999,0.1,0,0)
+            self.builder.get_object('x-single-cut').set_digits(4)
+            self.builder.get_object('x-single-cut-adj').configure(0,-999,999,0.0625,0,0)
+            self.builder.get_object('y-single-cut').set_digits(4)
+            self.builder.get_object('y-single-cut-adj').configure(0,-999,999,0.0625,0,0)
         else:
             self.dialog_error('Configuration Error', 'incorrect [TRAJ]LINEAR_UNITS in ini file')
             print('*** incorrect [TRAJ]LINEAR_UNITS in ini file')
-
-    def periodic(self):
-        if self.builder.get_object('thc-auto').get_active():
-            self.halcomp['thc-enable-out'] = self.builder.get_object('thc-enable').get_active()
-
-        mode = hal.get_value('plasmac.mode')
-        if mode != self.oldMode:
-            if mode == 0:
-                self.builder.get_object('kerfcross-enable').show()
-                self.builder.get_object('kerfcross-enable-label').show()
-                self.builder.get_object('volts-box').show()
-            elif mode == 1:
-                self.builder.get_object('kerfcross-enable').show()
-                self.builder.get_object('kerfcross-enable-label').show()
-                self.builder.get_object('volts-box').show()
-            elif mode == 2:
-                self.builder.get_object('kerfcross-enable').hide()
-                self.builder.get_object('kerfcross-enable-label').hide()
-                self.builder.get_object('volts-box').hide()
-            else:
-                pass
-            self.oldMode = mode
-        self.s.poll()
-        homed = True
-        for n in range(self.s.joints):
-            if not self.s.homed[n]:
-                homed = False
-        hal.set_p('plasmac.homed', str(homed))
-        if homed and self.s.interp_state == linuxcnc.INTERP_IDLE:
-            self.builder.get_object('single-cut').set_sensitive(True)
-        else:
-            self.builder.get_object('single-cut').set_sensitive(False)
-        return True
 
     def set_theme(self):
         theme = gtk.settings_get_default().get_property('gtk-theme-name')
@@ -566,7 +586,8 @@ class HandlerClass:
             theme = self.i.find('PLASMAC', 'THEME') or gtk.settings_get_default().get_property('gtk-theme-name')
             font = self.i.find('PLASMAC', 'FONT') or gtk.settings_get_default().get_property('gtk-font-name')
             fSize = int(font.split()[1])
-            font = '{} {}'.format(font.split()[0],fSize - 1 if fSize < 12 else fSize - 2)
+#            font = '{} {}'.format(font.split()[0],fSize - 1 if fSize < 12 else fSize - 2)
+            font = '{} {}'.format(font.split()[0],fSize - 1)
             gtk.settings_get_default().set_property('gtk-font-name', font)
         gtk.settings_get_default().set_property('gtk-theme-name', theme)
 
@@ -621,7 +642,11 @@ class HandlerClass:
                             print('*** {} missing from {}'.format(item,self.configFile))
                 elif isinstance(self.builder.get_object(item), gladevcp.hal_widgets.HAL_CheckButton):
                     if item in tmpDict:
-                        self.builder.get_object(item).set_active(int(self.configDict.get(item)))
+                        # keep pmx485 alive if it was on when reload pressed
+                        if item in ['powermax-enable'] and self.builder.get_object('powermax-enable').get_active():
+                            self.builder.get_object(item).set_active(1)
+                        else:
+                            self.builder.get_object(item).set_active(int(self.configDict.get(item)))
                     else:
                         if self.i.find('PLASMAC', 'PM_PORT'):
                             print('*** {} missing from {}'.format(item,self.configFile))
@@ -711,8 +736,8 @@ class HandlerClass:
                     outFile.write('CUT_AMPS           = {}\n'.format(self.builder.get_object('cut-amps').get_value()))
                 elif line.startswith('CUT_VOLTS'):
                     outFile.write('CUT_VOLTS          = {}\n'.format(self.builder.get_object('cut-volts').get_value()))
-                elif line.startswith('TORCH_OFF_DELAY'):
-                    outFile.write('TORCH_OFF_DELAY    = {}\n'.format(self.builder.get_object('torch-off-delay').get_value()))
+                elif line.startswith('PAUSE_AT_END'):
+                    outFile.write('PAUSE_AT_END       = {}\n'.format(self.builder.get_object('pause-at-end').get_value()))
                 elif line.startswith('GAS_PRESSURE'):
                     outFile.write('GAS_PRESSURE       = {}\n'.format(self.builder.get_object('gas-pressure').get_value()))
                 elif line.startswith('CUT_MODE'):
@@ -741,14 +766,20 @@ class HandlerClass:
                 self.builder.get_object('kerfcross-enable').show()
                 self.builder.get_object('kerfcross-enable-label').show()
                 self.builder.get_object('volts-box').show()
+                self.builder.get_object('use-auto-volts').show()
+                self.builder.get_object('use-auto-volts-label').show()
             elif mode == 1:
                 self.builder.get_object('kerfcross-enable').show()
                 self.builder.get_object('kerfcross-enable-label').show()
                 self.builder.get_object('volts-box').show()
+                self.builder.get_object('use-auto-volts').show()
+                self.builder.get_object('use-auto-volts-label').show()
             elif mode == 2:
                 self.builder.get_object('kerfcross-enable').hide()
                 self.builder.get_object('kerfcross-enable-label').hide()
                 self.builder.get_object('volts-box').hide()
+                self.builder.get_object('use-auto-volts').hide()
+                self.builder.get_object('use-auto-volts-label').hide()
             else:
                 pass
             self.oldMode = mode
@@ -769,9 +800,12 @@ class HandlerClass:
                     self.fault = '0000'
                     if self.pmx485Connected:
                         self.builder.get_object('powermax-label').set_text('Comms Error')
+                        self.builder.get_object('powermax-label').set_tooltip_text('status of powermax communications')
                         self.builder.get_object('powermax-label').modify_fg(gtk.STATE_NORMAL, gtk.gdk.Color(red = 1.0))
                         self.dialog_error('Communications Error', '\nPowermax communications error\n\nCheck cables and connections\n')
                     else:
+                        if not self.builder.get_object('powermax-label').get_text() == 'Connecting':
+                            self.builder.get_object('powermax-label').set_tooltip_text('status of powermax communications')
                         self.builder.get_object('powermax-label').set_text('Connecting')
                         self.builder.get_object('powermax-label').modify_fg(gtk.STATE_NORMAL, gtk.gdk.Color(blue = 1.0))
                         if self.connTimer:
@@ -786,7 +820,7 @@ class HandlerClass:
                         else:
                             self.connTimer = time.time() + 5
                     self.pmx485Connected = False
-                elif hal.get_value('pmx485.fault'):
+                elif hal.get_value('pmx485.fault')and self.pmx485Connected:
                     faultRaw = '{:04.0f}'.format(hal.get_value('pmx485.fault'))
                     faultCode = '{}-{}-{}'.format(faultRaw[0], faultRaw[1:3], faultRaw[3])
                     if faultRaw in self.pmx485FaultName.keys():
@@ -799,16 +833,37 @@ class HandlerClass:
                         if faultRaw != self.fault:
                             self.fault = faultRaw
                             self.builder.get_object('powermax-label').set_text('Fault Code: {}'.format(faultCode))
+                            self.builder.get_object('powermax-label').set_tooltip_text('Powermax error:\n\n{}'.format(faultMsg))
                             self.builder.get_object('powermax-label').modify_fg(gtk.STATE_NORMAL, gtk.gdk.Color(red = 0.75))
                             self.dialog_error('Powermax Error', '\nPowermax fault code: {}\n\n{}'.format(faultCode, faultMsg))
                     else:
                         self.builder.get_object('powermax-label').set_text('Fault Code: {}'.format(faultRaw))
+                        self.builder.get_object('powermax-label').set_tooltip_text('Powermax error:\n\n{}'.format(faultRaw))
                         self.builder.get_object('powermax-label').modify_fg(gtk.STATE_NORMAL, gtk.gdk.Color(red = 0.75))
                         self.dialog_error('Powermax Error', '\nUnknown Powermax fault code: {}'.format(faultRaw))
                 elif hal.get_value('pmx485.mode') or hal.get_value('pmx485.current') or hal.get_value('pmx485.pressure'):
                     self.fault = '0000'
-                    self.builder.get_object('powermax-label').set_text('Connected')
                     self.builder.get_object('powermax-label').modify_fg(gtk.STATE_NORMAL, gtk.gdk.Color(green = 0.8))
+                    if not self.builder.get_object('powermax-label').get_text() == 'Connected':
+                        if hal.get_value('pmx485.pressure_max') > 10:
+                            self.builder.get_object('gas-pressure-label').set_text('Gas Pressure (psi)')
+                            self.builder.get_object('gas-pressure').set_digits(0)
+                            self.builder.get_object('gas-pressure-adj').set_lower(-0.1)
+                            self.builder.get_object('gas-pressure-adj').set_upper(150)
+                            self.builder.get_object('gas-pressure-adj').set_step_increment(1)
+                        else:
+                            self.builder.get_object('gas-pressure-label').set_text('Gas Pressure (bar)')
+                            self.builder.get_object('gas-pressure').set_digits(1)
+                            self.builder.get_object('gas-pressure-adj').set_lower(-0.1)
+                            self.builder.get_object('gas-pressure-adj').set_upper(10)
+                            self.builder.get_object('gas-pressure-adj').set_step_increment(0.1)
+                        toolTip = 'Powermax cutting current'
+                        for widget in ['cut-amps','cut-amps-label']:
+                                self.builder.get_object(widget).set_tooltip_text(toolTip)
+                        self.on_reload_clicked(None)
+                    if not self.builder.get_object('powermax-label').get_text() == 'Connected':
+                        self.builder.get_object('powermax-label').set_tooltip_text('status of powermax communications')
+                    self.builder.get_object('powermax-label').set_text('Connected')
                     if not self.pmx485Connected:
                         if hal.get_value('pmx485.current_min') > 0 and hal.get_value('pmx485.current_max') > 0:
                             self.builder.get_object('cut-amps').set_range(hal.get_value('pmx485.current_min'), hal.get_value('pmx485.current_max'))
@@ -818,6 +873,7 @@ class HandlerClass:
                 self.pmx485Started = False
                 self.pmx485Connected = False
                 self.builder.get_object('powermax-label').set_text('pmx485 unloaded')
+                self.builder.get_object('powermax-label').set_tooltip_text('status of powermax communications')
                 self.builder.get_object('powermax-label').modify_fg(gtk.STATE_NORMAL, gtk.gdk.Color(red = 1.0))
                 self.builder.get_object('powermax-enable').set_active(False)
                 self.dialog_error('Communications Error', '\nPowermax component unloaded:\n\nCheck cables and connections\n\nThen re-enable\n')
@@ -830,9 +886,7 @@ class HandlerClass:
                 print('\n*** pmx485 component not loaded ***\n')
                 raise SystemExit
             self.builder.get_object('powermax-enable').connect('toggled', self.pmx485_state_change)
-            hal.new_sig('plasmac:powermax-mode-set',hal.HAL_FLOAT)
-            hal.connect('plasmac_run.cut-mode-f','plasmac:powermax-mode-set')
-            hal.connect('pmx485.mode_set','plasmac:powermax-mode-set')
+            self.builder.get_object('cut-mode').connect('value_changed',self.pmx485_mode_changed)
             hal.new_sig('plasmac:powermax-current-set',hal.HAL_FLOAT)
             hal.connect('plasmac_run.cut-amps-f','plasmac:powermax-current-set')
             hal.connect('pmx485.current_set','plasmac:powermax-current-set')
@@ -840,8 +894,7 @@ class HandlerClass:
             hal.connect('plasmac_run.gas-pressure-f','plasmac:powermax-pressure-set')
             hal.connect('pmx485.pressure_set','plasmac:powermax-pressure-set')
             self.pmx485_state_change(self.builder.get_object('powermax-enable'))
-            self.builder.get_object('gas-pressure-label').set_text('Gas Pressure ({})'.format(self.i.find('PLASMAC', 'PM_PRESSURE_DISPLAY')))
-            self.builder.get_object('gas-pressure').connect('value-changed', self.pressure_changed)
+            self.builder.get_object('gas-pressure').connect('value-changed', self.pmx485_pressure_changed)
             self.pressure = self.builder.get_object('gas-pressure').get_value()
             self.connTimer = 0
         else:
@@ -852,7 +905,12 @@ class HandlerClass:
             self.builder.get_object('powermax-frame').hide()
 
     # for powermax communications
-    def pressure_changed(self, widget):
+    def pmx485_mode_changed(self, widget):
+        self.builder.get_object('gas-pressure').set_value(0)
+        hal.set_p('pmx485.mode_set', str(self.builder.get_object('cut-mode').get_value())) 
+
+    # for powermax communications
+    def pmx485_pressure_changed(self, widget):
         if self.pmx485Started:
             if self.builder.get_object('gas-pressure').get_value() < self.pressure:
                 if self.builder.get_object('gas-pressure').get_value() < 0:
@@ -869,7 +927,7 @@ class HandlerClass:
     # for powermax communications
     def pmx485_state_change(self, widget):
         if widget.get_active():
-#            print('Starting Powermax communications') 
+#            print('Starting Powermax communications')
             if not hal.component_exists('pmx485'):
                 port = self.i.find('PLASMAC', 'PM_PORT')
                 Popen('halcmd loadusr -Wn pmx485 ./pmx485.py {}'.format(port), stdout = PIPE, shell = True)
@@ -879,11 +937,11 @@ class HandlerClass:
                     if time.time() > timeout:
                         self.builder.get_object('powermax-enable').set_active(False)
                         self.builder.get_object('powermax-label').set_text('')
+                        self.builder.get_object('powermax-label').set_tooltip_text('status of powermax communications')
                         self.dialog_error('Communication Error', '\nTimeout while reconnecting\n\nCheck cables and connections\n\nThen re-enable\n')
                         return
                     if hal.component_exists('pmx485'):
-                        print('Powermax component reloaded') 
-                        hal.connect('pmx485.mode_set','plasmac:powermax-mode-set')
+#                        print('Powermax component reloaded') 
                         hal.connect('pmx485.current_set','plasmac:powermax-current-set')
                         hal.connect('pmx485.pressure_set','plasmac:powermax-pressure-set')
                         break
@@ -894,6 +952,7 @@ class HandlerClass:
                 return
             else:
                 self.pmx485Started = True
+                hal.set_p('pmx485.mode_set', str(self.builder.get_object('cut-mode').get_value())) 
                 hal.set_p('pmx485.enable', '1')
                 self.connTimer = 0
         else:
@@ -904,7 +963,11 @@ class HandlerClass:
             if hal.component_exists('pmx485'):
                 hal.set_p('pmx485.enable', '0')
                 self.builder.get_object('powermax-label').set_text('')
-                self.builder.get_object('gas-pressure-adj').configure(0,-0.1,250,0.1,0,0)
+                self.builder.get_object('powermax-label').set_tooltip_text('status of powermax communications')
+                self.builder.get_object('gas-pressure-adj').configure(0,0,0,1,0,0)
+                toolTip = 'cutting current in amps\nindicator only, not used by plasmac.'
+                for widget in ['cut-amps','cut-amps-label']:
+                    self.builder.get_object(widget).set_tooltip_text(toolTip)
 
     # for powermax communications
     pmx485FaultName = {
@@ -999,10 +1062,14 @@ class HandlerClass:
         self.materialNumberPin = hal_glib.GPin(halcomp.newpin('material-change-number', hal.HAL_S32, hal.HAL_IN))
         self.materialChangePin = hal_glib.GPin(halcomp.newpin('material-change', hal.HAL_S32, hal.HAL_IN))
         self.firstMaterialPin = hal_glib.GPin(halcomp.newpin('first-material', hal.HAL_S32, hal.HAL_IN))
+        self.materialReloadPin = hal_glib.GPin(halcomp.newpin('material-reload', hal.HAL_BIT, hal.HAL_IN))
+        self.tempMaterialPin = hal_glib.GPin(halcomp.newpin('temp-material', hal.HAL_BIT, hal.HAL_IN))
         self.thcEnablePin = hal_glib.GPin(halcomp.newpin('thc-enable-out', hal.HAL_BIT, hal.HAL_OUT))
         self.materialNumberPin.connect('value-changed', self.material_change_number_changed)
         self.materialChangePin.connect('value-changed', self.material_change_changed)
         self.firstMaterialPin.connect('value-changed', self.first_material_changed)
+        self.materialReloadPin.connect('value-changed', self.on_material_reload_pin)
+        self.tempMaterialPin.connect('value-changed', self.on_temp_material_pin)
         self.idlePin = hal_glib.GPin(halcomp.newpin('program-is-idle', hal.HAL_BIT, hal.HAL_IN))
         hal.connect('plasmac_run.program-is-idle', 'plasmac:program-is-idle') 
         self.idlePin.connect('value-changed', self.idle_changed)
@@ -1013,6 +1080,7 @@ class HandlerClass:
         self.configFile = self.i.find('EMC', 'MACHINE').lower() + '_run.cfg'
         self.prefFile = self.i.find('EMC', 'MACHINE') + '.pref'
         self.materialFile = self.i.find('EMC', 'MACHINE').lower() + '_material.cfg'
+        self.tmpMaterialFile = self.materialFile.replace('.cfg','.tmp')
         self.materialFileDict = {}
         self.materialDict = {}
         self.configDict = {}

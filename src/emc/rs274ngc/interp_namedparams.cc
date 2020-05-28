@@ -16,6 +16,7 @@
 #define _GNU_SOURCE
 #endif
 
+#include "py3c/py3c.h"
 #define BOOST_PYTHON_MAX_ARITY 4
 #include "python_plugin.hh"
 #include <boost/python/dict.hpp>
@@ -238,7 +239,7 @@ int Interp::fetch_hal_param( const char *nameBuf, int *status, double *value)
     *status = 0;
     if (!comp_id) {
 	char hal_comp[LINELEN];
-	sprintf(hal_comp,"interp%d",getpid());
+	snprintf(hal_comp, sizeof(hal_comp),"interp%d",getpid());
 	comp_id = hal_init(hal_comp); // manpage says: NULL ok - which fails miserably
 	CHKS(comp_id < 0,_("fetch_hal_param: hal_init(%s): %d"), hal_comp,comp_id);
 	CHKS((retval = hal_ready(comp_id)), _("fetch_hal_param: hal_ready(): %d"),retval);
@@ -371,13 +372,13 @@ int Interp::find_named_param(
 	       "named param - pycall(%s):\n%s", nameBuf,
 	       python_plugin->last_exception().c_str());
 	  CHKS(retval.ptr() == Py_None, "Python namedparams.%s returns no value", nameBuf);
-	  if (PyString_Check(retval.ptr())) {
+      if (PyStr_Check(retval.ptr())) {
 	      // returning a string sets the interpreter error message and aborts
 	      *status = 0;
 	      char *msg = bp::extract<char *>(retval);
 	      ERS("%s", msg);
 	  }
-	  if (PyInt_Check(retval.ptr())) { // widen
+      if (PyInt_Check(retval.ptr())) { // widen
 	      *value = (double) bp::extract<int>(retval);
 	      *status = 1;
 	      return INTERP_OK;
@@ -393,7 +394,7 @@ int Interp::find_named_param(
 	  Py_XDECREF(res_str);
 	  ERS("Python call %s.%s returned '%s' - expected double, int or string, got %s",
 	      NAMEDPARAMS_MODULE, nameBuf,
-	      PyString_AsString(res_str),
+          PyStr_AsString(res_str),
 	      retval.ptr()->ob_type->tp_name);
       } else {
 	  *value = pv->value;
@@ -657,11 +658,26 @@ int Interp::lookup_named_param(const char *nameBuf,
 	break;
 
     case NP_SELECTED_POCKET:
-	*value = _setup.selected_pocket;
+    if(_setup.random_toolchanger){//random changers already report the real pocket number
+        *value = _setup.selected_pocket;
+    }
+    else{//non random get it from the tool table
+        if(_setup.tool_table[_setup.selected_pocket].pocketno == 0){//pocket 0 is special on non-random changers
+            *value = -1;
+        }
+        else{
+	        *value = _setup.tool_table[_setup.selected_pocket].pocketno;
+        }
+    }
 	break;
 
     case NP_CURRENT_POCKET:
-	*value = _setup.current_pocket;
+    if(_setup.random_toolchanger){//random changers already report the real pocket number
+	    *value = _setup.current_pocket;
+    }
+    else{//non random get it from the tool table
+        *value = _setup.tool_table[_setup.current_pocket].pocketno;
+    }
 	break;
 
     case NP_SELECTED_TOOL:

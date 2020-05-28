@@ -14,7 +14,7 @@
 # GNU General Public License for more details.
 
 import os
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtGui import QIcon
 from qtvcp.core import Status, Action, Info
 from qtvcp.qt_makegui import VCPWindow
@@ -46,6 +46,7 @@ class ToolBarActions():
         self.selected_line = 0
         self._viewActiongroup = QtWidgets.QActionGroup(None)
         self._touchoffActiongroup = QtWidgets.QActionGroup(None)
+        self.runfromLineWidget = None
 
     def configure_action(self, widget, action, extFunction = None):
         action = action.lower()
@@ -62,6 +63,8 @@ class ToolBarActions():
             self.gcode_properties = d
         def update_selected(line):
             self.selected_line = line
+            if self.runfromLineWidget is not None:
+                self.runfromLineWidget.setText('Run From Line: {}'.format(line+1))
 
         if action == 'estop':
             STATUS.connect('state-estop', lambda w: widget.setChecked(True))
@@ -153,10 +156,11 @@ class ToolBarActions():
             self._touchoffActiongroup.addAction(widget)
             self._touchoffActiongroup.setExclusive(True)
         elif action == 'runfromline':
+            self.runfromLineWidget = widget
             STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
             STATUS.connect('state-off', lambda w: widget.setEnabled(False))
-            STATUS.connect('mode-mdi', lambda w: widget.setEnabled(False))
-            STATUS.connect('mode-manual', lambda w: widget.setEnabled(False))
+            STATUS.connect('interp-idle', lambda w: widget.setEnabled(homed_on_test()))
+            STATUS.connect('interp-run', lambda w: widget.setEnabled(False))
             STATUS.connect('mode-auto', lambda w: widget.setEnabled(homed_on_test()))
             STATUS.connect('all-homed', lambda w: widget.setChecked(homed_on_test()))
             STATUS.connect('gcode-line-selected', lambda w, line: update_selected(line))
@@ -215,7 +219,10 @@ class ToolBarActions():
             function = (self.actOnOriginOffsetDialog)
         elif action == 'calculatordialog':
             function = (self.actOnCalculatorDialog)
-
+        elif action == 'alpha_mode':
+            function = (self.actOnAlphaMode)
+        elif action == 'inhibit_selection':
+            function = (self.actOnInhibitSelection)
         elif not extFunction:
             LOG.warning('Unrecogzied action command: {}'.format(action))
 
@@ -263,8 +270,21 @@ class ToolBarActions():
             STATUS.connect('interp-run', lambda w: widget.setEnabled(False))
             STATUS.connect('all-homed', lambda w: widget.setEnabled(True))
             self.addZeroSystemsActions(widget)
+        elif submenu == 'grid_size_submenu':
+           self.addGridSize(widget)
         else:
             LOG.warning('Unrecogzied sunmenu command: {}'.format(submenu))
+
+    def configure_statusbar(self, widget, option):
+        if option == 'message_controls':
+            self.addMessageControlsClose(widget)
+            self.addMessageControlsRecall(widget)
+        elif option == 'message_recall':
+            self.addMessageControlsRecall(widget)
+        elif option == 'message_close':
+            self.addMessageControlsClose(widget)
+        else:
+            LOG.warning('Unrecogzied statusbar command: {}'.format(submenu))
 
     #########################################################
     # Standard Actions
@@ -416,6 +436,18 @@ class ToolBarActions():
     def actOnCalculatorDialog(self, wudget, state=None):
         STATUS.emit('dialog-request',{'NAME':'CALCULATOR'})
 
+    def actOnAlphaMode(self, widget, state):
+        if state:
+            ACTION.SET_GRAPHICS_VIEW('alpha-mode-on')
+        else:
+            ACTION.SET_GRAPHICS_VIEW('alpha-mode-off')
+
+    def actOnInhibitSelection(self, widget, state):
+        if state:
+            ACTION.SET_GRAPHICS_VIEW('inhibit-selection-on')
+        else:
+            ACTION.SET_GRAPHICS_VIEW('inhibit-selection-off')
+
     #########################################################
     # Sub menus
     #########################################################
@@ -529,3 +561,86 @@ class ToolBarActions():
             for num, i in enumerate(self._recentActionWidget.actions()):
                 WIDGETS.PREFS_.putpref('RecentPath_%d'% num, i.text(), str, 'BOOK_KEEPING')
 
+    def addGridSize(self,widget):
+        def setSize(data):
+            ACTION.SET_GRAPHICS_GRID_SIZE(data)
+
+        print INFO.GRID_INCREMENTS
+        for temp in (INFO.GRID_INCREMENTS):
+            if temp == '0':
+                sizeAct = QtWidgets.QAction('Off', widget)
+                sizeAct.triggered.connect(lambda: setSize(0))
+                widget.addAction(sizeAct)
+                continue
+            i = self.parse_increment(temp)
+            sizeAct = QtWidgets.QAction('%s'%temp, widget)
+            # weird lambda i=i to work around 'function closure'
+            sizeAct.triggered.connect(lambda state, i=i: setSize(i))
+            widget.addAction(sizeAct)
+
+    # We convert INI parced increments to machine units
+    def parse_increment(self, gridIncr):
+        if gridIncr.endswith("mm"):
+            scale = self.conversion(1)
+        elif gridIncr.endswith("cm"):
+            scale = self.conversion(10)
+        elif gridIncr.endswith("um"):
+            scale = self.conversion(.001)
+        elif gridIncr.endswith("in") or gridIncr.endswith("inch"):
+            scale = self.conversion(1., metric = False)
+        elif gridIncr.endswith("mil"):
+            scale = self.conversion(.001, metric = False)
+        else:
+            scale = 1
+        incr = gridIncr.rstrip(" inchmuil")
+        if "/" in incr:
+            p, q = incr.split("/")
+            incr = float(p) / float(q)
+        else:
+            incr = float(incr)
+        LOG.debug("parceed: text: {} Increment: {} scaled: {}".format(gridIncr, incr, (incr * scale)))
+        return incr * scale
+
+    # This does the conversion
+    # calling function must tell us if the data is metric or not.
+    def conversion(self, data, metric = True):
+        if INFO.MACHINE_IS_METRIC:
+            if metric:
+                return INFO.convert_metric_to_machine(data)
+            else:
+                return INFO.convert_imperial_to_machine(data)
+        else:
+            if metric:
+                return INFO.convert_metric_to_machine(data)
+            else:
+                return INFO.convert_imperial_to_machine(data)
+
+    ###############################################
+    # status bar
+    ###############################################
+
+    def addMessageControlsClose(self, bar):
+        def close():
+            WIDGETS._NOTICE.external_close()
+        bar.setMaximumHeight(20)
+        bar.setSizeGripEnabled(False)
+        WIDGETS.statusClear = QtWidgets.QPushButton()
+        icon = QtWidgets.QApplication.style().standardIcon(QtWidgets.QStyle.SP_MessageBoxCritical)
+        WIDGETS.statusClear.setIcon(icon)
+        WIDGETS.statusClear.setMaximumSize(20,20)
+        WIDGETS.statusClear.setIconSize(QtCore.QSize(22,22))
+        WIDGETS.statusClear.clicked.connect(lambda:close())
+        bar.addPermanentWidget(WIDGETS.statusClear)
+
+    def addMessageControlsRecall(self, bar):
+        def last():
+            WIDGETS._NOTICE.show_last()
+        bar.setMaximumHeight(20)
+        bar.setSizeGripEnabled(False)
+        icon = QtWidgets.QApplication.style().standardIcon(QtWidgets.QStyle.SP_MessageBoxInformation)
+        WIDGETS.statusLast = QtWidgets.QPushButton()
+        WIDGETS.statusLast.setIcon(icon)
+        WIDGETS.statusLast.setMaximumSize(20,20)
+        WIDGETS.statusLast.setIconSize(QtCore.QSize(22,22))
+        WIDGETS.statusLast.clicked.connect(lambda: last())
+        bar.addPermanentWidget(WIDGETS.statusLast)

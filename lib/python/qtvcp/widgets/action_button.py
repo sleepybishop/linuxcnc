@@ -55,6 +55,8 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
         self.home_select = False
         self.unhome_select = False
         self.run = False
+        self.run_from_status = False
+        self.run_from_slot = False
         self.abort = False
         self.pause = False
         self.step = False
@@ -118,6 +120,7 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
         self.ini_mdi_num = 0
         self._textTemplate = '%1.3f in'
         self._alt_textTemplate = '%1.2f mm'
+        self._run_from_line_int = 0
 
     ##################################################
     # This gets called by qtvcp_makepins
@@ -171,7 +174,9 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
                     and (STATUS.is_all_homed() or INFO.NO_HOME_REQUIRED))
 
         def limits_override_test(data):
-            if data:
+            if STATUS.is_homing():
+                return
+            elif data:
                 self.setEnabled(True)
             else:
                 self.setEnabled(False)
@@ -245,7 +250,8 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
             # leave early to aviod the standard 'clicked' signal
             return
 
-        elif True in(self.zero_axis, self.zero_g5x,self.zero_g92, self.run, self.zero_zrot):
+        elif True in(self.zero_axis, self.zero_g5x,self.zero_g92, self.run, self.zero_zrot,
+                    self.run_from_status, self.run_from_slot):
             STATUS.connect('state-off', lambda w: self.setEnabled(False))
             STATUS.connect('state-estop', lambda w: self.setEnabled(False))
             STATUS.connect('interp-idle', lambda w: self.setEnabled(homed_on_test()))
@@ -253,8 +259,10 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
             STATUS.connect('all-homed', lambda w: self.setEnabled(True))
             STATUS.connect('not-all-homed', lambda w, data: self.setEnabled(False))
             STATUS.connect('interp-paused', lambda w: self.setEnabled(True))
-            if self.run:
+            if True in (self.run, self.run_from_status, self.run_from_slot):
                 STATUS.connect('file-loaded', lambda w, f: self.setEnabled(True))
+            if self.run_from_status:
+                STATUS.connect('gcode-line-selected', lambda w, line: self.updateRunFromLine(line))
 
         elif True in(self.pause, self.step):
             self.setEnabled(False)
@@ -386,12 +394,13 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
         elif self.unhome:
             ACTION.SET_MACHINE_UNHOMED(self.joint)
         elif self.home_select:
-            print 'selected:',STATUS.get_selected_joint()
             ACTION.SET_MACHINE_HOMING(STATUS.get_selected_joint())
         elif self.unhome_select:
             ACTION.SET_MACHINE_UNHOMED(STATUS.get_selected_joint())
         elif self.run:
             ACTION.RUN()
+        elif True in(self.run_from_status, self.run_from_slot):
+            ACTION.RUN(line = self._run_from_line_int)
         elif self.abort:
             ACTION.ABORT()
         elif self.pause:
@@ -467,9 +476,9 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
             self._toggle_state = self._toggle_state * -1
         elif self.spindle_over:
             if self.toggle_float and not self._toggle_state:
-                ACTION.SET_SPINDLE_RATE(self.float_alt)
+                ACTION.SET_SPINDLE_RATE(self.float_alt,self.joint)
             else:
-                ACTION.SET_SPINDLE_RATE(self.float)
+                ACTION.SET_SPINDLE_RATE(self.float,self.joint)
             self._toggle_state -= 1
             self._toggle_state = self._toggle_state * -1
         elif self.view_change:
@@ -481,22 +490,48 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
                 except Exception as e:
                     print e
                     pass
-        elif self.spindle_fwd:
-            ACTION.SET_SPINDLE_ROTATION(linuxcnc.SPINDLE_FORWARD, INFO.DEFAULT_SPINDLE_SPEED)
-        elif self.spindle_rev:
-            ACTION.SET_SPINDLE_ROTATION(linuxcnc.SPINDLE_REVERSE, INFO.DEFAULT_SPINDLE_SPEED)
+        elif True in (self.spindle_fwd, self.spindle_rev):
+            if self.spindle_fwd:
+                spindir = linuxcnc.SPINDLE_FORWARD
+            else:
+                spindir = linuxcnc.SPINDLE_REVERSE
+            if self.joint == -1:
+                a = 0
+                b = INFO.AVAILABLE_SPINDLES
+            else:
+                a = self.joint
+                b = self.joint +1
+            for i in range(a,b):
+                ACTION.SET_SPINDLE_ROTATION(spindir,
+                    INFO['DEFAULT_SPINDLE_{}_SPEED'.format(i)],i)
         elif self.spindle_stop:
-            ACTION.SET_SPINDLE_STOP()
+            ACTION.SET_SPINDLE_STOP(self.joint)
         elif self.spindle_up:
-            if STATUS.is_spindle_on():
-                ACTION.SET_SPINDLE_FASTER()
+            if self.joint == -1:
+                a = 0
+                b = INFO.AVAILABLE_SPINDLES
             else:
-                ACTION.SET_SPINDLE_ROTATION(linuxcnc.SPINDLE_FORWARD, INFO.DEFAULT_SPINDLE_SPEED)
+                a = self.joint
+                b = self.joint +1
+            for i in range(a,b):
+                if STATUS.is_spindle_on(i):
+                    ACTION.SET_SPINDLE_FASTER(i)
+                else:
+                    ACTION.SET_SPINDLE_ROTATION(linuxcnc.SPINDLE_FORWARD,
+                         INFO['DEFAULT_SPINDLE_{}_SPEED'.format(i)],i)
         elif self.spindle_down:
-            if STATUS.is_spindle_on():
-                ACTION.SET_SPINDLE_SLOWER()
+            if self.joint ==-1:
+                a = 0
+                b = INFO.AVAILABLE_SPINDLES
             else:
-                ACTION.SET_SPINDLE_ROTATION(linuxcnc.SPINDLE_REVERSE, INFO.DEFAULT_SPINDLE_SPEED)
+                a = self.joint
+                b = self.joint +1
+            for i in range(a,b):
+                if STATUS.is_spindle_on(i):
+                    ACTION.SET_SPINDLE_SLOWER(i)
+                else:
+                    ACTION.SET_SPINDLE_ROTATION(linuxcnc.SPINDLE_REVERSE,
+                         INFO['DEFAULT_SPINDLE_{}_SPEED'.format(i)],i)
         elif self.limits_override:
             ACTION.TOGGLE_LIMITS_OVERRIDE()
         elif self.flood:
@@ -559,6 +594,16 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
                 state = not self._indicator_state
             self.python_command(state)
 
+    @QtCore.pyqtSlot(int,name='setRunFromLine')
+    def updateRunFromLine(self, data):
+        self._run_from_line_int = int(data)
+
+    @QtCore.pyqtSlot(str,name='setRunFromLine')
+    def updateRunFromLine(self, data):
+        try:
+            self._run_from_line_int = int(data)
+        except ValueError:
+            LOG.error("Value Error setting run from line")
 
     # If direction = 0 (button release) and distance is not 0, then we are
     # doing a jog increment so don't stop jog on release.
@@ -664,7 +709,7 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
                 'ini_mdi_command', 'command_text', 'block_delete', 'dro_absolute',
                 'dro_relative', 'dro_dtg','max_velocity_over', 'launch_halscope',
                  'exit', 'machine_log_dialog', 'zero_g5x', 'zero_g92', 'zero_zrot',
-                 'origin_offset_dialog')
+                 'origin_offset_dialog', 'run_from_status', 'run_from_slot')
 
         for i in data:
             if not i == picked:
@@ -851,6 +896,25 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
         return self.run
     def reset_run(self):
         self.run = False
+
+    def set_run_from_status(self, data):
+        self.run_from_status = data
+        if data:
+            self._toggle_properties('run_from_status')
+    def get_run_from_status(self):
+        return self.run_from_status
+    def reset_run_from_status(self):
+        self.run_from_status = False
+
+    def set_run_from_slot(self, data):
+        self.run_from_slot = data
+        if data:
+            self._toggle_properties('run_from_slot')
+    def get_run_from_slot(self):
+        return self.run_from_slot
+    def reset_run_from_slot(self):
+        self.run_from_slot = False
+
 
     def set_abort(self, data):
         self.abort = data
@@ -1250,6 +1314,8 @@ class ActionButton(Indicated_PushButton, _HalWidgetBase):
     mdi_action = QtCore.pyqtProperty(bool, get_mdi, set_mdi, reset_mdi)
     manual_action = QtCore.pyqtProperty(bool, get_manual, set_manual, reset_manual)
     run_action = QtCore.pyqtProperty(bool, get_run, set_run, reset_run)
+    run_from_status_action = QtCore.pyqtProperty(bool, get_run_from_status, set_run_from_status, reset_run_from_status)
+    run_from_slot_action = QtCore.pyqtProperty(bool, get_run_from_slot, set_run_from_slot, reset_run_from_slot)
     abort_action = QtCore.pyqtProperty(bool, get_abort, set_abort, reset_abort)
     pause_action = QtCore.pyqtProperty(bool, get_pause, set_pause, reset_pause)
     step_action = QtCore.pyqtProperty(bool, get_step, set_step, reset_step)

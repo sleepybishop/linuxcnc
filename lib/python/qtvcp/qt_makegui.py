@@ -66,6 +66,8 @@ class MyEventFilter(QtCore.QObject):
                     p,k,c,s,ctrl = self.process_event(event,False)
                     handled = self.w.handler_instance.processed_key_event__(receiver,event,p,k,c,s,ctrl)
                 if handled: return True
+            elif event.type() in (QtCore.QEvent.FocusIn, QtCore.QEvent.FocusOut):
+                self.w.handler_instance.processed_focus_event__(receiver,event)
             #Call Base Class Method to Continue Normal Event Processing
             return super(MyEventFilter,self).eventFilter(receiver, event)
         except:
@@ -116,15 +118,21 @@ class _VCPWindow(QtWidgets.QMainWindow):
         try:
             instance = uic.loadUi(self.filename, self)
         except AttributeError as e:
-            log.critical(e)
-            log.critical('Did a widget signal call a missing function name in the handler file?')
-            message = 'Did a widget signal call a missing function name in the handler file?\nPython Error:\n'+ str(e)
-            rtn = QtWidgets.QMessageBox.critical(None, "QTVCP Error", message)
-            sys.exit(0)
-
-        log.debug('QTVCP top instance: {}'.format(self))
-        for widget in instance.findChildren(QtCore.QObject):
-            log.debug('QTVCP Widget: {}'.format(widget))
+            formatted_lines = traceback.format_exc().splitlines()
+            if 'slotname' in formatted_lines[-2]:
+                log.critical('Missing slot name in handler file {}'.format(e))
+                message = '''A widget in the ui file, was assigned a signal \
+call to a missing function name in the handler file?\n
+There may be more. Some functions might not work.\n
+Python Error:\n {}'''.format(str(e))
+                rtn = QtWidgets.QMessageBox.critical(None, "QTVCP Error", message)
+            else:
+                log.critical(e)
+                sys.exit(0)
+        else:
+            log.debug('QTVCP top instance: {}'.format(self))
+            for widget in instance.findChildren(QtCore.QObject):
+                log.debug('QTVCP Widget: {}'.format(widget))
 
     def apply_styles(self, fname = None):
         if self.PATHS.IS_SCREEN:
@@ -138,19 +146,29 @@ class _VCPWindow(QtWidgets.QMainWindow):
             QtWidgets.qApp.setStyle(fname)
             return
         
-        # apply default qss file or specified file
+        # Check for Preference file specified qss
+        if fname is None:
+            if self.PREFS_:
+                path = self.PREFS_.getpref('style_QSS_Path', 'DEFAULT' , str, 'BOOK_KEEPING')
+                if path.lower() == 'none':
+                    return
+                if not path.lower() == 'default':
+                    fname = path
+
+        # check for default base named qss file 
         if fname is None:
             if self.PATHS.QSS is not None:
-                qssname = self.PATHS.QSS
-            else:
-                return
-        elif not os.path.isfile(fname):
+                fname = self.PATHS.QSS
+
+        # if qss file is not a file, try expanding/adding a leading path
+        if not os.path.isfile(fname):
             temp = os.path.join(os.path.expanduser(fname))
             qssname = os.path.join(DIR, BNAME,fname+'.qss')
             if not os.path.isfile(fname):
                 qssname = temp
         else:
             qssname = fname
+
         try:
             qss_file = open(qssname).read()
             # qss files aren't friendly about changing image paths

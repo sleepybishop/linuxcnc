@@ -1,10 +1,12 @@
 #!/usr/bin/python
+from __future__ import print_function
 import os
 import sys
 import shutil
 import traceback
 import hal
 import signal
+
 from optparse import Option, OptionParser
 from PyQt5 import QtWidgets, QtCore
 from qtvcp.core import Status, Info, QComponent, Path
@@ -311,7 +313,7 @@ Pressing cancel will close linuxcnc.""" % target)
                 res = os.spawnvp(os.P_WAIT, "haltcl", ["haltcl", "-i",self.inipath, postgui_halfile])
             else:
                 res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-i",self.inipath,"-f", postgui_halfile])
-            if res: raise SystemExit, res
+            if res: raise SystemExit(res)
 
     # This can be called normally or by control c
     # call optional handlerfile cleanup function
@@ -338,7 +340,7 @@ Pressing cancel will close linuxcnc.""" % target)
                     + "information may be useful in troubleshooting:\n"
                     + 'LinuxCNC Version  : %s\n'% INFO.LINUXCNC_VERSION)
         if ERROR_COUNT > 5:
-            LOG.critical("Too many errors: {}".format(message))
+            LOG.critical("Too Manu Errors \n {}\n{}\n".format(message,''.join(lines)))
             self.shutdown()
         msg = QtWidgets.QMessageBox()
         msg.setIcon(QtWidgets.QMessageBox.Critical)
@@ -346,10 +348,10 @@ Pressing cancel will close linuxcnc.""" % target)
         msg.setInformativeText("QTvcp ERROR! Message # %d"%ERROR_COUNT)
         msg.setWindowTitle("Error")
         msg.setDetailedText(''.join(lines))
-        msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
+        msg.setStandardButtons(QtWidgets.QMessageBox.Retry | QtWidgets.QMessageBox.Abort)
         msg.show()
         retval = msg.exec_()
-        if retval == 4194304: #cancel button
+        if retval == QtWidgets.QMessageBox.Abort: #cancel button
             LOG.critical("Canceled from Error Dialog\n {}\n{}\n".format(message,''.join(lines)))
             self.shutdown()
 

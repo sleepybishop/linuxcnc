@@ -65,6 +65,7 @@ class  GCodeGraphics(Lcnc_3dGraphics, _HalWidgetBase):
         self._reload_filename = None
 
         self._view_incr = 20
+        self.inhibit_selection = False
 
     def _hal_init(self):
         STATUS.connect('file-loaded', self.load_program)
@@ -117,6 +118,17 @@ class  GCodeGraphics(Lcnc_3dGraphics, _HalWidgetBase):
             self.panView(args.get('X'),args.get('Y'))
         elif v == 'rotate-view':
             self.rotateView(args.get('X'),args.get('Y'))
+        elif v == 'grid-size':
+            self.grid_size = args.get('SIZE')
+            self.updateGL()
+        elif v == 'alpha-mode-on':
+            self.set_alpha_mode(True)
+        elif v == 'alpha-mode-off':
+            self.set_alpha_mode(False)
+        elif v == 'inhibit-selection-on':
+            self.inhibit_selection = True
+        elif v == 'inhibit-selection-off':
+            self.inhibit_selection = False
         else:
             self.set_view(v)
 
@@ -125,6 +137,8 @@ class  GCodeGraphics(Lcnc_3dGraphics, _HalWidgetBase):
         self._reload_filename = fname
         self.load(fname)
         STATUS.emit('graphics-gcode-properties',self.gcode_properties)
+        # reset the current view to standard calculated zoom and position
+        self.set_current_view()
 
     def set_metric_units(self, w, state):
         self.metric_units = state
@@ -147,10 +161,9 @@ class  GCodeGraphics(Lcnc_3dGraphics, _HalWidgetBase):
 
     def reloadfile(self, w):
         LOG.debug('reload the display: {}'.format(self._reload_filename))
-        dist = self.get_zoom_distance()
         try:
-            self.load_program(None, self._reload_filename)
-            self.set_zoom_distance(dist)
+            self.load(self._reload_filename)
+            STATUS.emit('graphics-gcode-properties',self.gcode_properties)
         except:
             print 'error', self._reload_filename
             pass
@@ -175,6 +188,7 @@ class  GCodeGraphics(Lcnc_3dGraphics, _HalWidgetBase):
         STATUS.emit('graphics-line-selected', line)
 
     def select_fire(self):
+        if self.inhibit_selection: return
         if STATUS.is_auto_running(): return
         if not self.select_primed: return
         x, y = self.select_primed
@@ -184,6 +198,10 @@ class  GCodeGraphics(Lcnc_3dGraphics, _HalWidgetBase):
     # override user plot -One could add gl commands to plot static objects here
     def user_plot(self):
         return
+
+    def emit_percent(self, f):
+        super( GCodeGraphics, self).emit_percent(f)
+        STATUS.emit('graphics-loading-progress',f)
 
     #########################################################################
     # This is how designer can interact with our widget properties.
