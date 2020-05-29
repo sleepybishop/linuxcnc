@@ -125,7 +125,7 @@ def _parse(rule, text, filename=None):
     global P, S
     S = HalScanner(text)
     P = Hal(S)
-    return yappsrt.wrap_error_reporter(P, rule)
+    return runtime.wrap_error_reporter(P, rule)
 
 def parse(filename):
     initialize()
@@ -167,7 +167,7 @@ def Warn(msg, *args):
 def Error(msg, *args):
     if args:
         msg = msg % args
-    raise yappsrt.SyntaxError(S.get_pos(), msg, None)
+    raise runtime.SyntaxError(S.get_pos(), msg, None)
 
 def comp(name, doc):
     docs.append(('component', name, doc))
