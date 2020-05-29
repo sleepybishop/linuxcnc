@@ -5,7 +5,7 @@
 %global _pre      1 
 
 Name:           linuxcnc
-Version:        2.8.0
+Version:        2.9.0
 Release:        0%{?_pre:.%{_pre}}%{?dist}
 Summary:        A software system for computer control of machine tools
 
@@ -18,18 +18,12 @@ BuildRequires:  gcc-c++
 BuildRequires:  gtk2-devel
 BuildRequires:  mesa-libGL-devel
 BuildRequires:  mesa-libGLU-devel
-BuildRequires:  tcl-devel
-BuildRequires:  tk-devel
 BuildRequires:  bwidget
 BuildRequires:  libXaw-devel
-BuildRequires:  python-mttkinter
-BuildRequires:  boost-devel
 BuildRequires:  libmodbus-devel
 BuildRequires:  blt-devel
 BuildRequires:  readline-devel
 BuildRequires:  gettext
-BuildRequires:  python-devel
-BuildRequires:  python-lxml
 BuildRequires:	libudev-devel
 BuildRequires:  intltool
 # for building docs
@@ -45,14 +39,7 @@ BuildRequires:  asciidoc >= 8.5
 
 Requires:       bwidget
 Requires:       blt
-Requires:       tclx
-Requires:       tkimg
-Requires:       python-mttkinter
-Requires:       python-xlib
-Requires:       pygtkglext
-Requires:       boost-python2
-Requires:       python-pillow-tk
-Requires:       gstreamer-python
+Requires:       python3-tkinter
 
 #Requires:       kernel-rt
 
@@ -92,6 +79,8 @@ cd src
 %endif
     --with-realtime=uspace \
     --without-libusb-1.0 \
+    --with-python=python3 \
+    --with-boost-python=boost_python37 \
     --with-tkConfig=%{_libdir}/tkConfig.sh \
     --with-tclConfig=%{_libdir}/tclConfig.sh \
     --enable-non-distributable=yes
@@ -114,23 +103,55 @@ mv $RPM_BUILD_ROOT%{_sysconfdir}/X11 $RPM_BUILD_ROOT%{_datadir}/
 # when packaged.
 find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
 
-# put tcltk libs in proper place
-mkdir -p ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/
-#mv $RPM_BUILD_ROOT%{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linuxcnc
-ln -s %{_exec_prefix}/lib/tcltk/linuxcnc ${RPM_BUILD_ROOT}%{_libdir}/tcl8.6/linuxcnc
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_bindir}/*
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/M190
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/test/plasmac_test.py
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/configurator.py
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/plasmac_gcode.py
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/pmx485.py
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/pmx_test.py
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/materialverter.py
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/axis/vismach/VMC_toolchange/vmcgui
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/axis/vismach/rolfmill/rolfmill
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/axis/vismach/3axis-tutorial/3axis-tutorial
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/gmoccapy/lathe_configs/lathehandler.py
 
-pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_bindir}/*
-pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/M190
-pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/test/plasmac_test.py
-pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/configurator.py
-pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/plasmac_gcode.py
-pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/pmx485.py
-pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/pmx_test.py
-pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/materialverter.py
-pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/axis/vismach/VMC_toolchange/vmcgui
-pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/axis/vismach/rolfmill/rolfmill
-pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/axis/vismach/3axis-tutorial/3axis-tutorial
-pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/gmoccapy/lathe_configs/lathehandler.py
+2to3 -wn %{buildroot}%{python_sitelib}/*.py
+2to3 -wn %{buildroot}%{python_sitelib}/qtvcp/*.py
+2to3 -wn %{buildroot}%{python_sitelib}/qtvcp/lib/*.py
+2to3 -wn %{buildroot}%{python_sitelib}/qtvcp/plugins/*.py
+2to3 -wn %{buildroot}%{python_sitelib}/qtvcp/widgets/*.py
+2to3 -wn %{buildroot}%{python_sitelib}/gladevcp/*.py
+
+2to3 -wn %{buildroot}%{_datadir}/qtvcp/panels/cam_align/cam_align_handler.py
+2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/blender/blender_handler.py
+2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/qt_cnc/qt_cnc_handler.py
+2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/qt_cnc_800x600/qt_cnc_800x600_handler.py
+2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/qt_cnc_9_axis/qt_cnc_9_axis_handler.py
+2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/qtaxis/qtaxis_handler.py
+2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/tester/tester_handler.py
+2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/x1mill/x1mill_handler.py
+2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/qtdragon/qtdragon_handler.py
+2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/qtlathe/qtlathe_handler.py
+2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/qttouchy/qttouchy_handler.py
+
+#configs/by_machine/plasmac/test/plasmac_test.py
+#configs/by_machine/plasmac/pmx485.py
+#configs/by_machine/plasmac/pmx_test.py
+#configs/by_machine/plasmac/materialverter.py
+#configs/by_machine/plasmac/configurator.py
+#configs/by_machine/plasmac/plasmac_gcode.py
+#configs/sim/gmoccapy/lathe_configs/lathehandler.py
+
+2to3 -wn %{buildroot}%{_bindir}/update_ini
+2to3 -wn %{buildroot}%{_bindir}/axis
+2to3 -wn %{buildroot}%{_bindir}/axis-remote
+2to3 -wn %{buildroot}%{_bindir}/linuxcnctop
+
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_bindir}/update_ini
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_bindir}/axis
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_bindir}/axis-remote
+pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_bindir}/linuxcnctop
 
 %files
 %defattr(-,root,root)
@@ -191,6 +212,7 @@ pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}%{_docdir}/%{name}
 %attr(0755,-,-) %{_bindir}/pyvcp
 %attr(0755,-,-) %{_bindir}/pyvcp_demo
 %attr(0755,-,-) %{_bindir}/rs274
+%attr(0755,-,-) %{_bindir}/pmx485
 %attr(0755,-,-) %{_bindir}/scaragui
 %attr(0755,-,-) %{_bindir}/schedrmt
 %attr(0755,-,-) %{_bindir}/sim_pin
