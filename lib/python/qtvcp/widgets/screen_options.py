@@ -95,6 +95,7 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         self.add_tooloffset_dialog = False
         self.add_calculator_dialog = False
         self.add_machinelog_dialog = False
+        self.add_runFromLine_dialog = False
 
         self.pref_filename = '~/.qtvcp_screen_preferences'
         self._default_tab_name = ''
@@ -112,6 +113,7 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         self._toolOffsetDialogColor = QtGui.QColor(0, 0, 0, 150)
         self._calculatorDialogColor = QtGui.QColor(0, 0, 0, 150)
         self._machineLogDialogColor = QtGui.QColor(0, 0, 0, 150)
+        self._runFromLineDialogColor = QtGui.QColor(0, 0, 0, 150)
 
     # self.QTVCP_INSTANCE_
     # self.HAL_GCOMP_
@@ -156,6 +158,9 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
 
         if self.add_machinelog_dialog:
             self.init_machinelog_dialog()
+
+        if self.add_runFromLine_dialog:
+            self.init_runfromline_dialog()
 
         # Read user preferences
         if self.PREFS_:
@@ -348,7 +353,6 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
 
     # XEmbed program into tabs
     def add_xembed_tabs(self):
-
         if INFO.GLADEVCP:
             cmd = 'halcmd loadusr -Wn gladevcp gladevcp -c gladevcp -x {XID} %s' %(INFO.GLADEVCP)
             LOG.debug('AXIS style side panel vcp: {} '.format(cmd))
@@ -364,15 +368,19 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
                 LOG.debug('Processing Embedded tab:{}, {}, {}'.format(name,loc,cmd))
                 if loc == 'default':
                     loc = 'rightTab'
-                if isinstance(self.QTVCP_INSTANCE_[loc], QtWidgets.QTabWidget):
-                    tw = QtWidgets.QWidget()
-                    self.QTVCP_INSTANCE_[loc].addTab(tw, name)
-                elif isinstance(self.QTVCP_INSTANCE_[loc], QtWidgets.QStackedWidget):
-                    tw = QtWidgets.QWidget()
-                    self.QTVCP_INSTANCE_[loc].addWidget(tw)
-                else:
-                    LOG.warning('tab location {} is not a Tab or stacked Widget - skipping'.format(loc))
-                    continue
+                try:
+                    if isinstance(self.QTVCP_INSTANCE_[loc], QtWidgets.QTabWidget):
+                        tw = QtWidgets.QWidget()
+                        self.QTVCP_INSTANCE_[loc].addTab(tw, name)
+                    elif isinstance(self.QTVCP_INSTANCE_[loc], QtWidgets.QStackedWidget):
+                        tw = QtWidgets.QWidget()
+                        self.QTVCP_INSTANCE_[loc].addWidget(tw)
+                    else:
+                        LOG.warning('tab location {} is not a Tab or stacked Widget - skipping'.format(loc))
+                        continue
+                except Exception as e:
+                    LOG.warning("problem inserting VCP '{}' to location: {} :\n {}".format(name, loc, e))
+                    return
                 self._embed(cmd,loc,tw)
 
     def _embed(self, cmd,loc,twidget):
@@ -403,32 +411,28 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         from qtvcp.widgets.dialog_widget import ToolDialog
         w = self.QTVCP_INSTANCE_
         w.toolDialog_ = ToolDialog()
-        w.toolDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.toolDialog_, w, w.PATHS, self.PREFS_)
+        w.toolDialog_.hal_init(HAL_NAME='')
         w.toolDialog_.overlay_color = self._toolDialogColor
 
     def init_message_dialog(self):
         from qtvcp.widgets.dialog_widget import LcncDialog
         w = self.QTVCP_INSTANCE_
         w.messageDialog_ = LcncDialog()
-        w.messageDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.messageDialog_, w, w.PATHS, self.PREFS_)
+        w.messageDialog_.hal_init(HAL_NAME='')
         w.messageDialog_.overlay_color = self._messageDialogColor
 
     def init_close_dialog(self):
         from qtvcp.widgets.dialog_widget import CloseDialog
         w = self.QTVCP_INSTANCE_
         w.closeDialog_ = CloseDialog()
-        w.closeDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.closeDialog_, w, w.PATHS, self.PREFS_)
+        w.closeDialog_.hal_init(HAL_NAME='')
         w.closeDialog_.overlay_color = self._messageDialogColor
 
     def init_entry_dialog(self):
         from qtvcp.widgets.dialog_widget import EntryDialog
         w = self.QTVCP_INSTANCE_
         w.entryDialog_ = EntryDialog()
-        w.entryDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.entryDialog_, w, w.PATHS, self.PREFS_)
+        w.entryDialog_.hal_init(HAL_NAME='')
         w.entryDialog_.soft_keyboard_option = self._entryDialogSoftkey
         w.entryDialog_.overlay_color = self._entryDialogColor
 
@@ -437,16 +441,14 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         w = self.QTVCP_INSTANCE_
         w.fileDialog_ = FileDialog()
         w.fileDialog_.setObjectName('fileDialog_')
-        w.fileDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.fileDialog_, w, w.PATHS, self.PREFS_)
+        w.fileDialog_.hal_init(HAL_NAME='')
         w.fileDialog_.overlay_color = self._fileDialogColor
 
     def init_focus_overlay(self):
         from qtvcp.widgets.overlay_widget import FocusOverlay
         w = self.QTVCP_INSTANCE_
         w.focusOverlay_ = FocusOverlay(w)
-        w.focusOverlay_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.focusOverlay_, w, w.PATHS, self.PREFS_)
+        w.focusOverlay_.hal_init(HAL_NAME='')
 
     def init_versaprobe_dialog(self):
         from qtvcp.widgets.dialog_widget import VersaProbeDialog
@@ -454,8 +456,7 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         w.versaProbeDialog_ = VersaProbeDialog()
         w.versaProbeDialog_.setObjectName('versaProbeDialog_')
         w.registerHalWidget(w.versaProbeDialog_)
-        w.versaProbeDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.versaProbeDialog_, w, w.PATHS, self.PREFS_)
+        w.versaProbeDialog_.hal_init(HAL_NAME='')
         w.versaProbeDialog_.overlay_color = self._versaProbeDialogColor
 
     def init_macrotab_dialog(self):
@@ -463,49 +464,50 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         w = self.QTVCP_INSTANCE_
         w.macroTabDialog_ = MacroTabDialog()
         w.macroTabDialog_.setObjectName('macroTabDialog_')
-        w.macroTabDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.macroTabDialog_, w, w.PATHS, self.PREFS_)
+        w.macroTabDialog_.hal_init(HAL_NAME='')
         w.macroTabDialog_.overlay_color = self._macroTabDialogColor
 
     def init_camview_dialog(self):
         from qtvcp.widgets.dialog_widget import CamViewDialog
         w = self.QTVCP_INSTANCE_
         w.camViewDialog_ = CamViewDialog()
-        w.camViewDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.camViewDialog_, w, w.PATHS, self.PREFS_)
+        w.camViewDialog_.hal_init(HAL_NAME='')
         w.camViewDialog_.overlay_color = self._camViewDialogColor
 
     def init_tooloffset_dialog(self):
         from qtvcp.widgets.dialog_widget import ToolOffsetDialog
         w = self.QTVCP_INSTANCE_
         w.toolOffsetDialog_ = ToolOffsetDialog()
-        w.toolOffsetDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.toolOffsetDialog_, w, w.PATHS, self.PREFS_)
+        w.toolOffsetDialog_.hal_init(HAL_NAME='')
         w.toolOffsetDialog_.overlay_color = self._toolOffsetDialogColor
 
     def init_originoffset_dialog(self):
         from qtvcp.widgets.dialog_widget import OriginOffsetDialog
         w = self.QTVCP_INSTANCE_
         w.originOffsetDialog_ = OriginOffsetDialog()
-        w.originOffsetDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.originOffsetDialog_, w, w.PATHS, self.PREFS_)
+        w.originOffsetDialog_.hal_init(HAL_NAME='')
         w.originOffsetDialog_.overlay_color = self._originOffsetDialogColor
 
     def init_calculator_dialog(self):
         from qtvcp.widgets.dialog_widget import CalculatorDialog
         w = self.QTVCP_INSTANCE_
         w.calculatorDialog_ = CalculatorDialog()
-        w.calculatorDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.calculatorDialog_, w, w.PATHS, self.PREFS_)
+        w.calculatorDialog_.hal_init(HAL_NAME='')
         w.calculatorDialog_.overlay_color = self._calculatorDialogColor
 
     def init_machinelog_dialog(self):
         from qtvcp.widgets.dialog_widget import MachineLogDialog
         w = self.QTVCP_INSTANCE_
         w.machineLogDialog_ = MachineLogDialog()
-        w.machineLogDialog_.hal_init(self.HAL_GCOMP_, self.HAL_NAME_,
-             w.machineLogDialog_, w, w.PATHS, self.PREFS_)
+        w.machineLogDialog_.hal_init(HAL_NAME='')
         w.machineLogDialog_.overlay_color = self._machineLogDialogColor
+
+    def init_runfromline_dialog(self):
+        from qtvcp.widgets.dialog_widget import RunFromLineDialog
+        w = self.QTVCP_INSTANCE_
+        w.runFromLineDialog_ = RunFromLineDialog()
+        w.runFromLineDialog_.hal_init(HAL_NAME='')
+        w.runFromLineDialog_.overlay_color = self._runFromLineDialogColor
 
     ########################################################################
     # This is how designer can interact with our widget properties.
@@ -763,6 +765,19 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
     def set_machineLogDialogColor(self, value):
         self._machineLogDialogColor = value
     machineLog_overlay_color = QtCore.pyqtProperty(QtGui.QColor, get_machineLogDialogColor, set_machineLogDialogColor)
+
+    def set_runFromLineDialog(self, data):
+        self.add_runFromLine_dialog = data
+    def get_runFromLineDialog(self):
+        return self.add_runFromLine_dialog
+    def reset_runFromLineDialog(self):
+        self.add_runFromLine_dialog = False
+    runFromLineDialog_option = QtCore.pyqtProperty(bool, get_runFromLineDialog, set_runFromLineDialog, reset_runFromLineDialog)
+    def get_runFromLineDialogColor(self):
+        return self._runFromLineDialogColor
+    def set_runFromLineDialogColor(self, value):
+        self._runFromLineDialogColor = value
+    runFromLine_overlay_color = QtCore.pyqtProperty(QtGui.QColor, get_runFromLineDialogColor, set_runFromLineDialogColor)
 
     ##############################
     # required boiler code #
