@@ -7,10 +7,6 @@ import linuxcnc
 import hal
 
 from PyQt5 import QtCore, QtWidgets
-try:
-    from PyQt5.QtWebKitWidgets import QWebView
-except ImportError:
-    raise Exception("Qtvcp error with qtLathe - is package python-pyqt5.qtwebkit installed?")
 
 from qtvcp.widgets.mdi_line import MDILine as MDI_WIDGET
 from qtvcp.widgets.gcode_editor import GcodeEditor as GCODE
@@ -108,7 +104,7 @@ class HandlerClass:
     # the widgets are instantiated.
     # the HAL pins are built but HAL is not set ready
     def initialized__(self):
-        STATUS.emit('play-sound','SPEAK This is a test screen for Haas styled QT lathe')
+        STATUS.emit('play-sound','SPEAK This is a test screen for QT lathe')
         KEYBIND.add_call('Key_F3','on_keycall_F3')
         KEYBIND.add_call('Key_F4','on_keycall_F4')
         KEYBIND.add_call('Key_F5','on_keycall_F5')
@@ -125,9 +121,9 @@ class HandlerClass:
         self.w.pushbutton_metric.clicked[bool].connect(self.change_mode)
 
         # web view widget for SETUP SHEET page
-        self.web_view = QWebView()
-        self.w.verticalLayout_setup.addWidget(self.web_view)
-        self.set_default_html()
+        if self.w.web_view:
+            self.w.verticalLayout_setup.addWidget(self.w.web_view)
+            self.set_default_html()
 
         self.GCODES.setup_list()
         self.w.gcode_editor.hide()
@@ -154,7 +150,7 @@ class HandlerClass:
             LOG.debug('Exception in KEYBINDING: {}'.format (e))
         except Exception as e:
             LOG.debug('Exception in KEYBINDING:', exc_info=e)
-            print 'Error in, or no function for: %s in handler file for-%s'%(KEYBIND.convert(event),key)
+            print('Error in, or no function for: %s in handler file for-%s'%(KEYBIND.convert(event),key))
             return False        
 
     
@@ -231,9 +227,9 @@ class HandlerClass:
     def toggle_dro(self):
         next = self.w.droPaneStack.currentIndex() +1
         if next == self.w.droPaneStack.count():
-			self.w.droPaneStack.setCurrentIndex(0)
+            self.w.droPaneStack.setCurrentIndex(0)
         else:
-			self.w.droPaneStack.setCurrentIndex(next)
+            self.w.droPaneStack.setCurrentIndex(next)
         
     def toggle_offsets(self):
         self.set_active_mode('offsetPage',None)
@@ -314,16 +310,15 @@ class HandlerClass:
         self.btn_gcode_edit_clicked(False)
 
     def set_active_mode(self, mode, index):
-        #print mode,index
         def update(widget):
-            for key, value in self.activeWidgetDict.iteritems():
+            for key, value in self.activeWidgetDict.items():
                 #print mode,key,value
                 if key == widget:
-                    print widget
+                    print(widget)
                     self.w[key].setStyleSheet('#%s%s'%(key, self.activeStyle))
                     self.activeWidgetDict[key] = True
                 elif value == True:
-                    print 'switch off', key
+                    print('switch off', key)
                     self.w[key].setStyleSheet('#%s%s'%(key, self.defaultStyle))
                     self.activeWidgetDict[key] = False
 
@@ -366,18 +361,34 @@ class HandlerClass:
             else:
                 self.w.widgetswitcher.setCurrentIndex(2)
                 update('workoffsetsPage')
+            return # don't change the mode
         elif mode == 'graphics':
-            cur = self.w.mainLeftStack.currentIndex()
-            if cur == 0: # gcode
+            if self.current_mode[0] == 'program': # gcode
                 if self.w.widgetswitcher.get_current_number() == 0:
-                    self.w.widgetswitcher.show_default()
-                    self.w.mainLeftStack.setCurrentIndex(2)
+                    self.w.widgetswitcher.show_id_widget(1)
+                    self.w.mainLeftStack.setCurrentIndex(0) # program
                 elif self.w.widgetswitcher.get_current_number() == 1:
                     self.w.widgetswitcher.show_default()
+                    self.w.mainLeftStack.setCurrentIndex(2)
+            elif self.current_mode[0] == 'setup':# setup
+                if self.w.mainLeftStack.currentIndex() == 2:
+                    self.w.mainLeftStack.setCurrentIndex(1)
+                    self.w.widgetswitcher.setCurrentIndex(3)# setup
+                # show graphics
+                else:
+                    self.w.mainLeftStack.setCurrentIndex(2)
+                    self.w.widgetswitcher.setCurrentIndex(3)# setup
+            elif self.current_mode[0] == 'mdi':# mdi
+                # hide graphics
+                if self.w.mainLeftStack.currentIndex() == 2:
                     self.w.mainLeftStack.setCurrentIndex(0)
-            elif cur == 2:
-                self.w.mainLeftStack.setCurrentIndex(0)
-                self.w.widgetswitcher.show_id_widget(1)
+                    self.w.widgetswitcher.setCurrentIndex(4)# setup mdi
+                # show graphics
+                else:
+                    self.w.widgetswitcher.show_default()
+                    self.w.mainLeftStack.setCurrentIndex(2)
+                    self.w.widgetswitcher.setCurrentIndex(4)# setup mdi
+            return # don;t change the mode
         else:
             print ('mode/index not recognized')
             return
@@ -470,16 +481,17 @@ class HandlerClass:
 
             # change filepath extension to autoload an html setup page
             fname = os.path.splitext(fname)[0]+'.html'
-
+        if self.w.web_view is None:
+            return
         if fname.endswith(".html"):
             if os.path.exists(fname):
-                self.web_view.load(QtCore.QUrl.fromLocalFile(fname))
+                self.w.web_view.load(QtCore.QUrl.fromLocalFile(fname))
                 return
         self.set_default_html(fname)
 
     def set_default_html(self,filename=None):
         if filename is None: filename = 'No program Loaded'
-        print filename
+        print(filename)
         self.html = """<html>
 <head>
 <title>Test page for the download:// scheme</title>
@@ -495,7 +507,10 @@ class HandlerClass:
 </body>
 </html>
 """ %(filename,os.path.join(self.PATH.IMAGEDIR,'lcnc_swoop.png'))
-        self.web_view.setHtml(self.html)
+        self.w.web_view.setHtml(self.html)
+
+    def add_alarm(self, message):
+        STATUS.emit('update-machine-log', message, 'TIME')
 
     #####################
     # KEY BINDING CALLS #

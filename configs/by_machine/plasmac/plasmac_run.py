@@ -139,7 +139,20 @@ class HandlerClass:
         t_number = 0
         t_name = 'Default'
         self.materialName = t_name
-        inDict = {}
+        inDict = {'kerf-width':0.0,
+                  'thc-enable':False,
+                  'pierce-height':0.0,
+                  'pierce-delay':0.0,
+                  'puddle-jump-height':0.0,
+                  'puddle-jump-delay':0.0,
+                  'cut-height':0.0,
+                  'cut-feed-rate':0.0,
+                  'cut-amps':0.0,
+                  'cut-volts':0.0,
+                  'pause-at-end':0.0,
+                  'gas-pressure':0.0,
+                  'cut-mode':0.0,
+                 }
         with open(self.configFile) as inFile:
             for line in inFile:
                 if '=' in line:
@@ -407,12 +420,6 @@ class HandlerClass:
             self.get_material()
             self.materialUpdate = False
 
-    def first_material_changed(self, halpin):
-        material = halpin.get()
-        if not self.material_exists(material):
-            return
-        self.builder.get_object('material').set_active(self.materialList.index(material))
-
     def material_change_number_changed(self,halpin):
         if self.getMaterialBusy:
             return
@@ -492,6 +499,9 @@ class HandlerClass:
         self.builder.get_object('probe-feed-rate-adj').configure(self.builder.get_object('probe-feed-rate').get_value(),0,self.builder.get_object('setup-feed-rate').get_value(),1,0,0)
 
     def on_single_cut_pressed(self, widget):
+        self.builder.get_object('single-cut').set_sensitive(False)
+        while gtk.events_pending():
+            gtk.main_iteration()
         self.builder.get_object('x-single-cut').update()
         self.builder.get_object('y-single-cut').update()
         x = self.builder.get_object('x-single-cut').get_value()
@@ -500,15 +510,12 @@ class HandlerClass:
             self.s.poll()
             if not self.s.estop and self.s.enabled and self.s.homed.count(1) == self.s.joints and self.s.interp_state == linuxcnc.INTERP_IDLE:
                 self.c.mode(linuxcnc.MODE_MDI)
-                self.c.wait_complete()
                 self.c.mdi('M3 $0 S1')
                 self.c.mdi('G91')
                 self.c.mdi('G1 X{} Y{} F#<_hal[plasmac.cut-feed-rate]>'.format(x, y))
-                self.c.wait_complete()
                 self.c.mdi('G90')
-                self.c.mdi('M5')
-                self.c.wait_complete()
-                self.c.mdi('M30')
+                self.c.mdi('M5 $0')
+                self.c.mdi('M2')
             else:
                 print('current mode prevents a single cut')
 
@@ -638,9 +645,9 @@ class HandlerClass:
                         self.builder.get_object(item).set_value(float(self.configDict.get(item)))
                     else:
                         if self.i.find('PLASMAC', 'PM_PORT'):
-                                print('*** {} missing from {}'.format(item,self.configFile))
-                        elif not item in ['gas-pressure', 'cut-mode']:
                             print('*** {} missing from {}'.format(item,self.configFile))
+                        elif not item in ['gas-pressure', 'cut-mode']:
+                            print('*** {} missing from {}'.format(item ,self.configFile))
                 elif isinstance(self.builder.get_object(item), gladevcp.hal_widgets.HAL_CheckButton):
                     if item in tmpDict:
                         # keep pmx485 alive if it was on when reload pressed
@@ -745,8 +752,8 @@ class HandlerClass:
                         outFile.write('{}=thc-off\n'.format(key))
             elif key in inDict:
                 outFile.write('{}={}\n'.format(key, inDict[key]))
-            else:
-                print '*** cannot save unknown parameter:', key
+#            else:
+#                print '*** cannot save unknown parameter:', key
         outFile.close()
         if mode == 'material':
             self.set_saved_material()
@@ -1161,13 +1168,16 @@ class HandlerClass:
             iniFile = os.environ['INI_FILE_NAME']
             iniPath = os.path.dirname(iniFile)
             try:
-                basePath = os.path.realpath(os.path.dirname(os.readlink('{}/plasmac'.format(iniPath))))
+                basePath = os.path.realpath(os.path.dirname('{}/plasmac'.format(iniPath)))
             except:
                 try:
-                    basePath = os.path.realpath(os.path.dirname(os.readlink('{}/M190'.format(iniPath))))
+                    basePath = os.path.realpath(os.path.dirname(os.readlink('{}/plasmac'.format(iniPath))))
                 except:
-                    print('\nlink to plasmac source files cannot be found\n')
-                    sys.exit(0)
+                    try:
+                        basePath = os.path.realpath(os.path.dirname(os.readlink('{}/M190'.format(iniPath))))
+                    except:
+                        print('\nlink to plasmac source files cannot be found\n')
+                        sys.exit(0)
             cmd = '{}/configurator.py'.format(basePath)
             os.execv(cmd,[cmd, 'upgrade', iniFile])
             sys.exit(0)
@@ -1184,14 +1194,12 @@ class HandlerClass:
         self.materialNumberPin = hal_glib.GPin(halcomp.newpin('material-change-number', hal.HAL_S32, hal.HAL_IN))
         self.materialChangePin = hal_glib.GPin(halcomp.newpin('material-change', hal.HAL_S32, hal.HAL_IN))
         self.materialTimeoutPin = hal_glib.GPin(halcomp.newpin('material-change-timeout', hal.HAL_BIT, hal.HAL_IN))
-        self.firstMaterialPin = hal_glib.GPin(halcomp.newpin('first-material', hal.HAL_S32, hal.HAL_IN))
         self.materialReloadPin = hal_glib.GPin(halcomp.newpin('material-reload', hal.HAL_BIT, hal.HAL_IN))
         self.tempMaterialPin = hal_glib.GPin(halcomp.newpin('temp-material', hal.HAL_BIT, hal.HAL_IN))
         self.thcEnablePin = hal_glib.GPin(halcomp.newpin('thc-enable-out', hal.HAL_BIT, hal.HAL_OUT))
         self.materialNumberPin.connect('value-changed', self.material_change_number_changed)
         self.materialChangePin.connect('value-changed', self.material_change_changed)
         self.materialTimeoutPin.connect('value-changed', self.material_change_timeout)
-        self.firstMaterialPin.connect('value-changed', self.first_material_changed)
         self.materialReloadPin.connect('value-changed', self.on_material_reload_pin)
         self.tempMaterialPin.connect('value-changed', self.on_temp_material_pin)
         self.idlePin = hal_glib.GPin(halcomp.newpin('program-is-idle', hal.HAL_BIT, hal.HAL_IN))

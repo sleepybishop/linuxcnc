@@ -1098,11 +1098,11 @@ class HAL:
                 me = .0005
             else:
                 me = .0127
-            print >>file, ('# This setting is to limit bogus stepgen')
-            print >>file, ('# velocity corrections caused by position')
-            print >>file, ('# feedback sample time jitter.')
-            print >>file, "setp   pid.%s.maxerror %f" % (let, me)
-        print >>file
+            print('# This setting is to limit bogus stepgen',file=file)
+            print('# velocity corrections caused by position',file=file)
+            print('# feedback sample time jitter.',file=file)
+            print("setp   pid.%s.maxerror %f" % (let, me),file=file)
+        print(file=file)
         if let == 's':
             name = "spindle"
         else:

@@ -145,7 +145,7 @@ class circle_wiz:
                 Torch = False
                 outTmp.write('m62 p3 (disable torch)\n')
                 self.over_cut(xS, yS, ijOffset + ijDiff, radius, outTmp)
-            outTmp.write('m5\n')
+            outTmp.write('m5 $0\n')
             if sHole:
                 outTmp.write('M68 E3 Q0 (reset feed rate to 100%)\n')
             if not torch:
@@ -234,6 +234,9 @@ class circle_wiz:
     def auto_preview(self, widget):
         if self.dEntry.get_text() and float(self.dEntry.get_text()) > 0:
             self.circle_preview('auto') 
+
+    def add_shape_to_file(self, button):
+        self.parent.add_shape_to_file(self.add, self.xSEntry.get_text(), self.ySEntry.get_text(), self.centre.get_active())
 
     def circle_show(self, parent):
         self.parent = parent
@@ -329,14 +332,18 @@ class circle_wiz:
         self.parent.entries.attach(self.ocEntry, 1, 2, 8, 9)
         preview = gtk.Button('Preview')
         preview.connect('pressed', self.circle_preview)
-        self.parent.entries.attach(preview, 0, 1, 13, 14)
+        self.parent.entries.attach(preview, 0, 1, 12, 13)
         self.add = gtk.Button('Add')
         self.add.set_sensitive(False)
-        self.add.connect('pressed', self.parent.add_shape_to_file, self.add)
-        self.parent.entries.attach(self.add, 2, 3, 13, 14)
+        self.add.connect('pressed', self.add_shape_to_file)
+        self.parent.entries.attach(self.add, 2, 3, 12, 13)
         undo = gtk.Button('Undo')
         undo.connect('pressed', self.parent.undo_shape, self.add)
-        self.parent.entries.attach(undo, 4, 5, 13, 14)
+        self.parent.entries.attach(undo, 4, 5, 12, 13)
+        self.lDesc = gtk.Label('Creating Circle')
+        self.lDesc.set_alignment(0.5, 0.5)
+        self.lDesc.set_width_chars(8)
+        self.parent.entries.attach(self.lDesc, 1, 4, 13, 14)
         pixbuf = gtk.gdk.pixbuf_new_from_file_at_size(
                 filename='./wizards/images/circle.png', 
                 width=240, 
@@ -344,14 +351,14 @@ class circle_wiz:
         image = gtk.Image()
         image.set_from_pixbuf(pixbuf)
         self.parent.entries.attach(image, 2, 5, 1, 9)
-        if self.parent.origin:
+        if self.parent.oSaved:
             self.centre.set_active(1)
         else:
             self.bLeft.set_active(1)
         self.liEntry.set_text(self.parent.leadIn)
         self.loEntry.set_text(self.parent.leadOut)
-        self.xSEntry.set_text('{:0.3f}'.format(0))
-        self.ySEntry.set_text('{:0.3f}'.format(0))
+        self.xSEntry.set_text('{}'.format(self.parent.xSaved))
+        self.ySEntry.set_text('{}'.format(self.parent.ySaved))
         self.parent.undo_shape(None, self.add)
         self.parent.W.show_all()
         self.dEntry.grab_focus()

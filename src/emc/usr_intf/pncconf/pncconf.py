@@ -61,7 +61,7 @@ import hal
 try:
     LINUXCNCVERSION = os.environ['LINUXCNCVERSION']
 except:
-    LINUXCNCVERSION = '2.8'
+    LINUXCNCVERSION = 'Master (2.9)'
 
 def get_value(w):
     try:
@@ -341,7 +341,7 @@ class App:
             d = self.widgets.discovery_interface_combobox.get_model().get_value(itr, 1)
             a = self.widgets.discovery_address_entry.get_text()
             r =  self.widgets.discovery_read_option.get_active()
-            print 'discovery:',n,d,a,r
+            print ('discovery:',n,d,a,r)
             return n,d,a,r
         return None,None,None,None
 
@@ -1215,8 +1215,7 @@ PNCconf will use internal firmware data"%self._p.FIRMDIR),True)
             name = '5i25'
 
         if self.debugstate or readoption:
-
-            print 'try to discover board by reading help text input:',name
+            print('try to discover board by reading help text input:',name)
             buf = self.widgets.textinput.get_buffer()
             info = buf.get_text(buf.get_start_iter(),
                         buf.get_end_iter(),
@@ -1246,7 +1245,7 @@ PNCconf will use internal firmware data"%self._p.FIRMDIR),True)
             self.warning_dialog(text[0],True)
             return None
         except Exception as e:
-            print e
+            print(e)
             self.warning_dialog('Unspecified Error with Discovery option',True)
             return
         if 'No' in lines[0] and 'board found' in lines[0] :
@@ -1281,12 +1280,12 @@ PNCconf will use internal firmware data"%self._p.FIRMDIR),True)
 
         # PCI boards require sudo
         cmd ="""pkexec sh -c 'mesaflash %s;mesaflash %s --sserial;mesaflash %s --readhmid'  """%(board_command, board_command, board_command)
-        print 'cmd=',cmd
+        print('cmd=',cmd)
 
         discover = subprocess.Popen([cmd], shell=True,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE )
         output, error = discover.communicate()
         if error:
-            print 'mesaflash error',error
+            print ('mesaflash error',error)
         if output == '':
             text = _("Discovery is  got an error\n\n Is mesaflash installed?\n\n %s"%error)
             self.warning_dialog(text,True)
@@ -1491,7 +1490,7 @@ PNCconf will use internal firmware data"%self._p.FIRMDIR),True)
     # update all the firmware/boardname arrays and comboboxes
     def discovery_selection_update(self, info, bdnum):
         driver, boardname, firmname, path = self.parse_discovery(info,boardnum=bdnum)
-        print driver, boardname, firmname, path 
+        print(driver, boardname, firmname, path) 
         boardname = 'Discovered:%s'% boardname
         firmdata = self.parse_xml( driver,boardname,firmname,path)
         self._p.MESA_FIRMWAREDATA.append(firmdata)
@@ -4062,6 +4061,7 @@ Clicking 'existing custom program' will aviod this warning. "),False):
             set_text("minlim")
             set_text("maxlim")
             set_text("homesw")
+            set_text("hometandemsw")
             w[axis+"homesearchvel"].set_text("%d" % (d[axis+"homesearchvel"]*60))
             w[axis+"homelatchvel"].set_text("%d" % (d[axis+"homelatchvel"]*60))
             w[axis+"homefinalvel"].set_text("%d" % (d[axis+"homefinalvel"]*60))
@@ -4075,6 +4075,9 @@ Clicking 'existing custom program' will aviod this warning. "),False):
                 test = self.findsignal(i)
                 if test: homes = True
             w[axis + "homesw"].set_sensitive(homes)
+            w[axis + "hometandemsw"].set_sensitive(homes)
+            w[axis + "hometandemsw"].set_visible(self.tandem_check(axis))
+            w[axis + "labelhometandemsw"].set_visible(self.tandem_check(axis))
             w[axis + "homesearchvel"].set_sensitive(homes)
             w[axis + "searchdir"].set_sensitive(homes)
             w[axis + "latchdir"].set_sensitive(homes)
@@ -4249,6 +4252,7 @@ Clicking 'existing custom program' will aviod this warning. "),False):
             get_text("minlim")
             get_text("maxlim")
             get_text("homesw")
+            get_text("hometandemsw")
             d[axis + "homesearchvel"] = (get_value(w[axis + "homesearchvel"])/60)
             d[axis + "homelatchvel"] = (get_value(w[axis + "homelatchvel"])/60)
             d[axis + "homefinalvel"] = (get_value(w[axis + "homefinalvel"])/60)
@@ -4806,14 +4810,14 @@ Clicking 'existing custom program' will aviod this warning. "),False):
         boardnum = int(pinnumber[4:5])
         channel = None
         pinlist = self.list_related_pins([_PD.STEPA,_PD.STEPB], boardnum, connector, channel, pin, 0)
-        #print pinlist
+        #print ('step gen pinlist:',pinlist)
         for num,i in enumerate(pinlist):
+            #print (i[0],self.d[i[0]], ' is inverted? ', self.d[i[0]+"inv"])
             if self.d[i[0]+"inv"]:
                 gpioname = self.make_pinname(self.findsignal( self.d[i[0]] ),True)
-                #print gpioname
-                if num:
+                if self.d[i[0]+'type'] == _PD.STEPB:
                     signallist_b.append(gpioname)
-                else:
+                elif self.d[i[0]+'type'] == _PD.STEPA:
                     signallist_a.append(gpioname)
         return [signallist_a, signallist_b]
 

@@ -526,7 +526,7 @@ class line_wiz:
 
     def add_shape_to_file(self, event):
         self.gcodeSave = self.gcodeLine
-        self.parent.add_shape_to_file(None, self.add)
+        self.parent.add_shape_to_file(self.add, None, None, None)
         self.add_segment = 0
         self.line_type_changed(self.lType)
 
@@ -617,18 +617,22 @@ class line_wiz:
         self.parent.entries.attach(self.entry8, 1, 2, 8, 9)
         preview = gtk.Button('Preview')
         preview.connect('pressed', self.line_preview)
-        self.parent.entries.attach(preview, 0, 1, 13, 14)
+        self.parent.entries.attach(preview, 0, 1, 12, 13)
         self.cont = gtk.Button('Continue')
         self.cont.set_sensitive(False)
         self.cont.connect('pressed', self.continue_shape)
-        self.parent.entries.attach(self.cont, 1, 2, 13, 14)
+        self.parent.entries.attach(self.cont, 1, 2, 12, 13)
         self.add = gtk.Button('Add')
         self.add.set_sensitive(False)
         self.add.connect('pressed', self.add_shape_to_file)
-        self.parent.entries.attach(self.add, 2, 3, 13, 14)
+        self.parent.entries.attach(self.add, 2, 3, 12, 13)
         undo = gtk.Button('Undo')
         undo.connect('pressed', self.undo_shape)
-        self.parent.entries.attach(undo, 4, 5, 13, 14)
+        self.parent.entries.attach(undo, 4, 5, 12, 13)
+        self.lDesc = gtk.Label('Creating Line or Arc')
+        self.lDesc.set_alignment(0.5, 0.5)
+        self.lDesc.set_width_chars(8)
+        self.parent.entries.attach(self.lDesc, 1, 4, 13, 14)
         self.g2Arc = gtk.RadioButton(None, 'Clock')
         self.g2Arc.connect('toggled', self.auto_preview)
         self.g3Arc = gtk.RadioButton(self.g2Arc, 'Counter')

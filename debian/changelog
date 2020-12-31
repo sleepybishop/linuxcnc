@@ -1,4 +1,42 @@
-linuxcnc (1:2.8.0~pre1.5970.gc1cbb001a) buster; urgency=low
+linuxcnc (1:2.9.0~pre0) stretch; urgency=medium
+
+  * Master branch open for new features.
+
+ -- Sebastian Kuzminsky <seb@highlab.com>  Sun, 02 Jun 2019 16:52:46 -0600
+
+linuxcnc (1:2.8.1) buster; urgency=low
+
+  * Docs: Updated Chinese "Getting Started"
+  * plasmac: fix conversational path error
+  * hostmot2: Add support for Mesa 7i95, 7i97 and 7c80
+  * qtvcp -qtdragon: updates
+  * plasmac: Bugfixes
+  * qtvcp -many updates
+  * Forgot to add source file to Makefile
+  * Fix for pre-c99 compilers
+  * hm2_rpspi: remove and reinstate the kernel spi driver at startup/shutdown
+  * plasmac: Don't pierce spotting operations and many other updates
+  * changed pocket_number to mod_pocket in direction logic
+  * motion.9 motion.feed-inhibit gcode only (not jogs)
+  * command.c for consistency, allow jogs if feedhold
+  * control.c joint jogs inhibition if feedhold
+  * userkins.comp (new) userkins using halcompile
+  * gs2_vfd: Fixes how many registers that is written to Closes #506
+  * Update internal names after file renaming in 2004 Closes #922
+  * Fix gpio and pin relationship on rpi2 and later Closes #955
+  * qtvcp -update camview
+  * pncconf -allow different home switch offsets on tandem axes
+  * added hal pin to allow preview refresh
+  * pncconf -raise spinbox limits in tune test
+  * pncconf -fix PID maxerror setting in the tune test fo rmetric machines
+  * Docs: Pi links should be http not https
+  * Docs: Add links to the Raspberry Pi SD card image to the install docs
+  * dbounce.comp (new) alternative debounce component
+  * docs: plasmac user guide update
+
+ -- andypugh <andy@bodgesoc.org>  Sun, 29 Nov 2020 14:43:33 +0000
+ 
+linuxcnc (1:2.8.0) buster; urgency=low
 
   * Finally merge "Joints Axes". Joints and cartesian axes are no longer
     treated as the same thing, making control of robots and non-trivial
@@ -30,17 +68,19 @@ linuxcnc (1:2.8.0~pre1.5970.gc1cbb001a) buster; urgency=low
   * QTvcp: New QT-based VCP framework
   * QTdragon, QTlathe, QTtouchy, QTscreen - new GUIs based on QTVP
   * Silverdragon: New gscreen based GUI
-  * plasmac: New full-featured Plasma cutter cotroller
+  * plasmac: New full-featured Plasma cutter controller
   * Back tool lathe support in axis and gmoccapy
   * Many Axis improvements
   * Many Gmoccapy improvements
   * stepconf - various improvements
   * pncconf - many improvements
 
+  * Much enlarged new Spanish language translations
   * it.po: New Italian translation file.
   * Improve German translation
   * Add international support for classicladder
-  * added Chinese translations for some docs
+  * Added Chinese translations for some docs
+  * Some new French translations
 
   * Mesa 7i96 support added
   * RPi4 fixes and Mesa 7C80/7C81 board additions
@@ -112,7 +152,6 @@ linuxcnc (1:2.8.0~pre1.5970.gc1cbb001a) buster; urgency=low
   * uspace: add uspace+rtai realtime
   * add a sample config for the scorbot-er-3 robot arm
   * docs: document AXIS's foam mode
-  * configs: foam: this has no locking indexer
 
 
  -- andypugh <andy@bodgesoc.org>  Sun, 12 Jul 2020 20:29:54 +0100
@@ -223,6 +262,8 @@ linuxcnc (1:2.7.15) unstable; urgency=medium
   * travis: use ccache
 
  -- Sebastian Kuzminsky <seb@highlab.com>  Thu, 02 Jan 2020 11:59:23 -0700
+
+ -- John Thornton <jthornton@gnipsel.com>  Thu, 6 Jun 2019 14:50:43 -0500
 
 linuxcnc (1:2.7.14) unstable; urgency=medium
 
@@ -740,7 +781,7 @@ linuxcnc (1:2.7.5) unstable; urgency=medium
   * build: make failure copying images an error
   * packaging: interface with udev better
 
- -- Sebastian Kuzminsky <seb@highlab.com>  Tue, 12 July 2016 21:47:18 -0600
+ -- Sebastian Kuzminsky <seb@highlab.com>  Tue, 12 Jul 2016 21:47:18 -0600
 
 linuxcnc (1:2.7.4) unstable; urgency=medium
 

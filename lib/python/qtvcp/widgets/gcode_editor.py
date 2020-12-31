@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- encoding: utf-8 -*-
 #    Gcode display / edit widget for QT_VCP
 #    Copyright 2016 Chris Morley
@@ -31,15 +31,10 @@ import sys
 import os
 
 from PyQt5.QtCore import pyqtProperty, pyqtSignal, QSize, QObject
-from PyQt5.QtGui import QFont, QFontMetrics, QColor, QIcon
+from PyQt5.QtGui import QFont, QFontMetrics, QColor, QIcon, QPalette
 from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QAction,\
          QVBoxLayout,QToolBar,QGroupBox,QLineEdit, QHBoxLayout,QMessageBox, \
-            QFileDialog, QFrame, QLabel
-try:
-    from PyQt5.Qsci import QsciScintilla, QsciLexerCustom, QsciLexerPython
-except ImportError as e:
-    LOG.critical("Can't import QsciScintilla - is package python-pyqt5.qsci installed?", exc_info=e)
-    sys.exit(1)
+            QFileDialog, QFrame, QLabel, QStyleOption
 
 from qtvcp.widgets.widget_baseclass import _HalWidgetBase
 from qtvcp.core import Status, Info, Action
@@ -54,9 +49,15 @@ INFO = Info()
 ACTION = Action()
 LOG = logger.getLogger(__name__)
 
-# Set the log level for this module
+# Force the log level for this module
 # LOG.setLevel(logger.INFO) # One of DEBUG, INFO, WARNING, ERROR, CRITICAL
 
+# load this after Logging set up so we get a nice dialog.
+try:
+    from PyQt5.Qsci import QsciScintilla, QsciLexerCustom, QsciLexerPython
+except ImportError as e:
+    LOG.critical("Can't import QsciScintilla - is package python3-pyqt5.qsci installed?", exc_info=e)
+    sys.exit(1)
 
 ##############################################################
 # Simple custom lexer for Gcode
@@ -71,14 +72,8 @@ class GcodeLexer(QsciLexerCustom):
             3: 'Assignment',
             4: 'Value',
             }
-        for key, value in self._styles.iteritems():
+        for key, value in self._styles.items():
             setattr(self, value, key)
-        font = QFont()
-        font.setFamily('Courier')
-        font.setFixedPitch(True)
-        font.setPointSize(12)
-        font.setBold(True)
-        self.setFont(font, 2)
 
     # Paper sets the background color of each style of text
     def setPaperBackground(self, color, style=None):
@@ -129,7 +124,7 @@ class GcodeLexer(QsciLexerCustom):
                 editor.SendScintilla(
                     editor.SCI_GETTEXTRANGE, start, end, source)
             else:
-                source = unicode(editor.text()).encode('utf-8')[start:end]
+                source = str(editor.text())[start:end]
         if not source:
             return
 
@@ -145,44 +140,46 @@ class GcodeLexer(QsciLexerCustom):
 
         set_style = self.setStyling
         self.startStyling(start, 0x1f)
-
-        # scintilla always asks to style whole lines
-        for line in source.splitlines(True):
-            #print line
-            length = len(line)
-            graymode = False
-            msg = ('msg' in line.lower() or 'debug' in line.lower())
-            for char in str(line):
-                #print char
-                if char == ('('):
-                    graymode = True
-                    set_style(1, self.Comment)
-                    continue
-                elif char == (')'):
-                    graymode = False
-                    set_style(1, self.Comment)
-                    continue
-                elif graymode:
-                    if (msg and char.lower() in ('m', 's', 'g', ',', 'd', 'e', 'b', 'u')):
-                        set_style(1, self.Assignment)
-                        if char == ',': msg = False
-                    else:
+        try:
+            # scintilla always asks to style whole lines
+            for line in source.splitlines(True):
+                #print (line.decode('utf-8'))
+                graymode = False
+                line = line.decode('utf-8')
+                msg = ('msg' in line.lower() or 'debug' in line.lower())
+                for char in line:
+                    #print (char,msg)
+                    if char == ('('):
+                        graymode = True
                         set_style(1, self.Comment)
-                    continue
-                elif char in ('%', '<', '>', '#', '='):
-                    state = self.Assignment
-                elif char in ('[', ']'):
-                    state = self.Value
-                elif char.isalpha():
-                    state = self.Key
-                elif char.isdigit():
-                    state = self.Default
-                else:
-                    state = self.Default
-                set_style(1, state)
+                        continue
+                    elif char == (')'):
+                        graymode = False
+                        set_style(1, self.Comment)
+                        continue
+                    elif graymode:
+                        if (msg and char.lower() in ('m', 's', 'g', ',', 'd', 'e', 'b', 'u')):
+                            set_style(1, self.Assignment)
+                            if char == ',': msg = False
+                        else:
+                            set_style(1, self.Comment)
+                        continue
+                    elif char in ('%', '<', '>', '#', '='):
+                        state = self.Assignment
+                    elif char in ('[', ']'):
+                        state = self.Value
+                    elif char.isalpha():
+                        state = self.Key
+                    elif char.isdigit():
+                        state = self.Default
+                    else:
+                        state = self.Default
+                    set_style(1, state)
 
-            # folding implementation goes here
-            index += 1
+                # folding implementation goes here
+                index += 1
+        except Exception as e:
+            print(e)
 
 
 ##########################################################
@@ -190,6 +187,9 @@ class GcodeLexer(QsciLexerCustom):
 ##########################################################
 class EditorBase(QsciScintilla):
     ARROW_MARKER_NUM = 8
+    _styleMarginsForegroundColor = QColor("#000000")
+    _styleMarginsBackgroundColor = QColor("#000000")
+    _styleBackgroundColor = QColor("#000000")
 
     def __init__(self, parent=None):
         super(EditorBase, self).__init__(parent)
@@ -201,7 +201,6 @@ class EditorBase(QsciScintilla):
         self.font.setFixedPitch(True)
         self.font.setPointSize(12)
         self.setFont(self.font)
-        self.setMarginsFont(self.font)
 
         # Margin 0 is used for line numbers
         self.setMarginsFont(self.font)
@@ -226,7 +225,9 @@ class EditorBase(QsciScintilla):
 
         # Current line visible with special background color
         self.setCaretLineVisible(True)
+        self.SendScintilla(QsciScintilla.SCI_GETCARETLINEVISIBLEALWAYS, True)
         self.setCaretLineBackgroundColor(QColor("#ffe4e4"))
+        self. ensureLineVisible(True)
 
         # Set custom gcode lexer
         self.set_gcode_lexer()
@@ -240,15 +241,37 @@ class EditorBase(QsciScintilla):
 
         # default gray background
         self.set_background_color('#C0C0C0')
+        self._stylebackgroundColor = '#C0C0C0'
 
         # not too small
         self.setMinimumSize(200, 100)
         self.filepath = None
 
+    def setMarginsForegroundColor(self, color):
+        super(EditorBase, self).setMarginsForegroundColor(color)
+        self._styleMarginsForegroundColor = color
+
+    def marginsForegroundColor(self):
+        return self._styleMarginsForegroundColor
+
+    def setMarginsBackgroundColor(self, color):
+        super(EditorBase, self).setMarginsBackgroundColor(color)
+        self._styleMarginsBackgroundColor = color
+
+    def marginsBackgroundColor(self):
+        return self._styleMarginsBackgroundColor
+
     def set_margin_width(self, width):
         fontmetrics = QFontMetrics(self.font)
         self.setMarginsFont(self.font)
         self.setMarginWidth(0, fontmetrics.width("0"*width) + 6)
+
+    def setBackgroundColor(self, color):
+        self._styleBackgroundColor = color
+        self.set_background_color(color)
+
+    def backgroundColor(self):
+        return self._styleBackgroundColor
 
     # must set lexer paper background color _and_ editor background color it seems
     def set_background_color(self, color):
@@ -266,13 +289,11 @@ class EditorBase(QsciScintilla):
         self.lexer = QsciLexerPython()
         self.lexer.setDefaultFont(self.font)
         self.setLexer(self.lexer)
-        self.SendScintilla(QsciScintilla.SCI_STYLESETFONT, 1, 'Courier')
+        #self.SendScintilla(QsciScintilla.SCI_STYLESETFONT, 1, 'Courier')
 
     def set_gcode_lexer(self):
         self.lexer = GcodeLexer(self)
-        self.lexer.setDefaultFont(self.font)
         self.setLexer(self.lexer)
-        self.set_background_color('#C0C0C0')
 
     def new_text(self):
         self.setText('')
@@ -303,6 +324,92 @@ class EditorBase(QsciScintilla):
     def search_Next(self):
         self.SendScintilla(QsciScintilla.SCI_SEARCHANCHOR)
         self.findNext()
+
+    # this allows setting these properties in a stylesheet
+    def getColor0(self):
+        return self.lexer.color(0)
+    def setColor0(self, value):
+        self.lexer.setColor(value,0)
+    styleColor0 = pyqtProperty(QColor, getColor0, setColor0)
+
+    def getColor1(self):
+        return self.lexer.color(1)
+    def setColor1(self, value):
+        self.lexer.setColor(value,1)
+    styleColor1 = pyqtProperty(QColor, getColor1, setColor1)
+
+    def getColor2(self):
+        return self.lexer.color(2)
+    def setColor2(self, value):
+        self.lexer.setColor(value,2)
+    styleColor2 = pyqtProperty(QColor, getColor2, setColor2)
+
+    def getColor3(self):
+        return self.lexer.color(3)
+    def setColor3(self, value):
+        self.lexer.setColor(value,3)
+    styleColor3 = pyqtProperty(QColor, getColor3, setColor3)
+
+    def getColor4(self):
+        return self.lexer.color(4)
+    def setColor4(self, value):
+        self.lexer.setColor(value,4)
+    styleColor4 = pyqtProperty(QColor, getColor4, setColor4)
+
+    def getColorMarginText(self):
+        return self.marginsForegroundColor()
+    def setColorMarginText(self, value):
+        self.setMarginsForegroundColor(value)
+    styleColorMarginText = pyqtProperty(QColor, getColorMarginText, setColorMarginText)
+
+    def getColorMarginBackground(self):
+        return self.marginsBackgroundColor()
+    def setColorMarginBackground(self, value):
+        self.setMarginsBackgroundColor(value)
+    styleColorMarginBackground = pyqtProperty(QColor, getColorMarginBackground, setColorMarginBackground)
+
+    def getColorBackground(self):
+        return self.backgroundColor()
+    def setColorBackground(self, value):
+        self.setBackgroundColor(value)
+    styleColorBackground = pyqtProperty(QColor, getColorBackground, setColorBackground)
+
+    def getFont0(self):
+        return self.lexer.font(0)
+    def setFont0(self, value):
+        self.lexer.setFont(value,0)
+    styleFont0 = pyqtProperty(QFont, getFont0, setFont0)
+
+    def getFont1(self):
+        return self.lexer.font(1)
+    def setFont1(self, value):
+        self.lexer.setFont(value,1)
+    styleFont1 = pyqtProperty(QFont, getFont1, setFont1)
+
+    def getFont2(self):
+        return self.lexer.font(2)
+    def setFont2(self, value):
+        self.lexer.setFont(value,2)
+    styleFont2 = pyqtProperty(QFont, getFont2, setFont2)
+
+    def getFont3(self):
+        return self.lexer.font(3)
+    def setFont3(self, value):
+        self.lexer.setFont(value,3)
+    styleFont3 = pyqtProperty(QFont, getFont3, setFont3)
+
+    def getFont4(self):
+        return self.lexer.font(4)
+    def setFont4(self, value):
+        self.lexer.setFont(value,4)
+    styleFont4 = pyqtProperty(QFont, getFont4, setFont4)
+
+    def getFontMargin(self):
+        return self.font
+    def setFontMargin(self, value):
+        self.setMarginsFont(value)
+    styleFontMargin = pyqtProperty(QFont, getFontMargin, setFontMargin)
+
 
 ##########################################################
 # Gcode display widget (intended read-only)
@@ -507,61 +614,63 @@ class GcodeEditor(QWidget, _HalWidgetBase):
         ################################
 
         # Create new action
-        newAction = QAction(QIcon.fromTheme('document-new'), 'New', self)        
-        newAction.setShortcut('Ctrl+N')
-        newAction.setStatusTip('New document')
-        newAction.triggered.connect(self.newCall)
+        self.newAction = QAction(QIcon.fromTheme('document-new'), 'New', self)       
+        self.newAction.setShortcut('Ctrl+N')
+        self.newAction.setStatusTip('New document')
+        self.newAction.triggered.connect(self.newCall)
 
         # Create open action
-        openAction = QAction(QIcon.fromTheme('document-open'), '&Open', self)        
-        openAction.setShortcut('Ctrl+O')
-        openAction.setStatusTip('Open document')
-        openAction.triggered.connect(self.openCall)
+        self.openAction = QAction(QIcon.fromTheme('document-open'), '&Open', self)
+        self.openAction.setShortcut('Ctrl+O')
+        self.openAction.setStatusTip('Open document')
+        self.openAction.triggered.connect(self.openCall)
 
         # Create save action
-        saveAction = QAction(QIcon.fromTheme('document-save'), '&save', self)        
-        saveAction.setShortcut('Ctrl+S')
-        saveAction.setStatusTip('save document')
-        saveAction.triggered.connect(self.saveCall)
+        self.saveAction = QAction(QIcon.fromTheme('document-save'), '&Save', self)
+        self.saveAction.setShortcut('Ctrl+S')
+        self.saveAction.setStatusTip('Save document')
+        self.saveAction.triggered.connect(self.saveCall)
 
         # Create exit action
-        exitAction = QAction(QIcon.fromTheme('application-exit'), '&Exit', self)        
-        exitAction.setShortcut('Ctrl+Q')
-        exitAction.setStatusTip('Exit application')
-        exitAction.triggered.connect(self.exitCall)
+        self.exitAction = QAction(QIcon.fromTheme('application-exit'), '&Exit', self)
+        self.exitAction.setShortcut('Ctrl+Q')
+        self.exitAction.setStatusTip('Exit application')
+        self.exitAction.triggered.connect(self.exitCall)
 
         # Create gcode lexer action
-        gCodeLexerAction = QAction(QIcon.fromTheme('lexer.png'), '&Gcode\n lexer', self)
-        gCodeLexerAction.setCheckable(1)
-        gCodeLexerAction.setShortcut('Ctrl+G')
-        gCodeLexerAction.setStatusTip('Set Gcode highlighting')
-        gCodeLexerAction.triggered.connect(self.gcodeLexerCall)
+        self.gCodeLexerAction = QAction(QIcon.fromTheme('lexer.png'), '&Gcode\nLexer', self)
+        self.gCodeLexerAction.setCheckable(1)
+        self.gCodeLexerAction.setShortcut('Ctrl+G')
+        self.gCodeLexerAction.setStatusTip('Set Gcode highlighting')
+        self.gCodeLexerAction.triggered.connect(self.gcodeLexerCall)
 
         # Create gcode lexer action
-        pythonLexerAction = QAction(QIcon.fromTheme('lexer.png'), '&python\n lexer', self)        
-        pythonLexerAction.setShortcut('Ctrl+P')
-        pythonLexerAction.setStatusTip('Set Python highlighting')
-        pythonLexerAction.triggered.connect(self.pythonLexerCall)
+        self.pythonLexerAction = QAction(QIcon.fromTheme('lexer.png'), '&Python\nLexer', self)
+        self.pythonLexerAction.setShortcut('Ctrl+P')
+        self.pythonLexerAction.setStatusTip('Set Python highlighting')
+        self.pythonLexerAction.triggered.connect(self.pythonLexerCall)
 
         # Create toolbar and add action
-        toolBar = QToolBar('File')
-        toolBar.addAction(newAction)
-        toolBar.addAction(openAction)
-        toolBar.addAction(saveAction)
-        toolBar.addAction(exitAction)
+        self.toolBar = QToolBar('File')
+        self.toolBar.addAction(self.newAction)
+        self.toolBar.addAction(self.openAction)
+        self.toolBar.addAction(self.saveAction)
+        self.toolBar.addAction(self.exitAction)
 
-        toolBar.addSeparator()
+        self.toolBar.addSeparator()
 
         # add lexer actions
-        toolBar.addAction(gCodeLexerAction)
-        toolBar.addAction(pythonLexerAction)
+        self.toolBar.addAction(self.gCodeLexerAction)
+        self.toolBar.addAction(self.pythonLexerAction)
 
-        toolBar.addSeparator()
-        toolBar.addWidget(QLabel('<html><head/><body><p><span style=" font-size:20pt; font-weight:600;">Edit Mode</span></p></body></html>'))
+        self.toolBar.addSeparator()
+        self.label = QLabel('''<html><head/><body><p><span style=" font-size:20pt;
+                         font-weight:600;">Edit Mode</span></p></body></html>''')
+        self.toolBar.addWidget(self.label)
 
         # create a frame for buttons
         box = QHBoxLayout()
-        box.addWidget(toolBar)
+        box.addWidget(self.toolBar)
 
         self.topMenu = QFrame()
         self.topMenu.setLayout(box)
@@ -577,42 +686,47 @@ class GcodeEditor(QWidget, _HalWidgetBase):
         self.bottomMenu = QFrame()
 
         self.searchText = QLineEdit(self)
+        self.searchText.setStatusTip('Text to search for')
         self.replaceText = QLineEdit(self)
-
+        self.replaceText.setStatusTip('Replace search text with this text')
         toolBar = QToolBar()
         # Create new action
-        undoAction = QAction(QIcon.fromTheme('edit-undo'), 'Undo', self)        
+        undoAction = QAction(QIcon.fromTheme('edit-undo'), 'Undo', self)
         undoAction.setStatusTip('Undo')
         undoAction.triggered.connect(self.undoCall)
         toolBar.addAction(undoAction)
 
         # create redo action
-        redoAction = QAction(QIcon.fromTheme('edit-redo'), 'Redo', self)        
-        redoAction.setStatusTip('Undo')
+        redoAction = QAction(QIcon.fromTheme('edit-redo'), 'Redo', self)
+        redoAction.setStatusTip('Redo')
         redoAction.triggered.connect(self.redoCall)
         toolBar.addAction(redoAction)
 
         toolBar.addSeparator()
 
         # create replace action
-        replaceAction = QAction(QIcon.fromTheme('edit-find-replace'), 'Replace', self)        
+        replaceAction = QAction(QIcon.fromTheme('edit-find-replace'), 'Replace', self)
+        replaceAction.setStatusTip('Replace text')
         replaceAction.triggered.connect(self.replaceCall)
         toolBar.addAction(replaceAction)
 
         # create find action
-        findAction = QAction(QIcon.fromTheme('edit-find'), 'Find', self)        
+        findAction = QAction(QIcon.fromTheme('edit-find'), 'Find', self)
+        findAction.setStatusTip('Find next occurrence of text')
         findAction.triggered.connect(self.findCall)
         toolBar.addAction(findAction)
 
         # create next action
-        nextAction = QAction(QIcon.fromTheme('go-previous'), 'Find Previous', self)        
-        nextAction.triggered.connect(self.nextCall)
-        toolBar.addAction(nextAction)
+        previousAction = QAction(QIcon.fromTheme('go-previous'), 'Find Previous', self)
+        previousAction.setStatusTip('Find previous occurrence of text')
+        previousAction.triggered.connect(self.previousCall)
+        toolBar.addAction(previousAction)
 
         toolBar.addSeparator()
 
         # create case action
-        caseAction = QAction(QIcon.fromTheme('edit-case'), 'Aa', self)  
+        caseAction = QAction(QIcon.fromTheme('edit-case'), 'Aa', self)
+        caseAction.setStatusTip('Toggle between any case and match case')
         caseAction.setCheckable(1)      
         caseAction.triggered.connect(self.caseCall)
         toolBar.addAction(caseAction)
@@ -637,7 +751,6 @@ class GcodeEditor(QWidget, _HalWidgetBase):
     def case(self):
         self.isCaseSensitive -=1
         self.isCaseSensitive *=-1
-        print self.isCaseSensitive
 
     def exitCall(self):
         self.exit()
@@ -652,7 +765,16 @@ class GcodeEditor(QWidget, _HalWidgetBase):
     def find(self):
         self.editor.search(str(self.searchText.text()),
                              re=False, case=self.isCaseSensitive,
-                             word=False, wrap= False, fwd=True)
+                             word=False, wrap= True, fwd=True)
+
+    def previousCall(self):
+        self.previous()
+    def previous(self):
+        self.editor.setCursorPosition(self.editor.getSelection()[0],
+                                      self.editor.getSelection()[1])
+        self.editor.search(str(self.searchText.text()),
+                           re=False, case=self.isCaseSensitive,
+                           word=False, wrap=True, fwd=False)
 
     def gcodeLexerCall(self):
         self.gcodeLexer()
@@ -662,7 +784,9 @@ class GcodeEditor(QWidget, _HalWidgetBase):
     def nextCall(self):
         self.next()
     def next(self):
-        self.editor.search(str(self.searchText.text()),False)
+        self.editor.search(str(self.searchText.text()),
+                             re=False, case=self.isCaseSensitive,
+                             word=False, wrap=True, fwd=False)
         self.editor.search_Next()
 
     def newCall(self):
@@ -672,6 +796,8 @@ class GcodeEditor(QWidget, _HalWidgetBase):
             result = self.killCheck()
             if result:
                 self.editor.new_text()
+        else:
+            self.editor.new_text()
 
     def openCall(self):
         self.open()
@@ -695,6 +821,9 @@ class GcodeEditor(QWidget, _HalWidgetBase):
         self.replace()
     def replace(self):
         self.editor.replace_text(str(self.replaceText.text()))
+        self.editor.search(str(self.searchText.text()),
+                             re=False, case=self.isCaseSensitive,
+                             word=False, wrap=True, fwd=True)
 
     def saveCall(self):
         self.save()
@@ -781,6 +910,17 @@ class GcodeEditor(QWidget, _HalWidgetBase):
     def set_margin_width(self,width):
         self.editor.set_margin_width(width)
 
+    def set_font(self, font):
+        self.editor.font = font
+        for i in range(0,4):
+            self.editor.lexer.setFont(font,i)
+
+    def set_background_color(self, color):
+        self.editor.set_background_color(color)
+
+    def isReadOnly(self):
+        return self.editor.isReadOnly()
+
     # designer recognized getter/setters
     # auto_show_mdi status
     # These adjust the self.editor instance
@@ -808,9 +948,34 @@ if __name__ == "__main__":
     from PyQt5.QtCore import *
     from PyQt5.QtGui import *
 
-    app = QtWidgets.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     w = GcodeEditor()
     w.editMode()
+    w.editor.setText(''' This is test text
+a
+a
+a
+B
+b
+n
+C
+C
+C
+
+This is the end of the test text.''')
+    if 0:
+        w.toolBar.hide()
+    if 1:
+        w.pythonLexerAction.setVisible(False)
+        w.gCodeLexerAction.setVisible(False)
+    if 1:
+        w.openAction.setVisible(False)
+        w.newAction.setVisible(False)
+    if 0:
+        w.saveAction.setVisible(False)
+        w.exitAction.setVisible(False)
+    if 1:
+        w.label.setText('<b>Edit mode title label</b>')
     w.show()
     sys.exit( app.exec_() )
 

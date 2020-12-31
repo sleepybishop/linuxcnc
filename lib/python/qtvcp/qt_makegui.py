@@ -6,10 +6,10 @@ from PyQt5 import QtGui, QtCore, QtWidgets, uic
 import traceback
 from qtvcp.widgets.widget_baseclass import _HalWidgetBase
 # Set up logging
-import logger
+from . import logger
 log = logger.getLogger(__name__)
-# Set the log level for this module
-log.setLevel(logger.INFO) # One of DEBUG, INFO, WARNING, ERROR, CRITICAL
+# Force the log level for this module
+#log.setLevel(logger.INFO) # One of DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 class Trampoline(object):
     def __init__(self,methods):
@@ -187,11 +187,7 @@ Python Error:\n {}'''.format(str(e))
                 rtn = QtWidgets.QMessageBox.critical(None, "QTVCP Error", message)
             else:
                 log.critical(e)
-                sys.exit(0)
-        else:
-            log.debug('QTVCP top instance: {}'.format(self))
-            for widget in instance.findChildren(QtCore.QObject):
-                log.debug('QTVCP Widget: {}'.format(widget))
+                raise
 
     def apply_styles(self, fname = None):
         if self.PATHS.IS_SCREEN:
@@ -201,7 +197,7 @@ Python Error:\n {}'''.format(str(e))
             DIR =self.PATHS.PANELDIR
             BNAME = self.PATHS.BASENAME
         # apply one word system theme
-        if fname in (QtWidgets.QStyleFactory.keys()):
+        if fname in (list(QtWidgets.QStyleFactory.keys())):
             QtWidgets.qApp.setStyle(fname)
             return
         
@@ -242,7 +238,7 @@ Python Error:\n {}'''.format(str(e))
                 log.error('QSS Filepath Error: {}'.format(qssname))
                 log.error("{} theme not available".format(fname))
                 current_theme = str(QtWidgets.qApp.style().objectName())
-                for i in (QtWidgets.QStyleFactory.keys()):
+                for i in (list(QtWidgets.QStyleFactory.keys())):
                     themes += (', {}'.format(i))
                 log.error('QTvcp Available system themes: green<{}> {}'.format(current_theme, themes))
 
@@ -276,9 +272,9 @@ Python Error:\n {}'''.format(str(e))
 
             try:
                 mod = __import__(basename)
-            except ImportError, e:
+            except ImportError as e:
                 log.critical("module '{}' skipped - import error: ".format(basename), exc_info=e)
-                sys.exit(0)
+                raise
                 continue
             log.debug("module '{}' imported green<OK>".format(mod.__name__))
 
@@ -299,19 +295,19 @@ Python Error:\n {}'''.format(str(e))
                 for object in objlist:
                     log.debug("Registering handlers in module {} object {}".format(mod.__name__, object))
                     if isinstance(object, dict):
-                        methods = dict.items()
+                        methods = list(dict.items())
                     else:
-                        methods = map(lambda n: (n, getattr(object, n, None)), dir(object))
+                        methods = [(n, getattr(object, n, None)) for n in dir(object)]
                     for method,f in methods:
                         if method.startswith('_'):
                             continue
                         if callable(f):
-                            log.debug("Register callback '{}' in {}".format(method, object))
+                            log.debug("Register callback '{}'".format(method))
                             add_handler(method, f)
             except Exception as e:
                 log.exception("Trouble looking for handlers in '{}':".format(basename), exc_info=e)
                 # we require a working handler file!
-                sys.exit()
+                raise
 
         # Wrap lists in Trampoline, unwrap single functions
         for n,v in list(handlers.items()):
