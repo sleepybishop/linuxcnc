@@ -1,6 +1,6 @@
 # https://copr.fedorainfracloud.org/coprs/spike/linuxcnc/
 
-%global commit eac9994c35841900a9c0fb02ed33fe4e7fe65caf
+%global commit d1982f1db4b1a40d3f21724790cb43737a310570
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 %{!?tcl_version: %global tcl_version %(echo 'puts $tcl_version' | tclsh)}
