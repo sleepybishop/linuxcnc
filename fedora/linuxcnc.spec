@@ -1,364 +1,216 @@
-# quicker build with no docs
-%global _without_docs 1
+# https://copr.fedorainfracloud.org/coprs/spike/linuxcnc/
 
-# pre-release settings
-%global _pre      1 
+%global commit eac9994c35841900a9c0fb02ed33fe4e7fe65caf
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
 
-Name:           linuxcnc
-Version:        2.9.0
-Release:        0%{?_pre:.%{_pre}}%{?dist}
-Summary:        A software system for computer control of machine tools
+%{!?tcl_version: %global tcl_version %(echo 'puts $tcl_version' | tclsh)}
+%{!?tcl_sitearch: %global tcl_sitearch %{_libdir}/tcl%{tcl_version}}
 
-License:        GPLv2
-Group:          Applications/Engineering
-URL:            http://www.linuxcnc.org
-Source0:        %{name}-%{version}.tar.gz
+Name:          linuxcnc
+Version:       2.9.0
+Release:       1.20210305git%{shortcommit}%{?dist}
+Summary:       LinuxCNC
+License:       GPLv2+ and LGPLv2
+URL:           http://linuxcnc.org/
+Source0:       https://github.com/LinuxCNC/%{name}/archive/%{commit}/%{name}-%{shortcommit}.tar.gz
+Patch:         fix_install-alt.patch
+Patch:         python3_compatibility_persistence.py.patch
+Patch:         python3_compatibility_popupkeyboard.py.patch
+BuildRequires: automake gcc-c++
+BuildRequires: pkgconfig(libudev) pkgconfig(libusb-1.0) pkgconfig(libtirpc)
+BuildRequires: pkgconfig(glib-2.0) pkgconfig(gtk+-2.0)
+BuildRequires: procps kmod python3-Yapps intltool findutils tcl-devel tk-devel
+BuildRequires: bwidget tkimg tclx python3-gobject readline-devel python3-tkinter
+BuildRequires: boost-python3-devel libGLU-devel libXmu-devel psmisc python3-devel
+BuildRequires: desktop-file-utils ImageMagick
 
-BuildRequires:  gcc-c++
-BuildRequires:  gtk2-devel
-BuildRequires:  mesa-libGL-devel
-BuildRequires:  mesa-libGLU-devel
-BuildRequires:  bwidget
-BuildRequires:  libXaw-devel
-BuildRequires:  libmodbus-devel
-BuildRequires:  blt-devel
-BuildRequires:  readline-devel
-BuildRequires:  gettext
-BuildRequires:	libudev-devel
-BuildRequires:  intltool
-# for building docs
-%if ! %{_without_docs}
-BuildRequires:  lyx
-BuildRequires:  source-highlight
-BuildRequires:  ImageMagick
-BuildRequires:  dvipng
-BuildRequires:  dblatex
-BuildRequires:  asciidoc >= 8.5
-%endif
-#
-
-Requires:       bwidget
-Requires:       blt
-Requires:       python3-tkinter
-
-#Requires:       kernel-rt
-
-Autoreq: 0
+Requires: tcl-%{name} = %{version}
+Requires: python-%{name} = %{version}
+Requires: bwidget, python3-tkinter, boost-python3, tkimg, pygtk2
+AutoReq: no
 
 %description
-
-LinuxCNC (the Enhanced Machine Control) is a software system for
-computer control of machine tools such as milling machines and lathes.
+LinuxCNC controls CNC machines. It can drive milling machines, lathes,
+3d printers, laser cutters, plasma cutters, robot arms, hexapods, and more.
 
 %package devel
-Group: Development/Libraries
-Summary: Devel package for %{name}
-Requires: %{name} = %{version}
+Summary: Development files for %{name}
+Requires: %{name} = %{version}-%{release}
 
 %description devel
-Development headers and libs for the %{name} package
+Development files for %{name}
 
 %package doc
-Group:          Documentation
-Summary:        Documentation for %{name}
+Summary: Documementation for %{name}
+Buildarch: noarch
 
 %description doc
+Documementation for %{name}
 
-Documentation files for the %{name} package
+%package -n tcl-%{name}
+Summary: Tcl files for %{name}
+Provides: tcl(Hal) tcl(Linuxcnc) tcl(Ngcgui)
+
+%description -n tcl-%{name}
+Tcl files for %{name}
+
+%package -n python-%{name}
+Summary: Python files for %{name}
+AutoReq: no
+
+%description -n python-%{name}
+Python files for %{name}
 
 %prep
-%setup -q
-
+%autosetup -p1 -n %{name}-%{commit}
 
 %build
-cd src
-./autogen.sh
-%configure \
-%if ! 0%{_without_docs}
-    --enable-build-documentation \
-%endif
-    --with-realtime=uspace \
-    --without-libusb-1.0 \
-    --with-python=python3 \
-    --with-boost-python=boost_python37 \
-    --with-tkConfig=%{_libdir}/tkConfig.sh \
-    --with-tclConfig=%{_libdir}/tclConfig.sh \
-    --enable-non-distributable=yes
-make %{?_smp_mflags} V=1
+export CPPFLAGS="$(pkg-config --cflags python3)"
 
+sed -i 's#lib/tcltk/linuxcnc#%{tcl_sitearch}/linuxcnc%{version}#g' \
+    lib/python/rs274/options.py
+
+pushd src
+sed -i -e 's#\(EMC2_TCL_DIR=\)${prefix}/lib/tcltk/linuxcnc#\1%{tcl_sitearch}/linuxcnc%{version}#g' \
+       -e 's#\(EMC2_TCL_LIB_DIR=\)${prefix}/lib/tcltk/linuxcnc#\1%{tcl_sitearch}/linuxcnc%{version}#g' \
+       -e 's#\(EMC2_LANG_DIR=\)${prefix}/share/linuxcnc/tcl/msgs#\1%{tcl_sitearch}/linuxcnc/tcl/msgs#g' \
+       -e 's#\(EMC2_RTLIB_DIR=\)${prefix}/lib/linuxcnc#\1%{_libdir}/linuxcnc#g' \
+       configure.ac
+
+autoreconf -ifv
+%configure --disable-build-documentation \
+           --enable-non-distributable=yes \
+           --without-libmodbus \
+           --with-realtime=uspace \
+           --with-boost-python=boost_python%{python3_version_nodots} \
+           --with-python=%{__python3}
+
+%make_build
 
 %install
-rm -rf $RPM_BUILD_ROOT
-cd src
-make -e install DESTDIR=$RPM_BUILD_ROOT \
-     DIR='install -d -m 0755' FILE='install -m 0644' \
-     EXE='install -m 0755' SETUID='install -m 0755'
-# put the docs in the right place
-mv $RPM_BUILD_ROOT/usr/share/doc/linuxcnc \
-   $RPM_BUILD_ROOT%{_docdir}/%{name}-%{version}
-# put X11 app-defaults where the rest of them live
-mv $RPM_BUILD_ROOT%{_sysconfdir}/X11 $RPM_BUILD_ROOT%{_datadir}/
+pushd src
+%make_install SITEPY=%{python3_sitelib}
+popd
 
-# Set the module(s) to be executable, so that they will be stripped
-# when packaged.
-find %{buildroot} -type f -name \*.ko -exec %{__chmod} u+x \{\} \;
+# move X11 app-defaults to the correct location
+mv %{buildroot}%{_sysconfdir}/X11 %{buildroot}%{_datadir}/
 
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_bindir}/*
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/M190
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/test/plasmac_test.py
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/configurator.py
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/plasmac_gcode.py
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/pmx485.py
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/pmx_test.py
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/by_machine/plasmac/materialverter.py
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/axis/vismach/VMC_toolchange/vmcgui
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/axis/vismach/rolfmill/rolfmill
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/axis/vismach/3axis-tutorial/3axis-tutorial
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_docdir}/%{name}-%{version}/examples/sample-configs/sim/gmoccapy/lathe_configs/lathehandler.py
+# remove duplicated .so files
+rm -f %{buildroot}%{_libdir}/{compat.so,hal.so,rtapi.so,shmcommon.so}
 
-2to3 -wn %{buildroot}%{python_sitelib}/*.py
-2to3 -wn %{buildroot}%{python_sitelib}/qtvcp/*.py
-2to3 -wn %{buildroot}%{python_sitelib}/qtvcp/lib/*.py
-2to3 -wn %{buildroot}%{python_sitelib}/qtvcp/plugins/*.py
-2to3 -wn %{buildroot}%{python_sitelib}/qtvcp/widgets/*.py
-2to3 -wn %{buildroot}%{python_sitelib}/gladevcp/*.py
+# install icon files
+for x in 16 32 48; do
+    mkdir -p %{buildroot}%{_datadir}/icons/hicolor/$x'x'$x/apps
+    convert linuxcncicon.png -resize $x'x'$x \
+            %{buildroot}%{_datadir}/icons/hicolor/$x'x'$x/apps/linuxcncicon.png
+done
 
-2to3 -wn %{buildroot}%{_datadir}/qtvcp/panels/cam_align/cam_align_handler.py
-2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/blender/blender_handler.py
-2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/qt_cnc/qt_cnc_handler.py
-2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/qt_cnc_800x600/qt_cnc_800x600_handler.py
-2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/qt_cnc_9_axis/qt_cnc_9_axis_handler.py
-2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/qtaxis/qtaxis_handler.py
-2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/tester/tester_handler.py
-2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/x1mill/x1mill_handler.py
-2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/qtdragon/qtdragon_handler.py
-2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/qtlathe/qtlathe_handler.py
-2to3 -wn %{buildroot}%{_datadir}/qtvcp/screens/qttouchy/qttouchy_handler.py
+# install desktop files
+for app in debian/extras/usr/share/applications/*.desktop; do
+    desktop-file-install \
+      --dir %{buildroot}%{_datadir}/applications \
+      ${app}
+done
 
-#configs/by_machine/plasmac/test/plasmac_test.py
-#configs/by_machine/plasmac/pmx485.py
-#configs/by_machine/plasmac/pmx_test.py
-#configs/by_machine/plasmac/materialverter.py
-#configs/by_machine/plasmac/configurator.py
-#configs/by_machine/plasmac/plasmac_gcode.py
-#configs/sim/gmoccapy/lathe_configs/lathehandler.py
+# correct tcl/tk installation directory
+install -d %{buildroot}%{tcl_sitearch}
+mv %{buildroot}%{_prefix}/lib/tcltk/linuxcnc %{buildroot}%{tcl_sitearch}/linuxcnc%{version}
+rm -rf %{buildroot}%{_prefix}/lib/tcltk
 
-2to3 -wn %{buildroot}%{_bindir}/update_ini
-2to3 -wn %{buildroot}%{_bindir}/axis
-2to3 -wn %{buildroot}%{_bindir}/axis-remote
-2to3 -wn %{buildroot}%{_bindir}/linuxcnctop
+# TODO: qtpyvcp is not python3 compatible yet
+# https://github.com/LinuxCNC/linuxcnc/issues/819
+rm -rf %{buildroot}%{python3_sitelib}/qtvcp
+pathfix.py -pni "%{__python2} %{py2_shbang_opts}" %{buildroot}/usr/share/qtvcp/screens/qtdragon/qtdragon_handler.py
 
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_bindir}/update_ini
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_bindir}/axis
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_bindir}/axis-remote
-pathfix.py -pni "%{__python3} %{py3_shbang_opts}" %{buildroot}%{_bindir}/linuxcnctop
+%find_lang %{name}
+%find_lang gmoccapy
 
-%files
-%defattr(-,root,root)
-%{_sysconfdir}/linuxcnc
+%files -f gmoccapy.lang -f %{name}.lang
+%{_bindir}/*
+%{_prefix}/lib/%{name}
+%{_sysconfdir}/%{name}
 %{_sysconfdir}/init.d/realtime
-
+%{_datadir}/applications/%{name}*.desktop
 %{_datadir}/X11/app-defaults/*
-%attr(04755,-,-) %{_bindir}/rtapi_app
-%attr(0755,-,-) %{_bindir}/5axisgui
-%attr(0755,-,-) %{_bindir}/axis
-%attr(0755,-,-) %{_bindir}/axis-remote
-%attr(0755,-,-) %{_bindir}/classicladder
-%attr(0755,-,-) %{_bindir}/debuglevel
-%attr(0755,-,-) %{_bindir}/elbpcom
-%attr(0755,-,-) %{_bindir}/genserkins
-%attr(0755,-,-) %{_bindir}/gladevcp
-%attr(0755,-,-) %{_bindir}/gladevcp_demo
-%attr(0755,-,-) %{_bindir}/gmoccapy
-%attr(0755,-,-) %{_bindir}/gremlin_view
-%attr(0755,-,-) %{_bindir}/gs2_vfd
-%attr(0755,-,-) %{_bindir}/gscreen
-%attr(0755,-,-) %{_bindir}/hal-histogram
-%attr(0755,-,-) %{_bindir}/hal_input
-%attr(0755,-,-) %{_bindir}/hal_manualtoolchange
-%attr(0755,-,-) %{_bindir}/halcmd
-%attr(0755,-,-) %{_bindir}/halcompile
-%attr(0755,-,-) %{_bindir}/halmeter
-%attr(0755,-,-) %{_bindir}/halrmt
-%attr(0755,-,-) %{_bindir}/halrun
-%attr(0755,-,-) %{_bindir}/halsampler
-%attr(0755,-,-) %{_bindir}/halscope
-%attr(0755,-,-) %{_bindir}/halshow
-%attr(0755,-,-) %{_bindir}/halreport
-%attr(0755,-,-) %{_bindir}/halstreamer
-%attr(0755,-,-) %{_bindir}/haltcl
-%attr(0755,-,-) %{_bindir}/halui
-%attr(0755,-,-) %{_bindir}/hbmgui
-%attr(0755,-,-) %{_bindir}/hexagui
-%attr(0755,-,-) %{_bindir}/hy_vfd
-%attr(0755,-,-) %{_bindir}/image-to-gcode
-%attr(0755,-,-) %{_bindir}/inivar
-%attr(0755,-,-) %{_bindir}/io
-%attr(0755,-,-) %{_bindir}/iov2
-%attr(0755,-,-) %{_bindir}/maho600gui
-%attr(0755,-,-) %{_bindir}/max5gui
-%attr(0755,-,-) %{_bindir}/mb2hal
-%attr(0755,-,-) %{_bindir}/mdi
-%attr(0755,-,-) %{_bindir}/milltask
-%attr(0755,-,-) %{_bindir}/monitor-xhc-hb04
-%attr(0755,-,-) %{_bindir}/motion-logger
-%attr(0755,-,-) %{_bindir}/moveoff_gui
-%attr(0755,-,-) %{_bindir}/ngcgui
-%attr(0755,-,-) %{_bindir}/pncconf
-%attr(0755,-,-) %{_bindir}/ar2gui
-%attr(0755,-,-) %{_bindir}/puma560gui
-%attr(0755,-,-) %{_bindir}/pumagui
-%attr(0755,-,-) %{_bindir}/pyngcgui
-%attr(0755,-,-) %{_bindir}/pyvcp
-%attr(0755,-,-) %{_bindir}/pyvcp_demo
-%attr(0755,-,-) %{_bindir}/rs274
-%attr(0755,-,-) %{_bindir}/pmx485
-%attr(0755,-,-) %{_bindir}/scaragui
-%attr(0755,-,-) %{_bindir}/schedrmt
-%attr(0755,-,-) %{_bindir}/sim_pin
-%attr(0755,-,-) %{_bindir}/simulate_probe
-%attr(0755,-,-) %{_bindir}/stepconf
-%attr(0755,-,-) %{_bindir}/svd-ps_vfd
-%attr(0755,-,-) %{_bindir}/tooledit
-%attr(0755,-,-) %{_bindir}/touchy
-%attr(0755,-,-) %{_bindir}/vfdb_vfd
-%attr(0755,-,-) %{_bindir}/vfs11_vfd
-%attr(0755,-,-) %{_bindir}/wj200_vfd
-%attr(0755,-,-) %{_bindir}/xhc-hb04-accels
-%attr(0755,-,-) %{_bindir}/linuxcnc
-%attr(0755,-,-) %{_bindir}/linuxcnc[a-z]*
-%attr(0755,-,-) %{_bindir}/linuxcnc_info
-%attr(0755,-,-) %{_bindir}/linuxcnc_var
-%attr(0755,-,-) %{_bindir}/latency*
-%attr(0755,-,-) %{_bindir}/hy_gt_vfd
-%attr(0755,-,-) %{_bindir}/mitsub_vfd
-%attr(0755,-,-) %{_bindir}/halcmd_twopass
-%attr(0755,-,-) %{_bindir}/lineardelta
-%attr(0755,-,-) %{_bindir}/linuxcnc_module_helper
-%attr(0755,-,-) %{_bindir}/panelui
-%attr(0755,-,-) %{_bindir}/pyui
-%attr(0755,-,-) %{_bindir}/qtvcp
-%attr(0755,-,-) %{_bindir}/rotarydelta
-%attr(0755,-,-) %{_bindir}/scorbot-er-3
-%attr(0755,-,-) %{_bindir}/shuttle
-%attr(0755,-,-) %{_bindir}/sx1509b
-%attr(0755,-,-) %{_bindir}/teach-in
-%attr(0755,-,-) %{_bindir}/thermistor
-%attr(0755,-,-) %{_bindir}/update_ini
-%attr(0755,-,-) %{_bindir}/xyzac-trt-gui
-%attr(0755,-,-) %{_bindir}/xyzbc-trt-gui
-
-%{python_sitelib}/*
-%{_exec_prefix}/lib/tcltk/*
-%ghost %{_libdir}/tcl8.6/linuxcnc
-
-%{_libdir}/libcanterp.so
-%{_libdir}/libcanterp.so.0
-%{_libdir}/liblinuxcnchal.so
-%{_libdir}/liblinuxcnchal.so.0
-%{_libdir}/liblinuxcncini.so
-%{_libdir}/liblinuxcncini.so.0
-%{_libdir}/libnml.so
-%{_libdir}/libnml.so.0
-%{_libdir}/libposemath.so
-%{_libdir}/libposemath.so.0
-%{_libdir}/libpyplugin.so.0
-%{_libdir}/librs274.so
-%{_libdir}/librs274.so.0
-
-%attr(0775,-,-) /usr/lib/linuxcnc/modules
-
+%{_libdir}/*
+%exclude %{_libdir}/*.a
+%{_datadir}/%{name}
 %{_datadir}/axis
-%{_datadir}/gmoccapy
 %{_datadir}/glade3
-%{_datadir}/gtksourceview-2.0
-%{_datadir}/linuxcnc
+%{_datadir}/gmoccapy
 %{_datadir}/gscreen
+%{_datadir}/gtksourceview-2.0
 %{_datadir}/qtvcp
-
-%lang(de) %{_datadir}/locale/de/LC_MESSAGES/linuxcnc.mo
-%lang(es) %{_datadir}/locale/es/LC_MESSAGES/linuxcnc.mo
-%lang(fi) %{_datadir}/locale/fi/LC_MESSAGES/linuxcnc.mo
-%lang(fr) %{_datadir}/locale/fr/LC_MESSAGES/linuxcnc.mo
-%lang(hu) %{_datadir}/locale/hu/LC_MESSAGES/linuxcnc.mo
-%lang(it) %{_datadir}/locale/it/LC_MESSAGES/linuxcnc.mo
-%lang(ja) %{_datadir}/locale/ja/LC_MESSAGES/linuxcnc.mo
-%lang(pl) %{_datadir}/locale/pl/LC_MESSAGES/linuxcnc.mo
-%lang(pt_BR) %{_datadir}/locale/pt_BR/LC_MESSAGES/linuxcnc.mo
-%lang(ro) %{_datadir}/locale/ro/LC_MESSAGES/linuxcnc.mo
-%lang(ru) %{_datadir}/locale/ru/LC_MESSAGES/linuxcnc.mo
-%lang(sk) %{_datadir}/locale/sk/LC_MESSAGES/linuxcnc.mo
-%lang(sr) %{_datadir}/locale/sr/LC_MESSAGES/linuxcnc.mo
-%lang(sv) %{_datadir}/locale/sv/LC_MESSAGES/linuxcnc.mo
-%lang(zh_CN) %{_datadir}/locale/zh_CN/LC_MESSAGES/linuxcnc.mo
-%lang(zh_HK) %{_datadir}/locale/zh_HK/LC_MESSAGES/linuxcnc.mo
-%lang(zh_TW) %{_datadir}/locale/zh_TW/LC_MESSAGES/linuxcnc.mo
-
-%lang(de) %{_datadir}/locale/de/LC_MESSAGES/gmoccapy.mo
-%lang(es) %{_datadir}/locale/es/LC_MESSAGES/gmoccapy.mo
-%lang(fr) %{_datadir}/locale/fr/LC_MESSAGES/gmoccapy.mo
-%lang(hu) %{_datadir}/locale/hu/LC_MESSAGES/gmoccapy.mo
-%lang(pl) %{_datadir}/locale/pl/LC_MESSAGES/gmoccapy.mo
-%lang(sr) %{_datadir}/locale/sr/LC_MESSAGES/gmoccapy.mo
-%lang(zh_CN) %{_datadir}/locale/zh_CN/LC_MESSAGES/gmoccapy.mo
-
-%doc %{_mandir}/man[19]/*
-
-%files devel
-%defattr(-,root,root)
-%{_includedir}/linuxcnc
-%{_libdir}/liblinuxcnc.a
-%doc %{_mandir}/man3/*
+%{_datadir}/icons/hicolor/*/*
+%{_mandir}/man?/*
 
 %files doc
-%defattr(-,root,root)
-%{_docdir}/%{name}-%{version}
+%{_docdir}/%{name}
+
+%files -n tcl-%{name}
+%{tcl_sitearch}/%{name}%{version}
+
+%files -n python-%{name}
+%{python3_sitelib}/*
+
+%files devel
+%{_includedir}/linuxcnc
+%{_libdir}/liblinuxcnc.a
 
 %changelog
-* Sat Oct 14 2017 Joseph Calderon <@> - 2.8.0~pre1
-- Update to 2.8.0
+* Tue Sep 1 2020 spike <spike@fedoraproject.org> 2.9.0-2.20200901giteac9994
+- Adjusted libdir file targets
+- Added AutoReq: no to base package
+- Updated to lastest git common on upstream master branch 
 
-* Fri Feb  5 2016 Joseph Calderon <@> - 2.7.3-1
-- Update to 2.7.3
 
-* Fri Oct  2 2015 Joseph Calderon <@> - 2.7.0-1
-- Update to 2.7.0 
+* Tue Sep 1 2020 spike <spike@fedoraproject.org> 2.9.0-2.20200901giteac9994
+- Updated to lastest git common on upstream master branch 
 
-* Thu Sep  5 2013 John Morris <john@zultron.com> - 2.6.0-0.5.ubc3
-- Update to 2.6.0-20130905git05ed2b1
-- Refactor for Universal Build (universal-build-candidate-3)
-- Build all flavors by default, with one kernel source per kthread flavor
-- Break out flavor binaries into subpackages
-- Disable RTAI build until we have RTAI packages
-- Refactor macro system
+* Mon Jun 15 2020 spike <spike@fedoraproject.org> 2.9.0-1.20200615gitcda96a4
+- Updated to lastest git common on upstream master branch
 
-* Mon Nov 12 2012 John Morris <john@zultron.com> - 2.6.0-0.4.pre0
-- Update to 2.6.0-20121112gite024e61
--   Fix for Xenomai recommended kernel option
-- Add preempt-rt support
-- Generalize kernel package/version logic for various threads systems
-  - Each thread system-specific section defines some config variables
-  - Resulting logic is much simpler and easier to read
-- Fix incorrect %defattr statements
-- Bump xenomai kversion release
-- Add thread system info in release tag
-- Base kernel package version on -devel pkg, not kernel package
-- Remove BR: kernel; should only need kernel-devel
+* Sun Feb 23 2020 spike <spike@fedoraproject.org> 2.7.15-1
+- Updated to new upstream release 2.7.15
+- Updated BuildRequires
+- Added 'AutoReq: no' to python-linuxcnc
+- Changed AutoReqProv to AutoReq
+- Fixed python2 related rpm macros
 
-* Fri Nov  9 2012 John Morris <john@zultron.com> - 2.6.0-0.3.pre0
-- Update to 2.6.0-20121109git894f2cf
--   Fixes to compiler math options for xenomai
--   Fixes to kernel module symbol sharing
-- Enable verbose builds
-- Option to disable building docs for a quick build
-- linuxcnc-module-helper setuid root
-- rpmlint cleanups:  tabs, perms
+* Sun Feb 23 2020 spike <spike@fedoraproject.org> 2.7.14-4
+- Added pygtk2 to Requires for Fedora 31+
 
-* Sun May  6 2012  <john@zultron.com> - 2.6.0-0.1.pre0
-- Updated to newest git:
-  - Forward-port of Michael Buesch's patches
-  - Fixes to the hal stacksize, no more crash!
-  - Install shared libs mode 0755 for /usr/lib/rpm/rpmdeps
+* Mon May 20 2019 spike <spike@fedoraproject.org> 2.7.14-3
+- Fixed ambiguous shebangs for Fedora 30+
+- Added python-Yapps and python2-gobject to BuildRequires
+- Dropped support for Fedora 28 and older
 
-* Wed Apr 25 2012  <john@zultron.com> - 2.5.0.1-1
-- Initial RPM version
+* Sat Feb 2 2019 spike <spike@fedoraproject.org> 2.7.14-2
+- Updated build requirements for fedora 29+
+
+* Tue Jun 19 2018 spike <spike@fedoraproject.org> 2.7.14-1
+- Updated to new upstream release 2.7.14
+
+* Tue May 15 2018 spike <spike@fedoraproject.org> 2.7.13-2
+- Added conditional build requirement for boost-python to build on rawhide
+
+* Wed May 9 2018 spike <spike@fedoraproject.org> 2.7.13-1
+- Updated to new upstream release 2.7.12
+
+* Fri May 4 2018 spike <spike@fedoraproject.org> 2.7.12-2
+- Building against libtirpc to be compatible with Fedora 28
+
+* Fri Jan 26 2018 spike <spike@fedoraproject.org> 2.7.12-1
+- Updated to new upstream release 2.7.12
+
+* Fri Sep 1 2017 spike <spike@fedoraproject.org> 2.7.11-5
+- Added dependencies for python2-tkinter, boost-python and tkimg
+
+* Fri Sep 1 2017 spike <spike@fedoraproject.org> 2.7.11-4
+- Added bwidget dependency
+
+* Fri Aug 25 2017 spike <spike@fedoraproject.org> 2.7.11-3
+- Minor spec file updates
+
+* Fri Aug 25 2017 spike <spike@fedoraproject.org> 2.7.11-2
+- Updated to build on Fedora 26
