@@ -1,0 +1,87 @@
+diff --git a/lib/python/popupkeyboard.py b/lib/python/popupkeyboard.py
+index 1ab91d90b9..a7ac0f19fe 100755
+--- a/lib/python/popupkeyboard.py
++++ b/lib/python/popupkeyboard.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/env linuxcnc-python
+ 
+ #------------------------------------------------------------------------------
+ # Copyright: 2013
+@@ -53,10 +53,13 @@ Optional button LABELS (case insensitive):
+ 
+ """
+ 
++from __future__ import absolute_import
++from __future__ import print_function
+ import linuxcnc
+ import sys
+ import os
+ import pango
++from six.moves import range
+ 
+ g_ui_dir = linuxcnc.SHARE + "/linuxcnc"
+ 
+@@ -68,8 +71,8 @@ except:
+ 
+ try:
+     import gtk
+-except ImportError,msg:
+-    print('GTK not available: %s' % msg)
++except ImportError as msg:
++    print(('GTK not available: %s' % msg))
+     sys.exit(1)
+ 
+ 
+@@ -92,10 +95,10 @@ class PopupKeyboard:
+         try:
+             import gtk.glade
+         except ImportError as detail:
+-            print('ImportError:',detail)
++            print(('ImportError:',detail))
+         except Exception as msg:
+-            print('Exception:',Exception)
+-            print(sys.exc_info())
++            print(('Exception:',Exception))
++            print((sys.exc_info()))
+             sys.exit(1)
+ 
+         self.builder = gtk.Builder()
+@@ -175,8 +178,8 @@ class PopupKeyboard:
+                 print("linuxcnc must be running to use coordinate keys")
+             # continue without buttons for testing when linuxnc not running
+         except Exception as err:
+-            print('Exception:',Exception)
+-            print(sys.exc_info())
++            print(('Exception:',Exception))
++            print((sys.exc_info()))
+             sys.exit(1)
+ 
+ 
+@@ -228,7 +231,7 @@ class PopupKeyboard:
+         return self.do_unknown_label
+ 
+     def do_unknown_label(self,e,l):
+-        print('PopupKeyboard:do_unknown_label: <%s>' % l)
++        print(('PopupKeyboard:do_unknown_label: <%s>' % l))
+ 
+     def do_number(self,e,l):
+         # not needed if INSENSITIVE:
+@@ -266,7 +269,7 @@ class PopupKeyboard:
+             self.stat.poll()
+             e.set_text("%.6g" % self.coord_value(l))
+         else:
+-            print("linuxcnc must be running to use <%s> key" % l)
++            print(("linuxcnc must be running to use <%s> key" % l))
+ 
+     def get_result(self):
+         return(self.result)
+@@ -301,7 +304,7 @@ if __name__ == "__main__":
+              ,title=str(ct)
+              )
+         result = m.get_result()
+-        print('result = <%s>' % result)
++        print(('result = <%s>' % result))
+         if result=='':
+             sys.exit(0)
+         ct += 1
