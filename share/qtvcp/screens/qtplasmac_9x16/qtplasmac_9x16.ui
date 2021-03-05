@@ -88,20 +88,20 @@
        <bool>true</bool>
       </property>
       <property name="message_overlay_color" stdset="0">
-       <color alpha="150">
-        <red>20</red>
-        <green>20</green>
-        <blue>20</blue>
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
        </color>
       </property>
       <property name="closeDialog_option" stdset="0">
-       <bool>true</bool>
+       <bool>false</bool>
       </property>
       <property name="close_overlay_color" stdset="0">
-       <color alpha="150">
-        <red>20</red>
-        <green>20</green>
-        <blue>20</blue>
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
        </color>
       </property>
       <property name="entryDialog_option" stdset="0">
@@ -111,30 +111,96 @@
        <bool>true</bool>
       </property>
       <property name="entry_overlay_color" stdset="0">
-       <color alpha="150">
-        <red>20</red>
-        <green>20</green>
-        <blue>20</blue>
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
+       </color>
+      </property>
+      <property name="tool_overlay_color" stdset="0">
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
        </color>
       </property>
       <property name="fileDialog_option" stdset="0">
        <bool>true</bool>
       </property>
       <property name="file_overlay_color" stdset="0">
-       <color alpha="150">
-        <red>20</red>
-        <green>20</green>
-        <blue>20</blue>
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
+       </color>
+      </property>
+      <property name="keyboardDialog_option" stdset="0">
+       <bool>true</bool>
+      </property>
+      <property name="keyboard_overlay_color" stdset="0">
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
+       </color>
+      </property>
+      <property name="versaProbe_overlay_color" stdset="0">
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
+       </color>
+      </property>
+      <property name="macroTab_overlay_color" stdset="0">
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
+       </color>
+      </property>
+      <property name="camView_overlay_color" stdset="0">
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
+       </color>
+      </property>
+      <property name="toolOffset_overlay_color" stdset="0">
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
+       </color>
+      </property>
+      <property name="originOffset_overlay_color" stdset="0">
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
        </color>
       </property>
       <property name="calculatorDialog_option" stdset="0">
        <bool>true</bool>
       </property>
       <property name="calculator_overlay_color" stdset="0">
-       <color alpha="150">
-        <red>20</red>
-        <green>20</green>
-        <blue>20</blue>
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
+       </color>
+      </property>
+      <property name="machineLog_overlay_color" stdset="0">
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
+       </color>
+      </property>
+      <property name="runFromLine_overlay_color" stdset="0">
+       <color alpha="128">
+        <red>128</red>
+        <green>128</green>
+        <blue>128</blue>
        </color>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_16">
@@ -1933,7 +1999,7 @@ ORIGIN</string>
                    <property name="frameShadow">
                     <enum>QFrame::Plain</enum>
                    </property>
-                   <layout class="QVBoxLayout" name="verticalLayout_8" stretch="0,0,1">
+                   <layout class="QVBoxLayout" name="verticalLayout_8" stretch="0,0,0,1">
                     <property name="spacing">
                      <number>4</number>
                     </property>
@@ -1978,26 +2044,17 @@ ORIGIN</string>
                      </widget>
                     </item>
                     <item>
-                     <widget class="QFrame" name="machine_buttons">
-                      <property name="sizePolicy">
-                       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                        <horstretch>0</horstretch>
-                        <verstretch>0</verstretch>
-                       </sizepolicy>
-                      </property>
-                      <property name="maximumSize">
-                       <size>
-                        <width>16777215</width>
-                        <height>16777215</height>
-                       </size>
-                      </property>
+                     <widget class="QFrame" name="frame_27">
                       <property name="frameShape">
                        <enum>QFrame::NoFrame</enum>
                       </property>
                       <property name="frameShadow">
                        <enum>QFrame::Plain</enum>
                       </property>
-                      <layout class="QGridLayout" name="gridLayout_5">
+                      <layout class="QHBoxLayout" name="horizontalLayout_36">
+                       <property name="spacing">
+                        <number>4</number>
+                       </property>
                        <property name="leftMargin">
                         <number>4</number>
                        </property>
@@ -2010,10 +2067,7 @@ ORIGIN</string>
                        <property name="bottomMargin">
                         <number>0</number>
                        </property>
-                       <property name="spacing">
-                        <number>4</number>
-                       </property>
-                       <item row="0" column="0">
+                       <item>
                         <widget class="ActionButton" name="estop">
                          <property name="sizePolicy">
                           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
@@ -2141,7 +2195,7 @@ SET</string>
                          </property>
                         </widget>
                        </item>
-                       <item row="0" column="1">
+                       <item>
                         <widget class="ActionButton" name="power">
                          <property name="sizePolicy">
                           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
@@ -2157,7 +2211,7 @@ SET</string>
                          </property>
                          <property name="maximumSize">
                           <size>
-                           <width>60</width>
+                           <width>16777215</width>
                            <height>40</height>
                           </size>
                          </property>
@@ -2233,8 +2287,47 @@ ON</string>
                          </property>
                         </widget>
                        </item>
-                       <item row="3" column="0" colspan="2">
-                        <widget class="ActionButton" name="run">
+                      </layout>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QFrame" name="machine_buttons">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
+                      <property name="maximumSize">
+                       <size>
+                        <width>16777215</width>
+                        <height>16777215</height>
+                       </size>
+                      </property>
+                      <property name="frameShape">
+                       <enum>QFrame::NoFrame</enum>
+                      </property>
+                      <property name="frameShadow">
+                       <enum>QFrame::Plain</enum>
+                      </property>
+                      <layout class="QVBoxLayout" name="verticalLayout_57">
+                       <property name="spacing">
+                        <number>4</number>
+                       </property>
+                       <property name="leftMargin">
+                        <number>4</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="rightMargin">
+                        <number>4</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>0</number>
+                       </property>
+                       <item>
+                        <widget class="QPushButton" name="run">
                          <property name="sizePolicy">
                           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                            <horstretch>0</horstretch>
@@ -2259,173 +2352,9 @@ ON</string>
                          <property name="text">
                           <string>CYCLE START</string>
                          </property>
-                         <property name="indicator_option" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="indicator_HAL_pin_option" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="indicator_status_option" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="checked_state_text_option" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="python_command_option" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="on_color" stdset="0">
-                          <color>
-                           <red>255</red>
-                           <green>0</green>
-                           <blue>0</blue>
-                          </color>
-                         </property>
-                         <property name="shape_option" stdset="0">
-                          <number>0</number>
-                         </property>
-                         <property name="off_color" stdset="0">
-                          <color>
-                           <red>0</red>
-                           <green>0</green>
-                           <blue>0</blue>
-                          </color>
-                         </property>
-                         <property name="indicator_size" stdset="0">
-                          <double>0.300000000000000</double>
-                         </property>
-                         <property name="circle_diameter" stdset="0">
-                          <double>10.000000000000000</double>
-                         </property>
-                         <property name="right_edge_offset" stdset="0">
-                          <double>0.000000000000000</double>
-                         </property>
-                         <property name="top_edge_offset" stdset="0">
-                          <double>0.000000000000000</double>
-                         </property>
-                         <property name="corner_radius" stdset="0">
-                          <double>5.000000000000000</double>
-                         </property>
-                         <property name="height_fraction" stdset="0">
-                          <double>0.300000000000000</double>
-                         </property>
-                         <property name="width_fraction" stdset="0">
-                          <double>0.900000000000000</double>
-                         </property>
-                         <property name="true_state_string" stdset="0">
-                          <string>True</string>
-                         </property>
-                         <property name="false_state_string" stdset="0">
-                          <string>False</string>
-                         </property>
-                         <property name="true_python_cmd_string" stdset="0">
-                          <string>print&quot;true command&quot;</string>
-                         </property>
-                         <property name="false_python_cmd_string" stdset="0">
-                          <string>print&quot;false command&quot;</string>
-                         </property>
-                         <property name="invert_the_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_paused_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_estopped_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_on_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_idle_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_homed_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_flood_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_mist_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_block_delete_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_optional_stop_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_joint_homed_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_limits_overridden_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_manual_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_mdi_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_auto_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_spindle_stopped_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_spindle_fwd_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="is_spindle_rev_status" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="joint_number_status" stdset="0">
-                          <number>0</number>
-                         </property>
-                         <property name="run_action" stdset="0">
-                          <bool>true</bool>
-                         </property>
-                         <property name="template_label_option" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="joint_number" stdset="0">
-                          <number>0</number>
-                         </property>
-                         <property name="incr_imperial_number" stdset="0">
-                          <double>0.010000000000000</double>
-                         </property>
-                         <property name="incr_mm_number" stdset="0">
-                          <double>0.025000000000000</double>
-                         </property>
-                         <property name="incr_angular_number" stdset="0">
-                          <double>-1.000000000000000</double>
-                         </property>
-                         <property name="toggle_float_option" stdset="0">
-                          <bool>false</bool>
-                         </property>
-                         <property name="float_num" stdset="0">
-                          <double>0.300000000000000</double>
-                         </property>
-                         <property name="float_alt_num" stdset="0">
-                          <double>50.000000000000000</double>
-                         </property>
-                         <property name="view_type_string" stdset="0">
-                          <string>P</string>
-                         </property>
-                         <property name="command_text_string" stdset="0">
-                          <string/>
-                         </property>
-                         <property name="ini_mdi_number" stdset="0">
-                          <number>0</number>
-                         </property>
-                         <property name="textTemplate" stdset="0">
-                          <string>%1.3f in</string>
-                         </property>
-                         <property name="alt_textTemplate" stdset="0">
-                          <string>%1.2f mm</string>
-                         </property>
                         </widget>
                        </item>
-                       <item row="4" column="0" colspan="2">
+                       <item>
                         <widget class="ActionButton" name="pause">
                          <property name="sizePolicy">
                           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
@@ -2620,7 +2549,7 @@ ON</string>
                          </property>
                         </widget>
                        </item>
-                       <item row="5" column="0" colspan="2">
+                       <item>
                         <widget class="ActionButton" name="abort">
                          <property name="sizePolicy">
                           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
@@ -2843,16 +2772,16 @@ ON</string>
                       </property>
                       <layout class="QHBoxLayout" name="horizontalLayout_4">
                        <property name="spacing">
-                        <number>0</number>
+                        <number>2</number>
                        </property>
                        <property name="leftMargin">
-                        <number>6</number>
+                        <number>2</number>
                        </property>
                        <property name="topMargin">
                         <number>0</number>
                        </property>
                        <property name="rightMargin">
-                        <number>6</number>
+                        <number>2</number>
                        </property>
                        <property name="bottomMargin">
                         <number>0</number>
@@ -2873,7 +2802,7 @@ ON</string>
                          </property>
                          <layout class="QVBoxLayout" name="verticalLayout_9">
                           <property name="spacing">
-                           <number>0</number>
+                           <number>4</number>
                           </property>
                           <property name="leftMargin">
                            <number>0</number>
@@ -2888,28 +2817,16 @@ ON</string>
                            <number>0</number>
                           </property>
                           <item>
-                           <widget class="QLabel" name="feed_label">
-                            <property name="sizePolicy">
-                             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                              <horstretch>0</horstretch>
-                              <verstretch>0</verstretch>
-                             </sizepolicy>
+                           <widget class="QPushButton" name="feed_label">
+                            <property name="maximumSize">
+                             <size>
+                              <width>41</width>
+                              <height>16777215</height>
+                             </size>
                             </property>
                             <property name="text">
-                             <string>FEED</string>
-                            </property>
-                            <property name="alignment">
-                             <set>Qt::AlignCenter</set>
-                            </property>
-                           </widget>
-                          </item>
-                          <item>
-                           <widget class="StatusLabel" name="feed_status">
-                            <property name="alignment">
-                             <set>Qt::AlignCenter</set>
-                            </property>
-                            <property name="textTemplate" stdset="0">
-                             <string>%d%%</string>
+                             <string>FEED
+100%</string>
                             </property>
                            </widget>
                           </item>
@@ -2960,7 +2877,7 @@ ON</string>
                          </property>
                          <layout class="QVBoxLayout" name="verticalLayout_10">
                           <property name="spacing">
-                           <number>0</number>
+                           <number>4</number>
                           </property>
                           <property name="leftMargin">
                            <number>0</number>
@@ -2975,31 +2892,16 @@ ON</string>
                            <number>0</number>
                           </property>
                           <item>
-                           <widget class="QLabel" name="rapid_label">
-                            <property name="sizePolicy">
-                             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                              <horstretch>0</horstretch>
-                              <verstretch>0</verstretch>
-                             </sizepolicy>
+                           <widget class="QPushButton" name="rapid_label">
+                            <property name="maximumSize">
+                             <size>
+                              <width>41</width>
+                              <height>16777215</height>
+                             </size>
                             </property>
                             <property name="text">
-                             <string>RAPID</string>
-                            </property>
-                            <property name="alignment">
-                             <set>Qt::AlignCenter</set>
-                            </property>
-                           </widget>
-                          </item>
-                          <item>
-                           <widget class="StatusLabel" name="rapid_status">
-                            <property name="alignment">
-                             <set>Qt::AlignCenter</set>
-                            </property>
-                            <property name="textTemplate" stdset="0">
-                             <string>%d%%</string>
-                            </property>
-                            <property name="rapid_override_status" stdset="0">
-                             <bool>true</bool>
+                             <string>RAPID
+100%</string>
                             </property>
                            </widget>
                           </item>
@@ -3044,7 +2946,7 @@ ON</string>
                          </property>
                          <layout class="QVBoxLayout" name="verticalLayout_11">
                           <property name="spacing">
-                           <number>0</number>
+                           <number>4</number>
                           </property>
                           <property name="leftMargin">
                            <number>0</number>
@@ -3059,34 +2961,16 @@ ON</string>
                            <number>0</number>
                           </property>
                           <item>
-                           <widget class="QLabel" name="jogs_label">
-                            <property name="sizePolicy">
-                             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                              <horstretch>0</horstretch>
-                              <verstretch>0</verstretch>
-                             </sizepolicy>
+                           <widget class="QPushButton" name="jogs_label">
+                            <property name="maximumSize">
+                             <size>
+                              <width>41</width>
+                              <height>16777215</height>
+                             </size>
                             </property>
                             <property name="text">
-                             <string>JOG</string>
-                            </property>
-                            <property name="alignment">
-                             <set>Qt::AlignCenter</set>
-                            </property>
-                           </widget>
-                          </item>
-                          <item>
-                           <widget class="StatusLabel" name="jog_status">
-                            <property name="alignment">
-                             <set>Qt::AlignCenter</set>
-                            </property>
-                            <property name="textTemplate" stdset="0">
-                             <string>%d</string>
-                            </property>
-                            <property name="alt_textTemplate" stdset="0">
-                             <string>%0.0f</string>
-                            </property>
-                            <property name="jograte_status" stdset="0">
-                             <bool>true</bool>
+                             <string>JOG
+100</string>
                             </property>
                            </widget>
                           </item>
@@ -4851,7 +4735,7 @@ HOME ALL</string>
                           </size>
                          </property>
                          <property name="currentIndex">
-                          <number>1</number>
+                          <number>0</number>
                          </property>
                          <widget class="QWidget" name="jog_page">
                           <layout class="QVBoxLayout" name="verticalLayout_21">
@@ -5045,7 +4929,7 @@ HOME ALL</string>
                                   <number>4</number>
                                  </property>
                                  <item row="2" column="0">
-                                  <widget class="ActionButton" name="jog_a_plus">
+                                  <widget class="QPushButton" name="jog_a_plus">
                                    <property name="sizePolicy">
                                     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                                      <horstretch>0</horstretch>
@@ -5079,166 +4963,10 @@ HOME ALL</string>
                                      <height>32</height>
                                     </size>
                                    </property>
-                                   <property name="jog_joint_pos_action" stdset="0">
-                                    <bool>true</bool>
-                                   </property>
-                                   <property name="jog_selected_pos_action" stdset="0">
-                                    <bool>false</bool>
-                                   </property>
-                                   <property name="joint_number" stdset="0">
-                                    <number>3</number>
-                                   </property>
-                                   <property name="axis_letter" stdset="0">
-                                    <string>A</string>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                 <item row="4" column="1">
-                                  <widget class="ActionButton" name="jog_y_minus">
-                                   <property name="sizePolicy">
-                                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                                     <horstretch>0</horstretch>
-                                     <verstretch>0</verstretch>
-                                    </sizepolicy>
-                                   </property>
-                                   <property name="minimumSize">
-                                    <size>
-                                     <width>40</width>
-                                     <height>40</height>
-                                    </size>
-                                   </property>
-                                   <property name="maximumSize">
-                                    <size>
-                                     <width>40</width>
-                                     <height>40</height>
-                                    </size>
-                                   </property>
-                                   <property name="statusTip">
-                                    <string>Jog the Y axis forward</string>
-                                   </property>
-                                   <property name="icon">
-                                    <iconset>
-                                     <normalon>:/images/y_minus_e.png</normalon>
-                                     <disabledon>:/images/y_minus_d.png</disabledon>
-                                    </iconset>
-                                   </property>
-                                   <property name="iconSize">
-                                    <size>
-                                     <width>40</width>
-                                     <height>40</height>
-                                    </size>
-                                   </property>
-                                   <property name="jog_joint_neg_action" stdset="0">
-                                    <bool>true</bool>
-                                   </property>
-                                   <property name="jog_selected_neg_action" stdset="0">
-                                    <bool>false</bool>
-                                   </property>
-                                   <property name="joint_number" stdset="0">
-                                    <number>1</number>
-                                   </property>
-                                   <property name="axis_letter" stdset="0">
-                                    <string>Y</string>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                 <item row="3" column="2">
-                                  <widget class="ActionButton" name="jog_x_plus">
-                                   <property name="sizePolicy">
-                                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                                     <horstretch>0</horstretch>
-                                     <verstretch>0</verstretch>
-                                    </sizepolicy>
-                                   </property>
-                                   <property name="minimumSize">
-                                    <size>
-                                     <width>40</width>
-                                     <height>40</height>
-                                    </size>
-                                   </property>
-                                   <property name="maximumSize">
-                                    <size>
-                                     <width>40</width>
-                                     <height>40</height>
-                                    </size>
-                                   </property>
-                                   <property name="statusTip">
-                                    <string>Jog the X axis right</string>
-                                   </property>
-                                   <property name="icon">
-                                    <iconset>
-                                     <normalon>:/images/x_plus_e.png</normalon>
-                                     <disabledon>:/images/x_plus_d.png</disabledon>
-                                    </iconset>
-                                   </property>
-                                   <property name="iconSize">
-                                    <size>
-                                     <width>40</width>
-                                     <height>40</height>
-                                    </size>
-                                   </property>
-                                   <property name="jog_joint_pos_action" stdset="0">
-                                    <bool>true</bool>
-                                   </property>
-                                   <property name="jog_selected_pos_action" stdset="0">
-                                    <bool>false</bool>
-                                   </property>
-                                   <property name="axis_letter" stdset="0">
-                                    <string>X</string>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                 <item row="2" column="1">
-                                  <widget class="ActionButton" name="jog_y_plus">
-                                   <property name="sizePolicy">
-                                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                                     <horstretch>0</horstretch>
-                                     <verstretch>0</verstretch>
-                                    </sizepolicy>
-                                   </property>
-                                   <property name="minimumSize">
-                                    <size>
-                                     <width>40</width>
-                                     <height>40</height>
-                                    </size>
-                                   </property>
-                                   <property name="maximumSize">
-                                    <size>
-                                     <width>40</width>
-                                     <height>40</height>
-                                    </size>
-                                   </property>
-                                   <property name="statusTip">
-                                    <string>Jog the Y axis back</string>
-                                   </property>
-                                   <property name="icon">
-                                    <iconset>
-                                     <normalon>:/images/y_plus_e.png</normalon>
-                                     <disabledon>:/images/y_plus_d.png</disabledon>
-                                    </iconset>
-                                   </property>
-                                   <property name="iconSize">
-                                    <size>
-                                     <width>40</width>
-                                     <height>40</height>
-                                    </size>
-                                   </property>
-                                   <property name="jog_joint_pos_action" stdset="0">
-                                    <bool>true</bool>
-                                   </property>
-                                   <property name="jog_selected_pos_action" stdset="0">
-                                    <bool>false</bool>
-                                   </property>
-                                   <property name="joint_number" stdset="0">
-                                    <number>1</number>
-                                   </property>
-                                   <property name="axis_letter" stdset="0">
-                                    <string>Y</string>
-                                   </property>
                                   </widget>
                                  </item>
                                  <item row="3" column="0">
-                                  <widget class="ActionButton" name="jog_x_minus">
+                                  <widget class="QPushButton" name="jog_x_minus">
                                    <property name="sizePolicy">
                                     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                                      <horstretch>0</horstretch>
@@ -5272,19 +5000,10 @@ HOME ALL</string>
                                      <height>40</height>
                                     </size>
                                    </property>
-                                   <property name="jog_joint_neg_action" stdset="0">
-                                    <bool>true</bool>
-                                   </property>
-                                   <property name="jog_selected_neg_action" stdset="0">
-                                    <bool>false</bool>
-                                   </property>
-                                   <property name="axis_letter" stdset="0">
-                                    <string>X</string>
-                                   </property>
                                   </widget>
                                  </item>
                                  <item row="4" column="0">
-                                  <widget class="ActionButton" name="jog_a_minus">
+                                  <widget class="QPushButton" name="jog_a_minus">
                                    <property name="sizePolicy">
                                     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                                      <horstretch>0</horstretch>
@@ -5318,22 +5037,10 @@ HOME ALL</string>
                                      <height>32</height>
                                     </size>
                                    </property>
-                                   <property name="jog_joint_neg_action" stdset="0">
-                                    <bool>true</bool>
-                                   </property>
-                                   <property name="jog_selected_neg_action" stdset="0">
-                                    <bool>false</bool>
-                                   </property>
-                                   <property name="joint_number" stdset="0">
-                                    <number>3</number>
-                                   </property>
-                                   <property name="axis_letter" stdset="0">
-                                    <string>A</string>
-                                   </property>
                                   </widget>
                                  </item>
-                                 <item row="4" column="3">
-                                  <widget class="ActionButton" name="jog_z_minus">
+                                 <item row="2" column="1">
+                                  <widget class="QPushButton" name="jog_y_plus">
                                    <property name="sizePolicy">
                                     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                                      <horstretch>0</horstretch>
@@ -5353,12 +5060,12 @@ HOME ALL</string>
                                     </size>
                                    </property>
                                    <property name="statusTip">
-                                    <string>Jog the Z axis down</string>
+                                    <string>Jog the Y axis back</string>
                                    </property>
                                    <property name="icon">
                                     <iconset>
-                                     <normalon>:/images/z_minus_e.png</normalon>
-                                     <disabledon>:/images/z_minus_d.png</disabledon>
+                                     <normalon>:/images/y_plus_e.png</normalon>
+                                     <disabledon>:/images/y_plus_d.png</disabledon>
                                     </iconset>
                                    </property>
                                    <property name="iconSize">
@@ -5367,22 +5074,84 @@ HOME ALL</string>
                                      <height>40</height>
                                     </size>
                                    </property>
-                                   <property name="jog_joint_neg_action" stdset="0">
-                                    <bool>true</bool>
+                                  </widget>
+                                 </item>
+                                 <item row="4" column="1">
+                                  <widget class="QPushButton" name="jog_y_minus">
+                                   <property name="sizePolicy">
+                                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                                     <horstretch>0</horstretch>
+                                     <verstretch>0</verstretch>
+                                    </sizepolicy>
                                    </property>
-                                   <property name="jog_selected_neg_action" stdset="0">
-                                    <bool>false</bool>
+                                   <property name="minimumSize">
+                                    <size>
+                                     <width>40</width>
+                                     <height>40</height>
+                                    </size>
                                    </property>
-                                   <property name="joint_number" stdset="0">
-                                    <number>2</number>
+                                   <property name="maximumSize">
+                                    <size>
+                                     <width>40</width>
+                                     <height>40</height>
+                                    </size>
                                    </property>
-                                   <property name="axis_letter" stdset="0">
-                                    <string>Z</string>
+                                   <property name="statusTip">
+                                    <string>Jog the Y axis forward</string>
+                                   </property>
+                                   <property name="icon">
+                                    <iconset>
+                                     <normalon>:/images/y_minus_e.png</normalon>
+                                     <disabledon>:/images/y_minus_d.png</disabledon>
+                                    </iconset>
+                                   </property>
+                                   <property name="iconSize">
+                                    <size>
+                                     <width>40</width>
+                                     <height>40</height>
+                                    </size>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item row="3" column="2">
+                                  <widget class="QPushButton" name="jog_x_plus">
+                                   <property name="sizePolicy">
+                                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                                     <horstretch>0</horstretch>
+                                     <verstretch>0</verstretch>
+                                    </sizepolicy>
+                                   </property>
+                                   <property name="minimumSize">
+                                    <size>
+                                     <width>40</width>
+                                     <height>40</height>
+                                    </size>
+                                   </property>
+                                   <property name="maximumSize">
+                                    <size>
+                                     <width>40</width>
+                                     <height>40</height>
+                                    </size>
+                                   </property>
+                                   <property name="statusTip">
+                                    <string>Jog the X axis right</string>
+                                   </property>
+                                   <property name="icon">
+                                    <iconset>
+                                     <normalon>:/images/x_plus_e.png</normalon>
+                                     <disabledon>:/images/x_plus_d.png</disabledon>
+                                    </iconset>
+                                   </property>
+                                   <property name="iconSize">
+                                    <size>
+                                     <width>40</width>
+                                     <height>40</height>
+                                    </size>
                                    </property>
                                   </widget>
                                  </item>
                                  <item row="2" column="3">
-                                  <widget class="ActionButton" name="jog_z_plus">
+                                  <widget class="QPushButton" name="jog_z_plus">
                                    <property name="sizePolicy">
                                     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                                      <horstretch>0</horstretch>
@@ -5416,17 +5185,42 @@ HOME ALL</string>
                                      <height>40</height>
                                     </size>
                                    </property>
-                                   <property name="jog_joint_pos_action" stdset="0">
-                                    <bool>true</bool>
+                                  </widget>
+                                 </item>
+                                 <item row="4" column="3">
+                                  <widget class="QPushButton" name="jog_z_minus">
+                                   <property name="sizePolicy">
+                                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                                     <horstretch>0</horstretch>
+                                     <verstretch>0</verstretch>
+                                    </sizepolicy>
                                    </property>
-                                   <property name="jog_selected_pos_action" stdset="0">
-                                    <bool>false</bool>
+                                   <property name="minimumSize">
+                                    <size>
+                                     <width>40</width>
+                                     <height>40</height>
+                                    </size>
                                    </property>
-                                   <property name="joint_number" stdset="0">
-                                    <number>2</number>
+                                   <property name="maximumSize">
+                                    <size>
+                                     <width>40</width>
+                                     <height>40</height>
+                                    </size>
                                    </property>
-                                   <property name="axis_letter" stdset="0">
-                                    <string>Z</string>
+                                   <property name="statusTip">
+                                    <string>Jog the Z axis down</string>
+                                   </property>
+                                   <property name="icon">
+                                    <iconset>
+                                     <normalon>:/images/z_minus_e.png</normalon>
+                                     <disabledon>:/images/z_minus_d.png</disabledon>
+                                    </iconset>
+                                   </property>
+                                   <property name="iconSize">
+                                    <size>
+                                     <width>40</width>
+                                     <height>40</height>
+                                    </size>
                                    </property>
                                   </widget>
                                  </item>
@@ -7088,7 +6882,7 @@ HOME ALL</string>
                                  <number>0</number>
                                 </property>
                                 <item>
-                                 <widget class="QLabel" name="label_50">
+                                 <widget class="QPushButton" name="height_reset">
                                   <property name="minimumSize">
                                    <size>
                                     <width>82</width>
@@ -7103,9 +6897,6 @@ HOME ALL</string>
                                   </property>
                                   <property name="text">
                                    <string>OVERRIDE</string>
-                                  </property>
-                                  <property name="alignment">
-                                   <set>Qt::AlignCenter</set>
                                   </property>
                                  </widget>
                                 </item>
@@ -7140,7 +6931,7 @@ HOME ALL</string>
                                     <number>0</number>
                                    </property>
                                    <item>
-                                    <widget class="QPushButton" name="pushButton">
+                                    <widget class="QPushButton" name="height_lower">
                                      <property name="sizePolicy">
                                       <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
                                        <horstretch>0</horstretch>
@@ -7159,10 +6950,16 @@ HOME ALL</string>
                                      <property name="text">
                                       <string>-</string>
                                      </property>
+                                     <property name="autoRepeat">
+                                      <bool>true</bool>
+                                     </property>
+                                     <property name="autoRepeatInterval">
+                                      <number>250</number>
+                                     </property>
                                     </widget>
                                    </item>
                                    <item>
-                                    <widget class="QLabel" name="label_5">
+                                    <widget class="QLabel" name="height_ovr_label">
                                      <property name="maximumSize">
                                       <size>
                                        <width>30</width>
@@ -7181,7 +6978,7 @@ HOME ALL</string>
                                     </widget>
                                    </item>
                                    <item>
-                                    <widget class="QPushButton" name="pushButton_2">
+                                    <widget class="QPushButton" name="height_raise">
                                      <property name="sizePolicy">
                                       <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
                                        <horstretch>0</horstretch>
@@ -7199,6 +6996,12 @@ HOME ALL</string>
                                      </property>
                                      <property name="text">
                                       <string>+</string>
+                                     </property>
+                                     <property name="autoRepeat">
+                                      <bool>true</bool>
+                                     </property>
+                                     <property name="autoRepeatInterval">
+                                      <number>250</number>
                                      </property>
                                     </widget>
                                    </item>
@@ -9044,7 +8847,7 @@ HOME ALL</string>
           <attribute name="title">
            <string>PARAMETERS</string>
           </attribute>
-          <layout class="QVBoxLayout" name="verticalLayout_23">
+          <layout class="QVBoxLayout" name="verticalLayout_23" stretch="0,0,0,2">
            <property name="spacing">
             <number>4</number>
            </property>
@@ -11843,38 +11646,6 @@ HOME ALL</string>
                      </widget>
                     </item>
                     <item>
-                     <spacer name="horizontalSpacer_35">
-                      <property name="orientation">
-                       <enum>Qt::Horizontal</enum>
-                      </property>
-                      <property name="sizeHint" stdset="0">
-                       <size>
-                        <width>40</width>
-                        <height>20</height>
-                       </size>
-                      </property>
-                     </spacer>
-                    </item>
-                    <item>
-                     <widget class="PushButton" name="backup_config">
-                      <property name="minimumSize">
-                       <size>
-                        <width>80</width>
-                        <height>40</height>
-                       </size>
-                      </property>
-                      <property name="maximumSize">
-                       <size>
-                        <width>80</width>
-                        <height>40</height>
-                       </size>
-                      </property>
-                      <property name="text">
-                       <string>BACKUP</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
                      <spacer name="horizontalSpacer_14">
                       <property name="orientation">
                        <enum>Qt::Horizontal</enum>
@@ -13024,6 +12795,12 @@ HOME ALL</string>
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
              <property name="frameShape">
               <enum>QFrame::NoFrame</enum>
              </property>
@@ -13054,7 +12831,7 @@ HOME ALL</string>
              <property name="minimumSize">
               <size>
                <width>0</width>
-               <height>200</height>
+               <height>400</height>
               </size>
              </property>
              <property name="frameShape">
@@ -13063,7 +12840,7 @@ HOME ALL</string>
              <property name="frameShadow">
               <enum>QFrame::Plain</enum>
              </property>
-             <layout class="QHBoxLayout" name="horizontalLayout_8" stretch="6,1,0">
+             <layout class="QHBoxLayout" name="horizontalLayout_8" stretch="6,1">
               <property name="spacing">
                <number>4</number>
               </property>
@@ -14350,253 +14127,30 @@ HOME ALL</string>
                       </property>
                      </spacer>
                     </item>
+                    <item>
+                     <widget class="QPushButton" name="backup">
+                      <property name="minimumSize">
+                       <size>
+                        <width>90</width>
+                        <height>50</height>
+                       </size>
+                      </property>
+                      <property name="maximumSize">
+                       <size>
+                        <width>90</width>
+                        <height>50</height>
+                       </size>
+                      </property>
+                      <property name="text">
+                       <string>BACKUP
+CONFIG</string>
+                      </property>
+                     </widget>
+                    </item>
                    </layout>
                   </widget>
                  </item>
                 </layout>
-               </widget>
-              </item>
-              <item>
-               <widget class="QFrame" name="halpin_frame">
-                <property name="frameShape">
-                 <enum>QFrame::NoFrame</enum>
-                </property>
-                <property name="frameShadow">
-                 <enum>QFrame::Plain</enum>
-                </property>
-                <widget class="GeneralHALInput" name="cut_type">
-                 <property name="geometry">
-                  <rect>
-                   <x>10</x>
-                   <y>10</y>
-                   <width>16</width>
-                   <height>20</height>
-                  </rect>
-                 </property>
-                 <property name="s32_pin_type" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="material_change_number">
-                 <property name="geometry">
-                  <rect>
-                   <x>10</x>
-                   <y>63</y>
-                   <width>16</width>
-                   <height>20</height>
-                  </rect>
-                 </property>
-                 <property name="s32_pin_type" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="material_change_timeout">
-                 <property name="geometry">
-                  <rect>
-                   <x>10</x>
-                   <y>89</y>
-                   <width>16</width>
-                   <height>20</height>
-                  </rect>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="material_change">
-                 <property name="geometry">
-                  <rect>
-                   <x>10</x>
-                   <y>36</y>
-                   <width>16</width>
-                   <height>21</height>
-                  </rect>
-                 </property>
-                 <property name="s32_pin_type" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="material_reload">
-                 <property name="geometry">
-                  <rect>
-                   <x>10</x>
-                   <y>115</y>
-                   <width>16</width>
-                   <height>21</height>
-                  </rect>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="material_temp">
-                 <property name="geometry">
-                  <rect>
-                   <x>10</x>
-                   <y>142</y>
-                   <width>16</width>
-                   <height>20</height>
-                  </rect>
-                 </property>
-                </widget>
-                <widget class="GeneralHALOutput" name="colorfg">
-                 <property name="geometry">
-                  <rect>
-                   <x>10</x>
-                   <y>168</y>
-                   <width>16</width>
-                   <height>20</height>
-                  </rect>
-                 </property>
-                 <property name="s32_float_pin_type" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-                <widget class="GeneralHALOutput" name="colorbg">
-                 <property name="geometry">
-                  <rect>
-                   <x>10</x>
-                   <y>194</y>
-                   <width>16</width>
-                   <height>20</height>
-                  </rect>
-                 </property>
-                 <property name="s32_float_pin_type" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="pmx485_pressure">
-                 <property name="geometry">
-                  <rect>
-                   <x>10</x>
-                   <y>326</y>
-                   <width>16</width>
-                   <height>20</height>
-                  </rect>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="pmx485_fault">
-                 <property name="geometry">
-                  <rect>
-                   <x>10</x>
-                   <y>247</y>
-                   <width>16</width>
-                   <height>20</height>
-                  </rect>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="pmx485_current">
-                 <property name="geometry">
-                  <rect>
-                   <x>10</x>
-                   <y>299</y>
-                   <width>16</width>
-                   <height>21</height>
-                  </rect>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="pmx485_mode">
-                 <property name="geometry">
-                  <rect>
-                   <x>10</x>
-                   <y>273</y>
-                   <width>16</width>
-                   <height>20</height>
-                  </rect>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="pmx485_status">
-                 <property name="geometry">
-                  <rect>
-                   <x>10</x>
-                   <y>220</y>
-                   <width>16</width>
-                   <height>21</height>
-                  </rect>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="pmx485_pressure_max">
-                 <property name="geometry">
-                  <rect>
-                   <x>0</x>
-                   <y>350</y>
-                   <width>16</width>
-                   <height>16</height>
-                  </rect>
-                 </property>
-                 <property name="float_pin_type" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="pmx485_current_max">
-                 <property name="geometry">
-                  <rect>
-                   <x>0</x>
-                   <y>290</y>
-                   <width>16</width>
-                   <height>16</height>
-                  </rect>
-                 </property>
-                 <property name="float_pin_type" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="pmx485_current_min">
-                 <property name="geometry">
-                  <rect>
-                   <x>0</x>
-                   <y>260</y>
-                   <width>16</width>
-                   <height>16</height>
-                  </rect>
-                 </property>
-                 <property name="float_pin_type" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="pmx485_pressure_min">
-                 <property name="geometry">
-                  <rect>
-                   <x>0</x>
-                   <y>330</y>
-                   <width>16</width>
-                   <height>16</height>
-                  </rect>
-                 </property>
-                 <property name="float_pin_type" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="x_offset">
-                 <property name="geometry">
-                  <rect>
-                   <x>0</x>
-                   <y>320</y>
-                   <width>16</width>
-                   <height>16</height>
-                  </rect>
-                 </property>
-                 <property name="float_pin_type" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-                <widget class="GeneralHALInput" name="y_offset">
-                 <property name="geometry">
-                  <rect>
-                   <x>0</x>
-                   <y>350</y>
-                   <width>16</width>
-                   <height>16</height>
-                  </rect>
-                 </property>
-                 <property name="float_pin_type" stdset="0">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-                <widget class="GeneralHALOutput" name="laser_on">
-                 <property name="geometry">
-                  <rect>
-                   <x>0</x>
-                   <y>0</y>
-                   <width>16</width>
-                   <height>16</height>
-                  </rect>
-                 </property>
-                </widget>
                </widget>
               </item>
              </layout>
@@ -14611,6 +14165,518 @@ HOME ALL</string>
               <size>
                <width>20</width>
                <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="stats_tab">
+          <attribute name="title">
+           <string>STATISTICS</string>
+          </attribute>
+          <layout class="QHBoxLayout" name="horizontalLayout_37">
+           <property name="spacing">
+            <number>4</number>
+           </property>
+           <property name="leftMargin">
+            <number>4</number>
+           </property>
+           <property name="topMargin">
+            <number>4</number>
+           </property>
+           <property name="rightMargin">
+            <number>4</number>
+           </property>
+           <property name="bottomMargin">
+            <number>4</number>
+           </property>
+           <item>
+            <widget class="QFrame" name="frame_29">
+             <property name="minimumSize">
+              <size>
+               <width>100</width>
+               <height>100</height>
+              </size>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::NoFrame</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Plain</enum>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout_59" stretch="1,0">
+              <property name="spacing">
+               <number>0</number>
+              </property>
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <spacer name="verticalSpacer_13">
+                <property name="orientation">
+                 <enum>Qt::Vertical</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>40</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QFrame" name="stats_frame">
+                <property name="minimumSize">
+                 <size>
+                  <width>100</width>
+                  <height>0</height>
+                 </size>
+                </property>
+                <property name="frameShape">
+                 <enum>QFrame::NoFrame</enum>
+                </property>
+                <property name="frameShadow">
+                 <enum>QFrame::Plain</enum>
+                </property>
+                <layout class="QVBoxLayout" name="verticalLayout_58">
+                 <property name="spacing">
+                  <number>8</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
+                 <item>
+                  <widget class="QLabel" name="stats_label">
+                   <property name="maximumSize">
+                    <size>
+                     <width>16777215</width>
+                     <height>16</height>
+                    </size>
+                   </property>
+                   <property name="text">
+                    <string>STATISTICS</string>
+                   </property>
+                   <property name="alignment">
+                    <set>Qt::AlignCenter</set>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QFrame" name="frame_36">
+                   <property name="frameShape">
+                    <enum>QFrame::NoFrame</enum>
+                   </property>
+                   <property name="frameShadow">
+                    <enum>QFrame::Plain</enum>
+                   </property>
+                   <layout class="QGridLayout" name="gridLayout_5">
+                    <property name="leftMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="topMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="rightMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="bottomMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="horizontalSpacing">
+                     <number>10</number>
+                    </property>
+                    <property name="verticalSpacing">
+                     <number>16</number>
+                    </property>
+                    <item row="8" column="3">
+                     <widget class="QLabel" name="probe_time_t">
+                      <property name="text">
+                       <string>0.00</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="10" column="0">
+                     <widget class="QPushButton" name="all_reset">
+                      <property name="text">
+                       <string>RESET ALL</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="5" column="3">
+                     <widget class="QLabel" name="torch_time_t">
+                      <property name="text">
+                       <string>0.00</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="6" column="0">
+                     <widget class="QPushButton" name="run_time_reset">
+                      <property name="text">
+                       <string>RESET</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="6" column="1">
+                     <widget class="QLabel" name="label_32">
+                      <property name="text">
+                       <string>PROGRAM RUN TIME</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="6" column="2">
+                     <widget class="QLabel" name="run_time">
+                      <property name="text">
+                       <string>0.00</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="6" column="3">
+                     <widget class="QLabel" name="run_time_t">
+                      <property name="text">
+                       <string>0.00</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="3" column="1">
+                     <widget class="QLabel" name="cut_length_label">
+                      <property name="text">
+                       <string>CUT LENGTH</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="3" column="2">
+                     <widget class="QLabel" name="cut_length">
+                      <property name="text">
+                       <string>0.00</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="1" column="3">
+                     <widget class="QLabel" name="label_27">
+                      <property name="minimumSize">
+                       <size>
+                        <width>80</width>
+                        <height>0</height>
+                       </size>
+                      </property>
+                      <property name="maximumSize">
+                       <size>
+                        <width>80</width>
+                        <height>16777215</height>
+                       </size>
+                      </property>
+                      <property name="text">
+                       <string>TOTAL</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="2" column="0">
+                     <widget class="QPushButton" name="pierce_reset">
+                      <property name="text">
+                       <string>RESET</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="2" column="1">
+                     <widget class="QLabel" name="label_28">
+                      <property name="text">
+                       <string>PIERCE COUNT</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="2" column="2">
+                     <widget class="QLabel" name="pierce_count">
+                      <property name="text">
+                       <string>0.00</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="3" column="3">
+                     <widget class="QLabel" name="cut_length_t">
+                      <property name="text">
+                       <string>0.00</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="4" column="0">
+                     <widget class="QPushButton" name="cut_time_reset">
+                      <property name="text">
+                       <string>RESET</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="4" column="1">
+                     <widget class="QLabel" name="label_30">
+                      <property name="text">
+                       <string>CUT TIME</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="4" column="2">
+                     <widget class="QLabel" name="cut_time">
+                      <property name="text">
+                       <string>0.00</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="5" column="2">
+                     <widget class="QLabel" name="torch_time">
+                      <property name="text">
+                       <string>0.00</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="2" column="3">
+                     <widget class="QLabel" name="pierce_count_t">
+                      <property name="text">
+                       <string>0.00</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="3" column="0">
+                     <widget class="QPushButton" name="cut_length_reset">
+                      <property name="text">
+                       <string>RESET</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="1" column="2">
+                     <widget class="QLabel" name="label_29">
+                      <property name="minimumSize">
+                       <size>
+                        <width>80</width>
+                        <height>0</height>
+                       </size>
+                      </property>
+                      <property name="maximumSize">
+                       <size>
+                        <width>80</width>
+                        <height>16777215</height>
+                       </size>
+                      </property>
+                      <property name="text">
+                       <string>JOB</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="4" column="3">
+                     <widget class="QLabel" name="cut_time_t">
+                      <property name="text">
+                       <string>0.00</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="5" column="0">
+                     <widget class="QPushButton" name="torch_time_reset">
+                      <property name="text">
+                       <string>RESET</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="5" column="1">
+                     <widget class="QLabel" name="label_31">
+                      <property name="text">
+                       <string>TORCH ON TIME</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="1" column="1">
+                     <widget class="QLabel" name="label_34">
+                      <property name="minimumSize">
+                       <size>
+                        <width>180</width>
+                        <height>0</height>
+                       </size>
+                      </property>
+                      <property name="maximumSize">
+                       <size>
+                        <width>180</width>
+                        <height>16777215</height>
+                       </size>
+                      </property>
+                      <property name="text">
+                       <string>ITEM</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="7" column="0">
+                     <widget class="QPushButton" name="rapid_time_reset">
+                      <property name="text">
+                       <string>RESET</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="7" column="1">
+                     <widget class="QLabel" name="label_35">
+                      <property name="text">
+                       <string>RAPID TIME</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="7" column="2">
+                     <widget class="QLabel" name="rapid_time">
+                      <property name="text">
+                       <string>0.00</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="7" column="3">
+                     <widget class="QLabel" name="rapid_time_t">
+                      <property name="text">
+                       <string>0.00</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="8" column="0">
+                     <widget class="QPushButton" name="probe_time_reset">
+                      <property name="text">
+                       <string>RESET</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="8" column="1">
+                     <widget class="QLabel" name="label_36">
+                      <property name="text">
+                       <string>PROBE TIME</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="8" column="2">
+                     <widget class="QLabel" name="probe_time">
+                      <property name="text">
+                       <string>0.00</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="9" column="0">
+                     <widget class="QLabel" name="label_37">
+                      <property name="text">
+                       <string/>
+                      </property>
+                     </widget>
+                    </item>
+                   </layout>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="verticalSpacer_12">
+                   <property name="orientation">
+                    <enum>Qt::Vertical</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>20</width>
+                     <height>40</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer_11">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
               </size>
              </property>
             </spacer>
@@ -14732,12 +14798,6 @@ HOME ALL</string>
    <header>qtvcp.widgets.simple_widgets</header>
   </customwidget>
   <customwidget>
-   <class>GeneralHALInput</class>
-   <extends>QWidget</extends>
-   <header>qtvcp.widgets.general_hal_input</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>FileManager</class>
    <extends>QWidget</extends>
    <header>qtvcp.widgets.file_manager</header>
@@ -14763,12 +14823,6 @@ HOME ALL</string>
    <class>MDIHistory</class>
    <extends>QWidget</extends>
    <header>qtvcp.widgets.mdi_history</header>
-  </customwidget>
-  <customwidget>
-   <class>GeneralHALOutput</class>
-   <extends>QWidget</extends>
-   <header>qtvcp.widgets.general_hal_output</header>
-   <container>1</container>
   </customwidget>
   <customwidget>
    <class>ActionButton</class>

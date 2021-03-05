@@ -1,3 +1,8 @@
+#NOTE:
+#     The legacy names *selected_pocket* and *current_pocket* actually reference
+#     a sequential tooldata index for tool items loaded from a tool
+#     table ([EMCIO]TOOL_TABLE) or via a tooldata database ([EMCIO]DB_PROGRAM)
+
 # stdglue - canned prolog and epilog functions for the remappable builtin codes (T,M6,M61,S,F)
 #
 # we dont use argspec to avoid the generic error message of the argspec prolog and give more
@@ -534,12 +539,10 @@ def tool_probe_m6(self, **words):
         # cancel tool offset
         self.execute("G49")
 
-        # change tool
-        # will follow INI settings:
-        # [EMCIO]
-        # TOOL_CHANGE_POSITION = 0 0 0
-        # TOOL_CHANGE_AT_G30 = 1
-        # TOOL_CHANGE_QUILL_UP = 1
+        # change tool where ever we are
+        # user sets toolchange position prior to toolchange
+        # we will return here after
+
         try:
             self.selected_pocket =  int(self.params["selected_pocket"])
             emccanon.CHANGE_TOOL(self.selected_pocket)
@@ -552,6 +555,13 @@ def tool_probe_m6(self, **words):
         except InterpreterException as e:
             self.set_errormsg("tool_probe_m6 remap error: %s" % (e))
             yield INTERP_ERROR
+
+        yield INTERP_EXECUTE_FINISH
+
+        # record current position; probably should record every axis
+        self.params[4990] = emccanon.GET_EXTERNAL_POSITION_X()
+        self.params[4998] = emccanon.GET_EXTERNAL_POSITION_Y()
+        self.params[4997] = emccanon.GET_EXTERNAL_POSITION_Z()
 
         try:
             # move to tool probe position (from INI)
@@ -597,9 +607,10 @@ def tool_probe_m6(self, **words):
             # set back absolute state
             self.execute("G90")
 
-            # return to tool change positon
-            self.execute("G53 G0 Z[#<_ini[CHANGE_POSITION]Z>]")
-            self.execute("G53 G0 X[#<_ini[CHANGE_POSITION]X>] Y[#<_ini[CHANGE_POSITION]Y>]")
+            # return to recorded tool change positon
+            self.execute("G53 G0 Z[#4997]")
+            yield INTERP_EXECUTE_FINISH
+            self.execute("G53 G0 X[#4999] Y[#4998]")
 
             # adjust tool offset from calculations
             proberesult = self.params[5063]

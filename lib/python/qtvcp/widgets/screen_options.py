@@ -89,7 +89,7 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         self.shutdown_play_sound = True
         self.shutdown_alert_sound_type = 'READY'
         self.shutdown_exit_sound_type = 'LOGOUT'
-        self.notify_start_greeting = True
+        self.notify_start_greeting = False
         self.notify_start_title = 'Welcome'
         self.notify_start_detail = 'This option can be changed in the preference file'
         self.notify_start_timeout = 5
@@ -261,7 +261,7 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
         if self.process_tabs:
             self.add_xembed_tabs()
 
-        # clear and add an intial machine log message
+        # clear and add an initial machine log message
         STATUS.emit('update-machine-log', '', 'DELETE')
         STATUS.emit('update-machine-log', '', 'INITIAL')
         STATUS.connect('tool-info-changed', lambda w, data: self._tool_file_info(data, TOOL.COMMENTS))
@@ -273,7 +273,7 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
             self.init_zmq_publish()
 
     # This is called early by qt_makegui.py for access to
-    # be able to pass the preference object to ther widgets
+    # be able to pass the preference object to the widgets
     def _pref_init(self):
         if self.use_pref_file:
             # we prefer INI settings
@@ -324,7 +324,7 @@ class ScreenOptions(QtWidgets.QWidget, _HalWidgetBase):
                 if self.desktop_notify:
                     NOTICE.update(self.notify_critical, title='Internal NML Display:', message=text)
 
-            elif kind == 255: # temparary info
+            elif kind == 255: # temporary info
                 if self.desktop_notify:
                     NOTICE.update(self.notify_normal,
                                     title='Low Priority:',

@@ -159,8 +159,12 @@ class FileManager(QWidget, _HalWidgetBase):
     def _hal_init(self):
         if self.PREFS_:
             last_path = self.PREFS_.getpref('last_loaded_directory', self.user_path, str, 'BOOK_KEEPING')
-            self.updateDirectoryView(last_path)
             LOG.debug("lAST FILE PATH: {}".format(last_path))
+            if not last_path == '':
+                self.updateDirectoryView(last_path)
+            else:
+                self.updateDirectoryView(self.user_path)
+
 
             # get all the saved jumplist paths
             temp = self.PREFS_.getall('FILEMANAGER_JUMPLIST')
@@ -172,10 +176,7 @@ class FileManager(QWidget, _HalWidgetBase):
 
         # install jump paths into toolbutton menu
         for i in self._jumpList:
-            axisButton = QAction(QIcon.fromTheme('user-home'), i, self)
-            # weird lambda i=i to work around 'function closure'
-            axisButton.triggered.connect(lambda state, i=i: self.jumpTriggered(i))
-            self.settingMenu.addAction(axisButton)
+            self.addAction(i)
 
     #########################
     # callbacks
@@ -187,6 +188,7 @@ class FileManager(QWidget, _HalWidgetBase):
             self.cb.addItem(i[0],i[1])
 
     def folderChanged(self, data):
+        data = os.path.normpath(data)
         self.currentFolder = data
         self.textLine.setText(data)
 
@@ -206,7 +208,7 @@ class FileManager(QWidget, _HalWidgetBase):
 
     def listClicked(self, index):
         # the signal passes the index of the clicked item
-        dir_path = self.model.filePath(index)
+        dir_path = os.path.normpath(self.model.filePath(index))
         if self.model.fileInfo(index).isFile():
             self.currentPath = dir_path
             self.textLine.setText(self.currentPath)
@@ -224,20 +226,25 @@ class FileManager(QWidget, _HalWidgetBase):
     # jump directly to a saved path shown on the button
     def onJumpClicked(self):
         data = self.button2.text()
-        if data == 'Media':
+        if data.upper() == 'MEDIA':
             self.showMediaDir()
-        elif data == 'User':
+        elif data.upper() == 'USER':
             self.showUserDir()
         else:
-            self.updateDirectoryView(self._jumpList.get(data))
+            temp = self._jumpList.get(data)
+            if temp is not None:
+                self.updateDirectoryView(temp)
+            else:
+                STATUS.emit('error', linuxcnc.OPERATOR_ERROR, 'file jumopath: {} not valid'.format(data))
+                log.debug('file jumopath: {} not valid'.format(data))
 
     # jump directly to a saved path from the menu
     def jumpTriggered(self, data):
-        if data == 'Media':
+        if data.upper() == 'MEDIA':
             self.button2.setText('{}'.format(data))
             self.button2.setToolTip('Jump to Media directory.\nLong press for Options.')
             self.showMediaDir()
-        elif data == 'User':
+        elif data.upper() == 'USER':
             self.button2.setText('{}'.format(data))
             self.button2.setToolTip('Jump to User directory.\nLong press for Options.')
             self.showUserDir()
@@ -293,6 +300,12 @@ class FileManager(QWidget, _HalWidgetBase):
     ########################
     # helper functions
     ########################
+
+    def addAction(self, i):
+        axisButton = QAction(QIcon.fromTheme('user-home'), i, self)
+        # weird lambda i=i to work around 'function closure'
+        axisButton.triggered.connect(lambda state, i=i: self.jumpTriggered(i))
+        self.settingMenu.addAction(axisButton)
 
     def showList(self, state=True):
         if state:
@@ -387,7 +400,7 @@ class FileManager(QWidget, _HalWidgetBase):
         else:
             selectionModel = self.table.selectionModel()
         index = selectionModel.currentIndex()
-        dir_path = self.model.filePath(index)
+        dir_path = os.path.normpath(self.model.filePath(index))
         if self.model.fileInfo(index).isFile():
             return (dir_path, True)
         else:

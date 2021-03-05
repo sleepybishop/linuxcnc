@@ -77,13 +77,13 @@ class HandlerClass:
         STATUS.connect('mode-mdi', lambda w: self.enable_auto(True))
         STATUS.connect('mode-auto', lambda w: self.enable_auto(False))
         STATUS.connect('gcode-line-selected', lambda w, line: self.set_start_line(line))
+        STATUS.connect('graphics-line-selected', lambda w, line: self.set_start_line(line))
         STATUS.connect('hard-limits-tripped', self.hard_limit_tripped)
         STATUS.connect('program-pause-changed', lambda w, state: self.w.btn_spindle_pause.setEnabled(state))
         STATUS.connect('actual-spindle-speed-changed', lambda w, speed: self.update_rpm(speed))
         STATUS.connect('user-system-changed', lambda w, data: self.user_system_changed(data))
         STATUS.connect('metric-mode-changed', lambda w, mode: self.metric_mode_changed(mode))
         STATUS.connect('file-loaded', self.file_loaded)
-        STATUS.connect('homed', self.homed)
         STATUS.connect('all-homed', self.all_homed)
         STATUS.connect('not-all-homed', self.not_all_homed)
         STATUS.connect('periodic', lambda w: self.update_runtimer())
@@ -119,12 +119,9 @@ class HandlerClass:
         self.w.stackedWidget_dro.setCurrentIndex(0)
         self.w.btn_spindle_pause.setEnabled(False)
         self.w.btn_dimensions.setChecked(True)
-        self.w.btn_touch_sensor.setEnabled(self.w.chk_use_tool_sensor.isChecked())
         self.w.page_buttonGroup.buttonClicked.connect(self.main_tab_changed)
         self.w.filemanager_usb.showMediaDir(quiet = True)
-        self.chk_run_from_line_checked(self.w.chk_run_from_line.isChecked())
-        self.chk_use_camera_changed(self.w.chk_use_camera.isChecked())
-        self.chk_alpha_mode_clicked(self.w.chk_alpha_mode.isChecked())
+
     # hide widgets for A axis if not present
         if "A" not in INFO.AVAILABLE_AXES:
             for i in self.axis_a_list:
@@ -435,6 +432,9 @@ class HandlerClass:
         self.w.lbl_max_rapid.setText("{:4.0f}".format(maxvel))
 
     def file_loaded(self, obj, filename):
+        if os.path.basename(filename).count('.') > 1:
+            self.last_loaded_program = ""
+            return
         if filename is not None:
             self.add_status("Loaded file {}".format(filename))
             self.w.progressBar.setValue(0)
@@ -497,16 +497,6 @@ class HandlerClass:
     def not_all_homed(self, obj, list):
         self.home_all = False
         self.w.btn_home_all.setText("HOME ALL")
-        for i in INFO.AVAILABLE_JOINTS:
-            if str(i) in list:
-                axis = INFO.GET_NAME_FROM_JOINT.get(i).lower()
-                try:
-                    widget = self.w["dro_axis_{}".format(axis)]
-                    widget.setProperty('homed', False)
-                    widget.style().unpolish(widget)
-                    widget.style().polish(widget)
-                except:
-                    pass
 
     def hard_limit_tripped(self, obj, tripped, list_of_tripped):
         self.add_status("Hard limits tripped")
@@ -520,12 +510,15 @@ class HandlerClass:
 
     # main button bar
     def main_tab_changed(self, btn):
-        if STATUS.is_auto_mode():
-            self.add_status("Cannot switch pages while in AUTO mode")
-            self.w.btn_main.setChecked(True)
-            return
         index = btn.property("index")
         if index is None: return
+        # if in automode still allow settings to show so override linits can be used
+        if STATUS.is_auto_mode() and index != 9:
+            self.add_status("Cannot switch pages while in AUTO mode")
+            # make sure main page is showing
+            self.w.main_tab_widget.setCurrentIndex(0)
+            self.w.btn_main.setChecked(True)
+            return
         self.w.main_tab_widget.setCurrentIndex(index)
         self.w.stackedWidget.setCurrentIndex(self.tab_index_code[index])
         if index == TAB_SETUP:
@@ -770,16 +763,19 @@ class HandlerClass:
     def chk_override_limits_checked(self, state):
         if state:
             self.add_status("Override limits set")
-            ACTION.SET_LIMITS_OVERRIDE()
+            ACTION.TOGGLE_LIMITS_OVERRIDE()
         else:
+            ACTION.TOGGLE_LIMITS_OVERRIDE()
             self.add_status("Override limits not set")
 
     def chk_run_from_line_checked(self, state):
-        self.w.gcodegraphics.set_inhibit_selection(not state)
         self.w.btn_start.setText("START\n1") if state else self.w.btn_start.setText("START")
 
-    def chk_alpha_mode_clicked(self, state):
+    def chk_alpha_mode_changed(self, state):
         self.w.gcodegraphics.set_alpha_mode(state)
+
+    def chk_inhibit_selection_changed(self, state):
+        self.w.gcodegraphics.set_inhibit_selection(state)
 
     def chk_use_camera_changed(self, state):
         self.w.btn_ref_camera.setEnabled(state)
