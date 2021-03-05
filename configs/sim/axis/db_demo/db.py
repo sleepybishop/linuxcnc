@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env linuxcnc-python
 
 # Demonstrate LinuxCNC interface for a database of tools
 
