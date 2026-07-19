@@ -24,10 +24,10 @@
 #ifndef TOOL_DATA_H
 #define TOOL_DATA_H
 
-#include "canon.hh"
-#include "emc_nml.hh"
+#include "nml_intf/canon.hh"
+#include "nml_intf/emc_nml.hh"
 
-#ifdef CPLUSPLUS
+#ifdef __cplusplus
 extern"C" {
 #endif
 
@@ -41,6 +41,12 @@ typedef enum {
     DB_NOTUSED=0,  // equivalent to not specifying in inifile
     DB_ACTIVE,
 } tooldb_t;
+
+typedef enum {
+    SPINDLE_LOAD,
+    SPINDLE_UNLOAD,
+    TOOL_OFFSET,
+} tool_notify_t;
 //----------------------------------------------------------
 // tooldata_*(): access to internal tool table data:
 struct    CANON_TOOL_TABLE tooldata_entry_init(void);
@@ -52,24 +58,24 @@ void   tooldata_reset(void);
 void   tooldata_last_index_set(int idx);
 int    tooldata_last_index_get(void);
 int    tooldata_find_index_for_tool(int toolno);
+
+// ignore_zero_values:1 for file writes
+//                   :0 for use with tooldata_db_notify()
 void   tooldata_format_toolline (int idx,
+                                 bool ignore_zero_values,
                                  CANON_TOOL_TABLE tdata,
-                                 char * ttcomments[],
                                  char formatted_line[CANON_TOOL_ENTRY_LEN]
                                  );
 
 void   tooldata_add_init(int nonrandom_start_idx);
-int    tooldata_read_entry(const char *input_line,
-                           char *ttcomments[]);
+int    tooldata_read_entry(const char *input_line);
 
 void   tooldata_set_db(tooldb_t mode);
 
 //----------------------------------------------------------
-int tooldata_load(const char *filename,
-                  char *ttcomments[CANON_POCKETS_MAX]);
+int tooldata_load(const char *filename);
 
-int tooldata_save(const char *filename,
-                  char *ttcomments[CANON_POCKETS_MAX]);
+int tooldata_save(const char *filename);
 
 //----------------------------------------------------------
 //mmap specific
@@ -90,9 +96,12 @@ int tool_nml_register(CANON_TOOL_TABLE *tblptr);
 #define DB_SPINDLE_SAVE "./db_spindle.tbl"
 
 int   tooldata_db_init(char db_find_progname[],int random_toolchanger);
-int   tooldata_db_notify(int toolno,int pocketno,CANON_TOOL_TABLE tdata);
+int   tooldata_db_notify(tool_notify_t ntype,
+                         int toolno,
+                         int pocketno,
+                         CANON_TOOL_TABLE tdata);
 int   tooldata_db_getall(void);
-#ifdef CPLUSPLUS
+#ifdef __cplusplus
 }
 
 #endif

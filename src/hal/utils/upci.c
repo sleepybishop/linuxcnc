@@ -51,7 +51,7 @@ information, go to www.linuxcnc.org.
 
 /* Assorted typedefs */
 
-/* this is an standarized struct that is present in the
+/* this is a standardized struct that is present in the
    configuration space of every PCI card */
 struct cfg_info {
     __u16 vendor_id;
@@ -202,7 +202,7 @@ int upci_scan_bus(void)
 	devices[num_devs++] = dev;
 	n = sscanf(lineptr,
 	    "%hx %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x",
-	    &busdevfunc, &vendordev, &(dev->p.irq),
+	    &busdevfunc, &vendordev, (unsigned *)&(dev->p.irq),
 	    &dev->p.base_addr[0],  &dev->p.base_addr[1], &dev->p.base_addr[2],
 	    &dev->p.base_addr[3],  &dev->p.base_addr[4], &dev->p.base_addr[5],
 	    &dev->p.rom_base_addr,
@@ -352,37 +352,48 @@ int upci_find_device(struct upci_dev_info *p)
 
 static int incr_io_usage ( void )
 {
-    int retval, eno;
+    int retval = 0, eno = 0;
 
-    /* make sure we can do I/O */
-    if ( ioaccess == 0 ) {
-	/* enable access */
-	/* this needs priviliges */
-	if (seteuid(0) != 0) {
-	    errmsg(__func__, "need root privilges (or setuid root)");
-	    return -1;
-	}
-	/* do it */
-	retval = iopl(3);
-	eno = errno;
-	/* drop priviliges */
-	if(seteuid(getuid()) != 0)
-	{
-	    errmsg(__func__, "unable to drop root privileges");
-	    /* Don't continue past this point, because following code may
-	     * execute with unexpected privileges
-	     */
-	    _exit(99);
-	}
-	/* check result */
-	if(retval < 0 || iopl(3) < 0) {
-	    errmsg(__func__,"opening I/O ports: %s", strerror(eno));
-	    return -1;
-	}
+    /* Try iopl(3) with our existing privileges first: succeeds when
+     * the process holds CAP_SYS_RAWIO via file caps or is already
+     * setuid root.  Only fall back to seteuid(0) if that path is closed.
+     */
+    do {
+        if (ioaccess) {
+            break;
+        }
+
+        retval = iopl(3);
+        if (retval == 0) {
+            break;
+        }
+
+        retval = seteuid(0);
+        if (retval != 0) {
+            eno = errno;
+            break;
+        }
+
+        retval = iopl(3);
+        eno = errno;
+
+        if (seteuid(getuid()) != 0) {
+            errmsg(__func__, "unable to drop root privileges");
+            /* Don't continue past this point, because following code may
+             * execute with unexpected privileges
+             */
+            _exit(99);
+        }
+    } while (0);
+
+    if (retval == 0) {
+        /* increment reference count */
+        ioaccess++;
+    } else {
+        errmsg(__func__,"error: %s", strerror(eno));
     }
-    /* increment reference count */
-    ioaccess++;
-    return 0;
+
+    return retval;
 }
 
 static void decr_io_usage ( void )
@@ -394,44 +405,56 @@ static void decr_io_usage ( void )
     /* decrement reference count */
     ioaccess--;
     if ( ioaccess == 0 ) {
-	/* release I/O priveleges */
+	/* release I/O privileges */
 	iopl(0);
     }
 }
 
 static int incr_mem_usage ( void )
 {
-    int eno;
+  int retval = 0, eno = 0;
 
-    /* make sure /dev/mem is open */
-    if ( memaccess == 0 ) {
-	/* open it */
-	/* this needs priviliges */
-	if (seteuid(0) != 0) {
-	    errmsg(__func__, "need root privilges (or setuid root)");
-	    return -1;
-	}
-	/* do it */
-	memfd = open("/dev/mem", O_RDWR);
-	eno = errno;
-	/* drop priviliges */
-	if(seteuid(getuid()) != 0)
-	{
-	    errmsg(__func__, "unable to drop root privileges");
-	    /* Don't continue past this point, because following code may
-	     * execute with unexpected privileges
-	     */
-	    _exit(99);
-	}
-	/* check result */
-	if ( memfd < 0 ) {
-	    errmsg(__func__,"can't open /dev/mem: %s", strerror(eno));
-	    return -1;
-	}
-    }
-    /* increment reference count */
-    memaccess++;
-    return 0;
+  /* Try to open /dev/mem with our existing privileges first: succeeds
+   * when the process holds CAP_SYS_RAWIO via file caps or is already
+   * setuid root.  Only fall back to seteuid(0) if that path is closed.
+   */
+  do {
+      if (memaccess) {
+          break;
+      }
+
+      memfd = open("/dev/mem", O_RDWR);
+      if (memfd >= 0) {
+          break;
+      }
+
+      retval = seteuid(0);
+      if (retval != 0) {
+          eno = errno;
+          break;
+      }
+
+      memfd = open("/dev/mem", O_RDWR);
+      retval = memfd >= 0 ? 0 : memfd;
+      eno = errno;
+
+      if (seteuid(getuid()) != 0) {
+          errmsg(__func__, "unable to drop root privileges");
+          /* Don't continue past this point, because following code may
+           * execute with unexpected privileges
+           */
+          _exit(99);
+      }
+  } while (0);
+
+  if (retval == 0) {
+      /* increment reference count */
+      memaccess++;
+  } else {
+      errmsg(__func__,"error: %s", strerror(eno));
+  }
+
+  return retval;
 }
 
 static void decr_mem_usage ( void )
@@ -541,7 +564,7 @@ __u8 upci_read_u8(int rd, __u32 offset)
 	data = inb(port);
     } else {
 	/* region is memory */
-	ptr = (__u8 *)(reg->mapped_ptr + offset);
+	ptr = (__u8 *)reg->mapped_ptr + offset;
 	data = *ptr;
     }
     return data;
@@ -561,7 +584,7 @@ __s8 upci_read_s8(int rd, __u32 offset)
 	port = reg->base_addr + offset;
 	data = inb(port);
     } else {
-	ptr = (__s8 *)(reg->mapped_ptr + offset);
+	ptr = (__s8 *)reg->mapped_ptr + offset;
 	data = *ptr;
     }
     return data;
@@ -581,7 +604,7 @@ __u16 upci_read_u16(int rd, __u32 offset)
 	port = reg->base_addr + offset;
 	data = inw(port);
     } else {
-	ptr = (__u16 *)(reg->mapped_ptr + offset);
+	ptr = (__u16 *)((__u8 *)reg->mapped_ptr + offset);
 	data = *ptr;
     }
     return data;
@@ -601,7 +624,7 @@ __s16 upci_read_s16(int rd, __u32 offset)
 	port = reg->base_addr + offset;
 	data = inw(port);
     } else {
-	ptr = (__s16 *)(reg->mapped_ptr + offset);
+	ptr = (__s16 *)((__u8 *)reg->mapped_ptr + offset);
 	data = *ptr;
     }
     return data;
@@ -621,7 +644,7 @@ __u32 upci_read_u32(int rd, __u32 offset)
 	port = reg->base_addr + offset;
 	data = inl(port);
     } else {
-	ptr = (__u32 *)(reg->mapped_ptr + offset);
+	ptr = (__u32 *)((__u8 *)reg->mapped_ptr + offset);
 	data = *ptr;
     }
     return data;
@@ -641,7 +664,7 @@ __s32 upci_read_s32(int rd, __u32 offset)
 	port = reg->base_addr + offset;
 	data = inl(port);
     } else {
-	ptr = (__s32 *)(reg->mapped_ptr + offset);
+	ptr = (__s32 *)((__u8 *)reg->mapped_ptr + offset);
 	data = *ptr;
     }
     return data;
@@ -663,7 +686,7 @@ void upci_write_u8(int rd, __u32 offset, __u8 data)
 	outb(data, port);
     } else {
 	/* region is memory */
-	ptr = (__u8 *)(reg->mapped_ptr + offset);
+	ptr = (__u8 *)reg->mapped_ptr + offset;
 	*ptr = data;
     }
     return;
@@ -683,7 +706,7 @@ void upci_write_s8(int rd, __u32 offset, __s8 data)
 	port = reg->base_addr + offset;
 	outb(data, port);
     } else {
-	ptr = (__s8 *)(reg->mapped_ptr + offset);
+	ptr = (__s8 *)reg->mapped_ptr + offset;
 	*ptr = data;
     }
     return;
@@ -703,7 +726,7 @@ void upci_write_u16(int rd, __u32 offset, __u16 data)
 	port = reg->base_addr + offset;
 	outw(data, port);
     } else {
-	ptr = (__u16 *)(reg->mapped_ptr + offset);
+	ptr = (__u16 *)((__u8 *)reg->mapped_ptr + offset);
 	*ptr = data;
     }
     return;
@@ -723,7 +746,7 @@ void upci_write_s16(int rd, __u32 offset, __s16 data)
 	port = reg->base_addr + offset;
 	outw(data, port);
     } else {
-	ptr = (__s16 *)(reg->mapped_ptr + offset);
+	ptr = (__s16 *)((__u8 *)reg->mapped_ptr + offset);
 	*ptr = data;
     }
     return;
@@ -743,7 +766,7 @@ void upci_write_u32(int rd, __u32 offset, __u32 data)
 	port = reg->base_addr + offset;
 	outl(data, port);
     } else {
-	ptr = (__u32 *)(reg->mapped_ptr + offset);
+	ptr = (__u32 *)((__u8 *)reg->mapped_ptr + offset);
 	*ptr = data;
     }
     return;
@@ -763,7 +786,7 @@ void upci_write_s32(int rd, __u32 offset, __s32 data)
 	port = reg->base_addr + offset;
 	outl(data, port);
     } else {
-	ptr = (__s32 *)(reg->mapped_ptr + offset);
+	ptr = (__s32 *)((__u8 *)reg->mapped_ptr + offset);
 	*ptr = data;
     }
     return;

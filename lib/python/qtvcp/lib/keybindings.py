@@ -15,7 +15,7 @@
 # you can add or change these
 
 import traceback
-from PyQt5.QtCore import Qt
+from qtpy.QtCore import Qt
 
 # Set up logging
 from qtvcp import logger
@@ -262,19 +262,33 @@ class Keylookup:
         except:
             raise NameError("Binding %s could not be added" % binding)
 
+    # remove a keyname binding
+    def del_call(self, binding):
+        try:
+            delattr(self.keycall, binding)
+        except AttributeError:
+            raise NameError("Binding %s could not be found" % binding)
+        except Exception as e:
+            raise NameError("Binding %s could not be removed: %s" % (binding, e))
+
     def manage_function_calls(self, handler, event, is_pressed, key, shift, cntrl):
         try:
             b = self.call(handler, event, is_pressed, shift, cntrl)
         except NameError as e:
             if is_pressed:
                 LOG.debug('Exception in KEYBINDING: {}'.format(e))
+                if LOG.getEffectiveLevel() == LOG.VERBOSE:
+                    formatted_lines = traceback.format_exc().splitlines()
+                    for i in range(5, len(formatted_lines)):
+                        print(formatted_lines[i])
         except Exception as e:
             if is_pressed:
                 formatted_lines = traceback.format_exc().splitlines()
                 # LOG.debug('Exception in KEYBINDING:', exc_info=e)
                 print("""Key Binding Error for key '%s' calling function: %s in handler file:""" % (
                 key, self.convert(event)))
-                for i in range(5, len(formatted_lines)):
-                    print(formatted_lines[i])
+                if LOG.getEffectiveLevel() == LOG.VERBOSE:
+                    for i in range(5, len(formatted_lines)):
+                        print(formatted_lines[i])
         event.accept()
         return True

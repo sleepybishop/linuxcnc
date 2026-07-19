@@ -34,7 +34,7 @@
 #include <rtapi.h>
 #include <rtapi_pci.h>
 #include <rtapi_firmware.h>
-#include "rtapi_uspace.hh"
+#include "uspace_rtapi_app.hh"
 
 #include <dirent.h>
 #include <errno.h>
@@ -266,7 +266,7 @@ void rtapi_pci_unregister_driver(struct rtapi_pci_driver *driver)
         delete dev;
     }
     delete &DEVICES(driver);
-    driver->private_data = 0;
+    driver->private_data = nullptr;
 }
 
 typedef std::map<void rtapi__iomem*, size_t> IoMap;
@@ -428,6 +428,7 @@ int rtapi_request_firmware(const struct rtapi_firmware **fw, const char *name, s
     struct stat st;
     int r;
     int fd = -1;
+    (void)device;
 
     /* Allocate and initialize a firmware struct */
     lfw = new rtapi_firmware;
@@ -458,7 +459,7 @@ int rtapi_request_firmware(const struct rtapi_firmware **fw, const char *name, s
         return -ENOENT;
     }
 
-    /* We've found and oepned the file, now let's get the size */
+    /* We've found and opened the file, now let's get the size */
     if (stat(path, &st) < 0)
     {
         rtapi_print_msg(RTAPI_MSG_ERR, "Could not determine size of file \"%s\". (%s)\n",

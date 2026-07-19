@@ -1,8 +1,94 @@
-import itertools
+import copy
 import OpenGL.GL as GL
 from OpenGL import GLU
 import hal
+import array, itertools
+from math import *
 
+# functions copied from glnav.py
+def use_pango_font(font, start, count, will_call_prepost=False):
+    import gi
+    gi.require_version('Pango','1.0')
+    gi.require_version('PangoCairo','1.0')
+    from gi.repository import Pango
+    from gi.repository import PangoCairo
+    #from gi.repository import Cairo as cairo
+    import cairo
+
+    fontDesc = Pango.FontDescription(font)
+    a = array.array('b', itertools.repeat(0, 256*256))
+    surface = cairo.ImageSurface.create_for_data(a, cairo.FORMAT_A8, 256, 256)
+    context  = cairo.Context(surface)
+    pango_context = PangoCairo.create_context(context)
+    layout = PangoCairo.create_layout(context)
+    fontmap = PangoCairo.font_map_get_default()
+    font = fontmap.load_font(fontmap.create_context(), fontDesc)
+    layout.set_font_description(fontDesc)
+    metrics = font.get_metrics()
+    descent = metrics.get_descent()
+    d = descent / Pango.SCALE
+    linespace = metrics.get_ascent() + metrics.get_descent()
+    width = metrics.get_approximate_char_width()
+
+    GL.glPushClientAttrib(GL.GL_CLIENT_PIXEL_STORE_BIT)
+    GL.glPixelStorei(GL.GL_UNPACK_SWAP_BYTES, 0)
+    GL.glPixelStorei(GL.GL_UNPACK_LSB_FIRST, 1)
+    GL.glPixelStorei(GL.GL_UNPACK_ROW_LENGTH, 256)
+    GL.glPixelStorei(GL.GL_UNPACK_IMAGE_HEIGHT, 256)
+    GL.glPixelStorei(GL.GL_UNPACK_SKIP_PIXELS, 0)
+    GL.glPixelStorei(GL.GL_UNPACK_SKIP_ROWS, 0)
+    GL.glPixelStorei(GL.GL_UNPACK_SKIP_IMAGES, 0)
+    GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, 1)
+    GL.glPixelZoom(1, -1)
+
+    base = GL.glGenLists(count)
+    for i in range(count):
+        ch = chr(start+i)
+        layout.set_text(ch, -1)
+        w, h = layout.get_size()
+        context.save()
+        context.new_path()
+        context.rectangle(0, 0, 256, 256)
+        context.set_source_rgba(0., 0., 0., 0.)
+        context.set_operator (cairo.OPERATOR_SOURCE)
+        context.paint()
+        context.restore()
+
+        context.save()
+        context.set_source_rgba(1., 1., 1., 1.)
+        context.set_operator (cairo.OPERATOR_SOURCE)
+        context.move_to(0, 0)
+        PangoCairo.update_context(context,pango_context)
+        PangoCairo.show_layout(context,layout)
+        context.restore()
+        w, h = int(w / Pango.SCALE), int(h / Pango.SCALE)
+        GL.glNewList(base+i, GL.GL_COMPILE)
+        GL.glBitmap(1, 0, 0, 0, 0, h-d, bytearray([0]*4))
+        #glDrawPixels(0, 0, 0, 0, 0, h-d, '');
+        if not will_call_prepost:
+            pango_font_pre()
+        if w and h: 
+            try:
+                pass
+                GL.glDrawPixels(w, h, GL.GL_LUMINANCE, GL.GL_UNSIGNED_BYTE, a.tobytes())
+            except Exception as e:
+                print("glnav Exception ",e)
+
+        GL.glBitmap(1, 0, 0, 0, w, -h+d, bytearray([0]*4))
+        if not will_call_prepost:
+            pango_font_post()
+        GL.glEndList()
+
+    GL.glPopClientAttrib()
+    return base, int(width / Pango.SCALE), int(linespace / Pango.SCALE)
+
+def pango_font_pre(rgba=(1., 1., 0., 1.)):
+    GL.glPushAttrib(GL.GL_COLOR_BUFFER_BIT)
+    GL.glEnable(GL.GL_BLEND)
+    GL.glBlendFunc(GL.GL_ONE, GL.GL_ONE)
+
+def pango_font_post():
+    GL.glPopAttrib()
 
 #################################################
 
@@ -39,6 +125,25 @@ class Collection(object):
         self.vol = vol;
 
 
+class HideCollection(Collection):
+    def __init__(self, parts, comp, var):
+        self.parts = parts
+        self.comp = comp
+        self.var = var
+        self.vol = 0
+
+    def traverse(self):
+        try:
+            if self.comp is None:
+                v = bool(hal.get_value(self.var))
+            else:
+                v = bool(self.comp[self.var])
+        except:
+            v = 0
+        if v:
+            return
+        super(HideCollection,self).traverse()
+
 class Translate(Collection):
     def __init__(self, parts, x, y, z):
         self.parts = parts
@@ -63,55 +168,6 @@ class Scale(Collection):
 
     def unapply(self):
         GL.glPopMatrix()
-
-
-class HalTranslate(Collection):
-    def __init__(self, parts, comp, var, x, y, z, direct=None):
-        self.parts = parts
-        self.where = x, y, z
-        self.comp = comp
-        self.var = var
-        self.direct = direct
-
-    def apply(self):
-        x, y, z = self.where
-        if self.direct is None:
-            v = self.comp[self.var]
-        else:
-            try:
-                v = hal.get_value(self.var)
-            except:
-                v = 0
-        GL.glPushMatrix()
-        GL.glTranslatef(x * v, y * v, z * v)
-
-    def unapply(self):
-        GL.glPopMatrix()
-
-
-class HalRotate(Collection):
-    def __init__(self, parts, comp, var, th, x, y, z, direct=None):
-        self.parts = parts
-        self.where = th, x, y, z
-        self.comp = comp
-        self.var = var
-        self.direct = direct
-
-    def apply(self):
-        th, x, y, z = self.where
-        GL.glPushMatrix()
-        if direct is None:
-            v = self.comp[self.var]
-        else:
-            try:
-                v = hal.get_value(self.var)
-            except:
-                v = 0
-        GL.glRotatef(th * v, x, y, z)
-
-    def unapply(self):
-        GL.glPopMatrix()
-
 
 class Rotate(Collection):
     def __init__(self, parts, th, x, y, z):
@@ -149,9 +205,9 @@ class Track(Collection):
 
     def map_coords(self, tx, ty, tz, transform):
         # now we have to transform them to the world frame
-        wx = tx * transform[0] + ty * transform[4] + tz * transform[8] + transform[12]
-        wy = tx * transform[1] + ty * transform[5] + tz * transform[9] + transform[13]
-        wz = tx * transform[2] + ty * transform[6] + tz * transform[10] + transform[14]
+        wx = tx*transform[0][0]+ty*transform[1][0]+tz*transform[2][0]+transform[3][0]
+        wy = tx*transform[0][1]+ty*transform[1][1]+tz*transform[2][1]+transform[3][1]
+        wz = tx*transform[0][2]+ty*transform[1][2]+tz*transform[2][2]+transform[3][2]
         return ([wx, wy, wz])
 
     def apply(self):
@@ -164,9 +220,9 @@ class Track(Collection):
 
         view2world = invert(self.world2view.t)
 
-        px, py, pz = self.position.t[12:15]
+        px, py, pz = self.position.t[3][:3]
         px, py, pz = self.map_coords(px, py, pz, view2world)
-        tx, ty, tz = self.target.t[12:15]
+        tx, ty, tz = self.target.t[3][:3]
         tx, ty, tz = self.map_coords(tx, ty, tz, view2world)
         dx = tx - px;
         dy = ty - py;
@@ -188,7 +244,7 @@ class Track(Collection):
 
 class CoordsBase(object):
     def __init__(self, *args):
-        if args and isinstance(args[0], hal.component):
+        if args and (isinstance(args[0], hal.component) or args[0] is None):
             self.comp = args[0]
             args = args[1:]
         else:
@@ -200,7 +256,11 @@ class CoordsBase(object):
         return list(map(self._coord, self._coords))
 
     def _coord(self, v):
-        if isinstance(v, str): return self.comp[v]
+        if isinstance(v, str):
+            if self.comp is None:
+                return hal.get_value(v)
+            else:
+                return self.comp[v]
         return v
 
 
@@ -643,19 +703,14 @@ class BoxCenteredXY(Box):
 
 
 # capture current transformation matrix
-# note that this tranforms from the current coordinate system
+# note that this transforms from the current coordinate system
 # to the viewport system, NOT to the world system
 class Capture(object):
     def __init__(self):
         self.t = []
 
     def capture(self):
-        # This conversion is need because minigl library gives a flat list and QTOpengl
-        # give a list of lists.
-        # It would be better to change all the functions so a flat list could be used 
-        # directly - i don't understand the code well enough
-        # self.t = GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)
-        self.t = list(itertools.chain.from_iterable(GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)))
+        self.t = GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)
 
     def volume(self):
         return 0.0
@@ -672,17 +727,17 @@ class Capture(object):
 
 def invert(src):
     # make a copy
-    inv = src[:]
+    inv = copy.deepcopy(src[:])
     # The inverse of the upper 3x3 is the transpose (since the basis
     # vectors are orthogonal to each other.
-    inv[1], inv[4] = inv[4], inv[1]
-    inv[2], inv[8] = inv[8], inv[2]
-    inv[6], inv[9] = inv[9], inv[6]
+    inv[0][1], inv[1][0] = inv[1][0], inv[0][1]
+    inv[0][2], inv[2][0] = inv[2][0], inv[0][2]
+    inv[1][2], inv[2][1] = inv[2][1], inv[1][2]
     # The inverse of the translation component is just the negation
     # of the translation after dotting with the new upper3x3 rows. */
-    inv[12] = -(src[12] * inv[0] + src[13] * inv[4] + src[14] * inv[8])
-    inv[13] = -(src[12] * inv[1] + src[13] * inv[5] + src[14] * inv[9])
-    inv[14] = -(src[12] * inv[2] + src[13] * inv[6] + src[14] * inv[10])
+    inv[3][0] = -(src[3][0] * inv[0][0] + src[3][1] * inv[1][0] + src[3][2] * inv[2][0])
+    inv[3][1] = -(src[3][0] * inv[0][1] + src[3][1] * inv[1][1] + src[3][2] * inv[2][1])
+    inv[3][2] = -(src[3][0] * inv[0][2] + src[3][1] * inv[1][2] + src[3][2] * inv[2][2])
     return inv
 
 
@@ -697,6 +752,17 @@ class Hud(object):
         self.messages = []
         self.showme = 0
         self.fontbase = []
+        self._font = 'monospace bold 16'
+        self._width = 9
+        self._height = 15
+        self._displayOnRight = False
+
+
+    def display_on_left(self):
+        self._displayOnRight = False
+
+    def display_on_right(self):
+        self._displayOnRight = True
 
     def show(self, string="xyzzy"):
         self.showme = 1
@@ -722,19 +788,19 @@ class Hud(object):
         GL.glLoadIdentity()
 
         if not self.fontbase:
-            self.fontbase = int(self.app.loadbitmapfont("9x15"))
-        char_width, char_height = 9, 15
+            self.fontbase, self._width, linespace = use_pango_font(self._font, 0, 128)
         xmargin, ymargin = 5, 5
         ypos = float(self.app.winfo_height())
+        winWidth = int(self.app.winfo_width())
 
-        GL.glOrtho(0.0, self.app.winfo_width(), 0.0, ypos, -1.0, 1.0)
+        GL.glOrtho(0.0, winWidth, 0.0, ypos, -1.0, 1.0)
         GL.glMatrixMode(GL.GL_MODELVIEW)
         GL.glPushMatrix()
         GL.glLoadIdentity()
 
         # draw the text box
         maxlen = max([len(p) for p in drawtext])
-        box_width = maxlen * char_width
+        box_width = maxlen * self._width
         GL.glDepthFunc(GL.GL_ALWAYS)
         GL.glDepthMask(GL.GL_FALSE)
         GL.glDisable(GL.GL_LIGHTING)
@@ -743,18 +809,26 @@ class Hud(object):
         GL.glBlendFunc(GL.GL_ONE, GL.GL_CONSTANT_ALPHA)
         GL.glColor3f(0.2, 0, 0)
         GL.glBlendColor(0, 0, 0, 0.5)  # rgba
+
+        # left side or right side display
+        if self._displayOnRight:
+            offset = winWidth-box_width-xmargin-xmargin
+        else:
+            offset = 0
+
         GL.glBegin(GL.GL_QUADS)
-        GL.glVertex3f(0, ypos, 1)  # upper left
-        GL.glVertex3f(0, ypos - 2 * ymargin - char_height * len(drawtext), 1)  # lower left
-        GL.glVertex3f(box_width + 2 * xmargin, ypos - 2 * ymargin - char_height * len(drawtext), 1)  # lower right
-        GL.glVertex3f(box_width + 2 * xmargin, ypos, 1)  # upper right
+        GL.glVertex3f(offset, ypos, 1)  # upper left
+        GL.glVertex3f(offset, ypos - 2 * ymargin - self._height * len(drawtext), 1)  # lower left
+        GL.glVertex3f(offset+box_width + 2 * xmargin, ypos - 2 * ymargin - self._height * len(drawtext), 1)  # lower right
+        GL.glVertex3f(offset+box_width + 2 * xmargin, ypos, 1)  # upper right
         GL.glEnd()
+
         GL.glDisable(GL.GL_BLEND)
         GL.glEnable(GL.GL_LIGHTING)
 
         # fill the box with text
         maxlen = 0
-        ypos -= char_height + ymargin
+        ypos -= self._height + ymargin
         i = 0
         GL.glDisable(GL.GL_LIGHTING)
         GL.glColor3f(0.9, 0.9, 0.9)
@@ -763,12 +837,12 @@ class Hud(object):
             #        if i < len(homed) and homed[i]:
             #                GL.glRasterPos2i(6, ypos)
             #                GL.glBitmap(13, 16, 0, 3, 17, 0, homeicon)
-            GL.glRasterPos2i(xmargin, int(ypos))
+            GL.glRasterPos2i(offset+xmargin, int(ypos))
             for char in string:
                 GL.glCallList(self.fontbase + ord(char))
             #        if i < len(homed) and limit[i]:
             #                GL.glBitmap(13, 16, -5, 3, 17, 0, limiticon)
-            ypos -= char_height
+            ypos -= self._height
             i = i + 1
         GL.glDepthFunc(GL.GL_LESS)
         GL.glDepthMask(GL.GL_TRUE)
@@ -779,6 +853,152 @@ class Hud(object):
         GL.glPopMatrix()
         GL.glMatrixMode(GL.GL_MODELVIEW)
 
+class HalHud(object):
+        '''head up display - draws a semi-transparent text box.
+        use HUD.strs for things that must be updated constantly,
+        and HUD.show("stuff") for one-shot things like error messages'''
+        def __init__(self):
+                self.showme = 0
+                self._font = 'monospace bold 16'
+                self.strs = []
+                self.messages = []
+                self.messages_top = []
+                self.fontbase = []
+                self.strings = []
+                self.formats = []
+                self.pinnames = []
+                self.background_color = (0,0.2,0,.5)
+                self.text_color = (0.9,0.9,0.0)
+                self.char_width = 13
+                self.char_height = 18
+                self._displayOnRight = False
+
+        def display_on_left(self):
+            self._displayOnRight = False
+
+        def display_on_right(self):
+            self._displayOnRight = True
+
+        def add_pin(self, text,form,pinname):
+            self.strings.append(str(text))
+            self.formats.append(form)
+            self.pinnames.append(pinname)
+
+        def show_top(self, string):
+                self.showme = 1
+                self.messages_top += [str(string)]
+
+        def show(self, string):
+                self.showme = 1
+                self.messages += [str(string)]
+        
+        def hide(self):
+                self.showme = 0
+                
+        def clear(self):
+                self.messages = []
+
+        # changes the hud color and transparency
+        def set_background_color(self, r, g, b, a =.7):
+            self.background_color = (r, g, b, 1-a)
+
+        # changes the hud text color
+        def set_text_color(self, r, g, b):
+            self.text_color = (r, g, b)
+
+        def set_char_width(self, width):
+            self.char_width = width
+
+        def set_char_height(self, height):
+            self.char_height = height
+
+        def set_font(self, font):
+            self._font = font
+ 
+        def draw(self):
+                self.strs = []
+                # create the strings with the updated values using the corresponding list elements
+                for n in range(len(self.strings)):
+                    try:
+                        value = hal.get_value( self.pinnames[n])
+                    except:
+                        value = 0.0
+                    self.strs += [self.strings[n] +
+                                  str(self.formats[n].format(value))]
+
+                drawtext = self.messages_top + self.strs + self.messages
+                self.lines = len(drawtext)
+
+                # draw head-up-display
+                if ((self.showme == 0) or (self.lines == 0)):
+                        return
+                
+                GL.glMatrixMode(GL.GL_PROJECTION)
+                GL.glPushMatrix()
+                GL.glLoadIdentity()
+                
+                if not self.fontbase:
+                    self.fontbase, self._width, linespace = use_pango_font(self._font, 0, 128)
+
+                xmargin,ymargin = 5,5
+                ypos = float(self.app.winfo_height())
+                winWidth = int(self.app.winfo_width())
+
+                GL.glOrtho(0.0, winWidth, 0.0, ypos, -1.0, 1.0)
+                GL.glMatrixMode(GL.GL_MODELVIEW)
+                GL.glPushMatrix()
+                GL.glLoadIdentity()
+
+                #draw the text box
+                maxlen = max([len(p) for p in drawtext])
+                box_width = maxlen * self.char_width
+                GL.glDepthFunc(GL.GL_ALWAYS)
+                GL.glDepthMask(GL.GL_FALSE)
+                GL.glDisable(GL.GL_LIGHTING)
+                GL.glEnable(GL.GL_BLEND)
+                GL.glEnable(GL.GL_NORMALIZE)
+                GL.glBlendFunc(GL.GL_ONE, GL.GL_CONSTANT_ALPHA)
+                color = self.background_color
+                GL.glColor3f(color[0],color[1],color[2])
+                GL.glBlendColor(0,0,0,color[3]) #rgba, sets the transparency of the overlay using the 'a' value
+
+                # left side or right side display
+                if self._displayOnRight:
+                    offset = winWidth-box_width-xmargin-xmargin
+                else:
+                    offset = 0
+
+                GL.glBegin(GL.GL_QUADS)
+                GL.glVertex3f(offset, ypos, 1) #upper left
+                GL.glVertex3f(offset, ypos - 2*ymargin - self.char_height*len(drawtext), 1) #lower left
+                GL.glVertex3f(offset+box_width+2*xmargin, ypos - 2*ymargin - self.char_height*len(drawtext), 1) #lower right
+                GL.glVertex3f(offset+box_width+2*xmargin,  ypos , 1) #upper right
+                GL.glEnd()
+                GL.glDisable(GL.GL_BLEND)
+                GL.glEnable(GL.GL_LIGHTING)
+                
+                #fill the box with text
+                maxlen = 0
+                ypos -= self.char_height+ymargin
+                i=0
+                GL.glDisable(GL.GL_LIGHTING)
+                color = self.text_color
+                GL.glColor3f(color[0],color[1],color[2])
+                for string in drawtext:
+                        maxlen = max(maxlen, len(string))
+                        GL.glRasterPos2i(offset+xmargin, int(ypos))
+                        for char in string:
+                                GL.glCallList(self.fontbase + ord(char))
+                        ypos -= self.char_height
+                        i = i + 1
+                GL.glDepthFunc(GL.GL_LESS)
+                GL.glDepthMask(GL.GL_TRUE)
+                GL.glEnable(GL.GL_LIGHTING)
+        
+                GL.glPopMatrix()
+                GL.glMatrixMode(GL.GL_PROJECTION)
+                GL.glPopMatrix()
+                GL.glMatrixMode(GL.GL_MODELVIEW)
 
 class Color(Collection):
     def __init__(self, color, parts):
@@ -792,6 +1012,68 @@ class Color(Collection):
     def unapply(self):
         GL.glPopAttrib()
 
+# change the color of an object with a HAL U32 pin
+class HALColorRGB(Collection):
+    def __init__(self, parts, comp, var, alpha=1.0):
+        self.comp = comp
+        self.var = var
+        self.alpha = float(alpha)
+        Collection.__init__(self, parts)
+
+    def apply(self):
+        try:
+            if self.comp is None:
+                v = int(hal.get_value(self.var))
+            else:
+                v = int(self.comp[self.var])
+        except:
+            v = 0
+
+        # split the u32 value into 3 (0-1.0) floats representing RGB
+        r = ((v & 0x000000FF) >> 0)/255
+        g = ((v & 0x0000FF00) >> 8)/255
+        b = ((v & 0x00FF0000) >> 16)/255
+
+        # add preset alpha into the open GL color variable
+        c = [r,g,b,self.alpha]
+
+        GL.glPushAttrib(GL.GL_LIGHTING_BIT)
+        GL.glMaterialfv(GL.GL_FRONT_AND_BACK, GL.GL_AMBIENT_AND_DIFFUSE, c)
+        GL.glEnable(GL.GL_BLEND)
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+
+    def unapply(self):
+        GL.glPopAttrib()
+        GL.glDisable(GL.GL_BLEND)
+
+# change between two preset colors with a HAL Bit pin
+class HALColorFlip(Collection):
+    def __init__(self, color1, color2, parts, comp, var):
+        self.color1 = color1
+        self.color2 = color2
+        self.comp = comp
+        self.var = var
+        Collection.__init__(self, parts)
+
+    def apply(self):
+        try:
+            if self.comp is None:
+                v = bool(hal.get_value(self.var))
+            else:
+                v = bool(self.comp[self.var])
+        except:
+            v = False
+        if v : c = self.color2
+        else: c = self.color1
+
+        GL.glPushAttrib(GL.GL_LIGHTING_BIT)
+        GL.glMaterialfv(GL.GL_FRONT_AND_BACK, GL.GL_AMBIENT_AND_DIFFUSE, c)
+        GL.glEnable(GL.GL_BLEND)
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+
+    def unapply(self):
+        GL.glPopAttrib()
+        GL.glDisable(GL.GL_BLEND)
 
 class AsciiSTL:
     def __init__(self, filename=None, data=None):
@@ -898,3 +1180,117 @@ class AsciiOBJ:
             del self.vn
             del self.f
         GL.glCallList(self.list)
+
+################################################################
+# animated objects
+################################################################
+
+class HalTranslate(Collection):
+    def __init__(self, parts, comp, var, x, y, z):
+        self.parts = parts
+        self.where = x, y, z
+        self.comp = comp
+        self.var = var
+
+    def apply(self):
+        x, y, z = self.where
+        try:
+            if self.comp is None:
+                v = hal.get_value(self.var)
+            else:
+                v = self.comp[self.var]
+        except:
+            v = 0
+
+        GL.glPushMatrix()
+        GL.glTranslatef(x * v, y * v, z * v)
+
+    def unapply(self):
+        GL.glPopMatrix()
+
+
+class HalRotate(Collection):
+    def __init__(self, parts, comp, var, th, x, y, z):
+        self.parts = parts
+        self.where = th, x, y, z
+        self.comp = comp
+        self.var = var
+
+    def apply(self):
+        th, x, y, z = self.where
+        GL.glPushMatrix()
+        try:
+            if self.comp is None:
+                v = hal.get_value(self.var)
+            else:
+                v = self.comp[self.var]
+        except:
+            v = 0
+
+        GL.glRotatef(th * v, x, y, z)
+
+    def unapply(self):
+        GL.glPopMatrix()
+
+# updates tool cylinder shape.
+class HalToolCylinder(CylinderZ):
+    METRIC = 1
+    IMPERIAL = 25.4
+    MODEL_SCALING = IMPERIAL
+
+    def __init__(self, comp=None, *args):
+        # get machine access so it can
+        # change itself as it runs
+        # specifically tool cylinder in this case.
+        CylinderZ.__init__(self, *args)
+
+    def coords(self):
+        # get diameter and divide by 2 to get radius.
+        try:
+            dia = (hal.get_value('halui.tool.diameter') * self.MODEL_SCALING)
+        except:
+            dia = 0
+        rad = dia / 2  # change to rad
+        # this instantly updates tool model but tooltip doesn't move till -
+        # tooltip, the drawing point will NOT move till g43h(tool number) is called, however.
+        # Tool will "crash" if h and tool length does not match.
+        try:
+            leng = hal.get_value('motion.tooloffset.z') * self.MODEL_SCALING
+        except:
+            leng = 0
+        # Update tool length when g43h(toolnumber) is called, otherwise stays at 0 or previous size.
+        # commented out as I prefer machine to show actual tool size right away.
+        # leng = self.comp["toollength"]
+        return (-leng, rad, 0, rad)
+
+    def set_tool_scale(self, scale):
+        self.MODEL_SCALING = scale
+
+# we use a triangle for the tool
+# since we need to visualize a lathe tool here
+class HalToolTriangle(TriangleXZ):
+    def __init__(self, comp=None, *args):
+        # get machine access so it can
+        # change itself as it runs
+        # specifically tool cylinder in this case.
+        TriangleXZ.__init__(self, *args)
+        self.comp = comp
+
+    def coords(self):
+        try:
+            leng = hal.get_value('motion.tooloffset.z') * self.MODEL_SCALING
+        except:
+            leng = 0
+        try:
+            xleng = hal.get_value('motion.tooloffset.x') * self.MODEL_SCALING
+        except:
+            xleng = 0
+
+        x1 = leng
+        z1 = -xleng
+        x2 = 1#self.comp["tool-x-offset"]+10
+        z2 = -leng/2
+        x3 = 2#self.comp["tooldiameter"]
+        z3 = 0
+        return (x1, z1, x2, z2, x3, z3, 0, 1)
+

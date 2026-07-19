@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/time.h>
@@ -5,19 +6,19 @@
 #include <unistd.h>
 #include <pthread.h>
 
-#include "rtapi.h"
+#include <rtapi.h>
 #ifdef RTAPI
-#include "rtapi_app.h"
+#include <rtapi_app.h>
 #endif
-#include "rtapi_string.h"
-#include "rtapi_errno.h"
-#include "hal.h"
-#include "inifile.h"
+#include <rtapi_string.h>
+#include <rtapi_errno.h>
+#include <hal.h>
+#include <inifile.h>
 
 #include <modbus.h>
 
 #define MB2HAL_MAX_LINKS            32
-#define MB2HAL_MAX_DEVICE_LENGTH    32
+#define MB2HAL_MAX_DEVICE_LENGTH    128
 #define MB2HAL_DEFAULT_TCP_PORT    502
 #define MB2HAL_DEFAULT_MB_RESPONSE_TIMEOUT_MS 500
 #define MB2HAL_DEFAULT_MB_BYTE_TIMEOUT_MS     500
@@ -42,24 +43,25 @@ typedef enum { linkRTU,
              } link_type_t;
 
 typedef enum { mbtxERR,
-               mbtx_01_READ_COILS,
                mbtx_02_READ_DISCRETE_INPUTS,
                mbtx_03_READ_HOLDING_REGISTERS,
                mbtx_04_READ_INPUT_REGISTERS,
-               mbtx_05_WRITE_SINGLE_COIL,
                mbtx_06_WRITE_SINGLE_REGISTER,
                mbtx_15_WRITE_MULTIPLE_COILS,
                mbtx_16_WRITE_MULTIPLE_REGISTERS,
+               mbtx_01_READ_COILS,
+               mbtx_05_WRITE_SINGLE_COIL,
                mbtxMAX
              } mb_tx_fnct; //modbus transaction code
 typedef enum { debugSILENT, debugERR, debugOK, debugDEBUG, debugMAX
              } DEBUG_TYPE; //message levels
 typedef enum { retOK, retOKwithWarning, retERR
-             } retCode; //funtions return codes
+             } retCode; //functions return codes
 
 #define ERR(debug, fmt, args...) if(debug >= debugERR) {fprintf(stderr, "%s %s ERR: "fmt"\n", gbl.hal_mod_name, fnct_name, ## args);}
 #define OK(debug, fmt, args...) if(debug >= debugOK) {fprintf(stdout, "%s %s OK: "fmt"\n", gbl.hal_mod_name, fnct_name, ## args);}
 #define DBG(debug, fmt, args...) if(debug >= debugDEBUG) {fprintf(stdout, "%s %s DEBUG: "fmt"\n", gbl.hal_mod_name, fnct_name, ## args);}
+#define DBGMAX(debug, fmt, args...) if(debug >= debugMAX) {fprintf(stdout, "%s %s DEBUGMAX: "fmt"\n", gbl.hal_mod_name, fnct_name, ## args);}
 
 //Modbus transaction structure (mb_tx_t)
 //Store each transaction defined in INI config file
@@ -135,10 +137,10 @@ typedef struct {
 //Reduce functions parameters using this common global structure.
 typedef struct {
     //INI config file
-    FILE *ini_file_ptr;
-    char *ini_file_path;
+    const char *ini_file_path;
     //INI config, common section
-    int    init_dbg;
+    int   init_dbg;
+    int   version;
     double slowdown;
     //HAL related
     int   hal_mod_id;
@@ -151,7 +153,7 @@ typedef struct {
     int   tot_mb_links;
     //others
     const char *mb_tx_fncts[mbtxMAX];
-    int quit_flag;
+    volatile int quit_flag;
 } gbl_t;
 
 extern gbl_t gbl;

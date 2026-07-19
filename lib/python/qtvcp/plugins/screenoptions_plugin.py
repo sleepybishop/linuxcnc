@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtDesigner import QPyDesignerCustomWidgetPlugin, \
+from qtpy import QtCore, QtGui, QtWidgets
+from qtpy.QtDesigner import QPyDesignerCustomWidgetPlugin, \
     QPyDesignerTaskMenuExtension, QExtensionFactory, \
     QDesignerFormWindowInterface
 
@@ -83,6 +83,10 @@ class screenOptionsDialog(QtWidgets.QDialog):
         layout = QtWidgets.QGridLayout()
         self.c_notify = QtWidgets.QCheckBox("Desktop Notify Errors")
         self.c_notify.setChecked(widget.desktop_notify)
+        self.c_notify_max_msgs = QtWidgets.QSpinBox()
+        self.c_notify_max_msgs.setValue(widget.notify_max_messages)
+        self.c_notify_max_msgs.setRange(1, 10)
+        self.c_notify_max_msgs_label = QtWidgets.QLabel('Max Errors Shown')
         self.c_errors = QtWidgets.QCheckBox("Catch Errors")
         self.c_errors.setChecked(widget.catch_errors)
         self.c_close = QtWidgets.QCheckBox("Catch close Event")
@@ -91,13 +95,18 @@ class screenOptionsDialog(QtWidgets.QDialog):
         self.c_play_sounds.setChecked(widget.play_sounds)
         self.c_use_pref_file = QtWidgets.QCheckBox("Set up a Preference File")
         self.c_use_pref_file.setChecked(widget.use_pref_file)
-
+        self.e_hal_base_name = QtWidgets.QLineEdit()
+        self.e_hal_base_name.setText(widget._halBaseName)
         layout.addWidget(self.c_notify)
-        layout.addWidget(self.c_errors)
-        layout.addWidget(self.c_close)
-        layout.addWidget(self.c_play_sounds)
-        layout.addWidget(self.c_use_pref_file)
-        layout.addWidget(buttonBox, 5, 0, 1, 2)
+        layout.addWidget(self.c_notify_max_msgs)
+        layout.addWidget(self.c_notify_max_msgs_label,1,1,1,1)
+        layout.addWidget(self.c_errors,2,0,1,1)
+        layout.addWidget(self.c_close,3,0,1,1)
+        layout.addWidget(self.c_play_sounds,4,0,1,1)
+        layout.addWidget(self.c_use_pref_file,5,0,1,1)
+        layout.addWidget(QtWidgets.QLabel('HAL Component Base Name:'),6,0,1,1)
+        layout.addWidget(self.e_hal_base_name,6,1,1,1)
+        layout.addWidget(buttonBox, 7, 0, 1, 2)
         self.setLayout(layout)
 
         self.setWindowTitle(self.tr("Set Options"))
@@ -109,16 +118,19 @@ class screenOptionsDialog(QtWidgets.QDialog):
 
         if formWindow:
             formWindow.cursor().setProperty("notify_option",
-                                            QtCore.QVariant(self.c_notify.isChecked()))
+                                            self.c_notify.isChecked())
+            formWindow.cursor().setProperty("notify_max_messages",
+                                            self.c_notify_max_msgs.value())
             formWindow.cursor().setProperty("catch_errors_option",
-                                            QtCore.QVariant(self.c_errors.isChecked()))
+                                            self.c_errors.isChecked())
             formWindow.cursor().setProperty("catch_close_option",
-                                            QtCore.QVariant(self.c_close.isChecked()))
+                                            self.c_close.isChecked())
             formWindow.cursor().setProperty("play_sounds_option",
-                                            QtCore.QVariant(self.c_play_sounds.isChecked()))
+                                            self.c_play_sounds.isChecked())
             formWindow.cursor().setProperty("use_pref_file_option",
-                                            QtCore.QVariant(self.c_use_pref_file.isChecked()))
-
+                                            self.c_use_pref_file.isChecked())
+            formWindow.cursor().setProperty("halCompBaseName",
+                                            self.e_hal_base_name.text())
         self.accept()
 
 
@@ -140,7 +152,7 @@ class screenOptionsMenuEntry(QPyDesignerTaskMenuExtension):
 
     def updateLocation(self):
         dialog = screenOptionsDialog(self.widget)
-        dialog.exec_()
+        dialog.exec()
 
 
 class screenOptionsTaskMenuFactory(QExtensionFactory):

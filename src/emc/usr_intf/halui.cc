@@ -24,20 +24,24 @@
 #include <signal.h>
 #include <math.h>
 
-#include "hal.h"		/* access to HAL functions/definitions */
-#include "rtapi.h"		/* rtapi_print_msg */
-#include "rcs.hh"
-#include "posemath.h"		// PM_POSE, TO_RAD
-#include "emc.hh"		// EMC NML
-#include "emc_nml.hh"
-#include "emcglb.h"		// EMC_NMLFILE, TRAJ_MAX_VELOCITY, etc.
-#include "emccfg.h"		// DEFAULT_TRAJ_MAX_VELOCITY
-#include "inifile.hh"		// INIFILE
-#include "rcs_print.hh"
-#include "nml_oi.hh"
-#include "timer.hh"
+#include <hal.h>		/* access to HAL functions/definitions */
+#include <rtapi.h>		/* rtapi_print_msg */
+#include "libnml/rcs/rcs.hh"
+#include <posemath.h>		// PM_POSE, TO_RAD
+#include "nml_intf/emc.hh"		// EMC NML
+#include "nml_intf/emc_nml.hh"
+#include "nml_intf/emcglb.h"		// EMC_NMLFILE, TRAJ_MAX_VELOCITY, etc.
+#include "nml_intf/emccfg.h"		// DEFAULT_TRAJ_MAX_VELOCITY
+#include <inifile.hh>
+#include "libnml/rcs/rcs_print.hh"
+#include "libnml/nml/nml_oi.hh"
+#include "libnml/os_intf/timer.hh"
 #include <rtapi_string.h>
-#include "tooldata.hh"
+#include "tooldata/tooldata.hh"
+#include "mapini.hh"
+#include "unitenum.hh"
+
+using namespace linuxcnc;
 
 /* Using halui: see the man page */
 
@@ -77,12 +81,10 @@ static int axis_mask = 0;
     FIELD(hal_bit_t,flood_on) /* pin for starting flood */ \
     FIELD(hal_bit_t,flood_off) /* pin for stopping flood */ \
     FIELD(hal_bit_t,flood_is_on) /* pin for flood is on */ \
-    FIELD(hal_bit_t,lube_on) /* pin for starting lube */ \
-    FIELD(hal_bit_t,lube_off) /* pin for stopping lube */ \
-    FIELD(hal_bit_t,lube_is_on) /* pin for lube is on */ \
 \
     FIELD(hal_bit_t,program_is_idle) /* pin for notifying user that program is idle */ \
     FIELD(hal_bit_t,program_is_running) /* pin for notifying user that program is running */ \
+    FIELD(hal_bit_t,halui_mdi_is_running) /* pin for notifying user that halui MDI commands is running */ \
     FIELD(hal_bit_t,program_is_paused) /* pin for notifying user that program is paused */ \
     FIELD(hal_bit_t,program_run) /* pin for running program */ \
     FIELD(hal_bit_t,program_pause) /* pin for pausing program */ \
@@ -178,6 +180,7 @@ static int axis_mask = 0;
     FIELD(hal_float_t,fo_value) /* current Feed Override value */ \
     FIELD(hal_bit_t,fo_increase) /* pin for increasing the FO (+=scale) */ \
     FIELD(hal_bit_t,fo_decrease) /* pin for decreasing the FO (-=scale) */ \
+    FIELD(hal_bit_t,fo_reset) /* pin for resetting Feed Override */ \
 \
     FIELD(hal_s32_t,ro_counts) /* pin for the Feed Override counting */ \
     FIELD(hal_bit_t,ro_count_enable) /* pin for the Feed Override counting enable */ \
@@ -186,6 +189,7 @@ static int axis_mask = 0;
     FIELD(hal_float_t,ro_value) /* current Feed Override value */ \
     FIELD(hal_bit_t,ro_increase) /* pin ror increasing the FO (+=scale) */ \
     FIELD(hal_bit_t,ro_decrease) /* pin for decreasing the FO (-=scale) */ \
+    FIELD(hal_bit_t,ro_reset) /* pin for resetting Feed Override */ \
 \
     ARRAY(hal_s32_t,so_counts,EMCMOT_MAX_SPINDLES+1) /* pin for the Spindle Speed Override counting */ \
     ARRAY(hal_bit_t,so_count_enable,EMCMOT_MAX_SPINDLES+1) /* pin for the Spindle Speed Override counting enable */ \
@@ -194,6 +198,7 @@ static int axis_mask = 0;
     ARRAY(hal_float_t,so_value,EMCMOT_MAX_SPINDLES+1) /* current Spindle speed Override value */ \
     ARRAY(hal_bit_t,so_increase,EMCMOT_MAX_SPINDLES+1) /* pin for increasing the SO (+=scale) */ \
     ARRAY(hal_bit_t,so_decrease,EMCMOT_MAX_SPINDLES+1) /* pin for decreasing the SO (-=scale) */ \
+    ARRAY(hal_bit_t,so_reset,EMCMOT_MAX_SPINDLES+1) /* pin for resetting Spindle Speed Override */ \
 \
     FIELD(hal_bit_t,home_all) /* pin for homing all joints in sequence */ \
     FIELD(hal_bit_t,abort) /* pin for aborting */ \
@@ -238,24 +243,24 @@ static int have_home_all = 0;
 
 static int comp_id, done;				/* component ID, main while loop */
 
-static int num_axes = 0; //number of axes, taken from the ini [TRAJ] section
-static int num_joints = 3; //number of joints, taken from the ini [KINS] section
+static int num_axes = 0; //number of axes, taken from the INI [TRAJ] section
+static int num_joints = 3; //number of joints, taken from the INI [KINS] section
 static int num_spindles = 1; // number of spindles, [TRAJ]SPINDLES
 
 static double maxFeedOverride=1;
 static double maxMaxVelocity=1;
 static double minSpindleOverride=0.0;
 static double maxSpindleOverride=1.0;
-static EMC_TASK_MODE_ENUM halui_old_mode = EMC_TASK_MODE_MANUAL;
+static EMC_TASK_MODE halui_old_mode = EMC_TASK_MODE::MANUAL;
 static int halui_sent_mdi = 0;
 
 // the NML channels to the EMC task
-static RCS_CMD_CHANNEL *emcCommandBuffer = 0;
-static RCS_STAT_CHANNEL *emcStatusBuffer = 0;
-EMC_STAT *emcStatus = 0;
+static RCS_CMD_CHANNEL *emcCommandBuffer = NULL;
+static RCS_STAT_CHANNEL *emcStatusBuffer = NULL;
+EMC_STAT *emcStatus = NULL;
 
 // the NML channel for errors
-static NML *emcErrorBuffer = 0;
+static NML *emcErrorBuffer = NULL;
 
 // the serial number to use.
 static int emcCommandSerialNumber = 0;
@@ -266,7 +271,7 @@ static double receiveTimeout = 10.0;
 // how long to wait for Task to finish running our command
 static double doneTimeout = 60.;
 
-static void quit(int sig)
+static void quit(int /*sig*/)
 {
     done = 1;
 }
@@ -276,28 +281,28 @@ static int emcTaskNmlGet()
     int retval = 0;
 
     // try to connect to EMC cmd
-    if (emcCommandBuffer == 0) {
+    if (emcCommandBuffer == NULL) {
 	emcCommandBuffer =
 	    new RCS_CMD_CHANNEL(emcFormat, "emcCommand", "xemc",
 				emc_nmlfile);
 	if (!emcCommandBuffer->valid()) {
 	    delete emcCommandBuffer;
-	    emcCommandBuffer = 0;
+	    emcCommandBuffer = NULL;
 	    retval = -1;
 	}
     }
     // try to connect to EMC status
-    if (emcStatusBuffer == 0) {
+    if (emcStatusBuffer == NULL) {
 	emcStatusBuffer =
 	    new RCS_STAT_CHANNEL(emcFormat, "emcStatus", "xemc",
 				 emc_nmlfile);
 	if (!emcStatusBuffer->valid()) {
 	    delete emcStatusBuffer;
-	    emcStatusBuffer = 0;
-	    emcStatus = 0;
+	    emcStatusBuffer = NULL;
+	    emcStatus = NULL;
 	    retval = -1;
 	} else {
-	    emcStatus = (EMC_STAT *) emcStatusBuffer->get_address();
+	    emcStatus = reinterpret_cast<EMC_STAT *>(emcStatusBuffer->get_address());
 	}
     }
 
@@ -308,12 +313,12 @@ static int emcErrorNmlGet()
 {
     int retval = 0;
 
-    if (emcErrorBuffer == 0) {
+    if (emcErrorBuffer == NULL) {
 	emcErrorBuffer =
 	    new NML(nmlErrorFormat, "emcError", "xemc", emc_nmlfile);
 	if (!emcErrorBuffer->valid()) {
 	    delete emcErrorBuffer;
-	    emcErrorBuffer = 0;
+	    emcErrorBuffer = NULL;
 	    retval = -1;
 	}
     }
@@ -328,48 +333,34 @@ static int tryNml()
 #define RETRY_TIME 10.0		// seconds to wait for subsystems to come up
 #define RETRY_INTERVAL 1.0	// seconds between wait tries for a subsystem
 
-    if ((emc_debug & EMC_DEBUG_NML) == 0) {
-	set_rcs_print_destination(RCS_PRINT_TO_NULL);	// inhibit diag
-	// messages
-    }
     end = RETRY_TIME;
     good = 0;
     do {
-	if (0 == emcTaskNmlGet()) {
-	    good = 1;
-	    break;
-	}
-	esleep(RETRY_INTERVAL);
-	end -= RETRY_INTERVAL;
+        if (0 == emcTaskNmlGet()) {
+            good = 1;
+            break;
+        }
+        esleep(RETRY_INTERVAL);
+        end -= RETRY_INTERVAL;
     } while (end > 0.0);
-    if ((emc_debug & EMC_DEBUG_NML) == 0) {
-	set_rcs_print_destination(RCS_PRINT_TO_STDOUT);	// inhibit diag
-	// messages
-    }
+
     if (!good) {
-	return -1;
+        return -1;
     }
 
-    if ((emc_debug & EMC_DEBUG_NML) == 0) {
-	set_rcs_print_destination(RCS_PRINT_TO_NULL);	// inhibit diag
-	// messages
-    }
     end = RETRY_TIME;
     good = 0;
     do {
-	if (0 == emcErrorNmlGet()) {
-	    good = 1;
-	    break;
-	}
-	esleep(RETRY_INTERVAL);
-	end -= RETRY_INTERVAL;
+        if (0 == emcErrorNmlGet()) {
+            good = 1;
+            break;
+        }
+        esleep(RETRY_INTERVAL);
+        end -= RETRY_INTERVAL;
     } while (end > 0.0);
-    if ((emc_debug & EMC_DEBUG_NML) == 0) {
-	set_rcs_print_destination(RCS_PRINT_TO_STDOUT);	// inhibit diag
-	// messages
-    }
+
     if (!good) {
-	return -1;
+        return -1;
     }
 
     return 0;
@@ -382,7 +373,7 @@ static int updateStatus()
 {
     NMLTYPE type;
 
-    if (0 == emcStatus || 0 == emcStatusBuffer) {
+    if (NULL == emcStatus || NULL == emcStatusBuffer) {
         rtapi_print("halui: %s: no status buffer\n", __func__);
         return -1;
     }
@@ -430,11 +421,11 @@ static int emcCommandWaitDone()
 	    return 0;
 	}
 
-	if (emcStatus->status == RCS_DONE) {
+	if (emcStatus->status == RCS_STATUS::DONE) {
 	    return 0;
 	}
 
-	if (emcStatus->status == RCS_ERROR) {
+	if (emcStatus->status == RCS_STATUS::ERROR) {
 	    return -1;
 	}
 
@@ -475,32 +466,18 @@ static void thisQuit()
     //don't forget the big HAL sin ;)
     hal_exit(comp_id);
 
-    if(emcCommandBuffer) { delete emcCommandBuffer;  emcCommandBuffer = 0; }
-    if(emcStatusBuffer) { delete emcStatusBuffer;  emcStatusBuffer = 0; }
-    if(emcErrorBuffer) { delete emcErrorBuffer;  emcErrorBuffer = 0; }
+    if(emcCommandBuffer) { delete emcCommandBuffer;  emcCommandBuffer = NULL; }
+    if(emcStatusBuffer) { delete emcStatusBuffer;  emcStatusBuffer = NULL; }
+    if(emcErrorBuffer) { delete emcErrorBuffer;  emcErrorBuffer = NULL; }
     exit(0);
 }
 
-static enum {
-    LINEAR_UNITS_CUSTOM = 1,
-    LINEAR_UNITS_AUTO,
-    LINEAR_UNITS_MM,
-    LINEAR_UNITS_INCH,
-    LINEAR_UNITS_CM
-} linearUnitConversion = LINEAR_UNITS_AUTO;
-
-static enum {
-    ANGULAR_UNITS_CUSTOM = 1,
-    ANGULAR_UNITS_AUTO,
-    ANGULAR_UNITS_DEG,
-    ANGULAR_UNITS_RAD,
-    ANGULAR_UNITS_GRAD
-} angularUnitConversion = ANGULAR_UNITS_AUTO;
+static LINEAR_UNIT_CONVERSION linearUnitConversion = LINEAR_UNITS_AUTO;
+static ANGULAR_UNIT_CONVERSION angularUnitConversion = ANGULAR_UNITS_AUTO;
 
 #define CLOSE(a,b,eps) ((a)-(b) < +(eps) && (a)-(b) > -(eps))
 #define LINEAR_CLOSENESS 0.0001
 #define ANGULAR_CLOSENESS 0.0001
-#define INCH_PER_MM (1.0/25.4)
 #define CM_PER_MM 0.1
 #define GRAD_PER_DEG (100.0/90.0)
 #define RAD_PER_DEG TO_RAD	// from posemath.h
@@ -580,7 +557,7 @@ int halui_hal_init(void)
 
     /* STEP 2: allocate shared memory for halui data */
     halui_data = (halui_str *) hal_malloc(sizeof(halui_str));
-    if (halui_data == 0) {
+    if (halui_data == NULL) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 			"HALUI: ERROR: hal_malloc() failed\n");
 	hal_exit(comp_id);
@@ -609,12 +586,16 @@ int halui_hal_init(void)
     if (retval < 0) return retval;
     retval = halui_export_pin_OUT_bit(&(halui_data->flood_is_on), "halui.flood.is-on");
     if (retval < 0) return retval;
-    retval = halui_export_pin_OUT_bit(&(halui_data->lube_is_on), "halui.lube.is-on");
-    if (retval < 0) return retval;
     retval = halui_export_pin_OUT_bit(&(halui_data->program_is_idle), "halui.program.is-idle");
     if (retval < 0) return retval;
     retval = halui_export_pin_OUT_bit(&(halui_data->program_is_running), "halui.program.is-running");
     if (retval < 0) return retval;
+    
+    if (num_mdi_commands>0){
+    retval = halui_export_pin_OUT_bit(&(halui_data->halui_mdi_is_running), "halui.halui-mdi-is-running");
+    if (retval < 0) return retval;
+	}
+    
     retval = halui_export_pin_OUT_bit(&(halui_data->program_is_paused), "halui.program.is-paused");
     if (retval < 0) return retval;
     retval = halui_export_pin_OUT_bit(&(halui_data->program_os_is_on), "halui.program.optional-stop.is-on");
@@ -651,7 +632,7 @@ int halui_hal_init(void)
 	    if (retval < 0) return retval;
 	    retval = hal_pin_s32_newf(HAL_IN,  &(halui_data->so_counts[spindle]), comp_id, "halui.spindle.%i.override.counts", spindle);
 	    if (retval < 0) return retval;
-	    *halui_data->so_counts = 0;
+	    *halui_data->so_counts[spindle] = 0;
 	    retval = hal_pin_bit_newf(HAL_IN,  &(halui_data->so_count_enable[spindle]), comp_id, "halui.spindle.%i.override.count-enable", spindle);
 	    if (retval < 0) return retval;
 	    *halui_data->so_count_enable[spindle] = 1;
@@ -663,6 +644,8 @@ int halui_hal_init(void)
 	    retval = hal_pin_bit_newf(HAL_IN,  &(halui_data->so_increase[spindle]), comp_id, "halui.spindle.%i.override.increase", spindle);
 	    if (retval < 0) return retval;
 	    retval = hal_pin_bit_newf(HAL_IN,  &(halui_data->so_decrease[spindle]), comp_id, "halui.spindle.%i.override.decrease", spindle);
+            if (retval < 0) return retval;
+            retval = hal_pin_bit_newf(HAL_IN,  &(halui_data->so_reset[spindle]), comp_id, "halui.spindle.%i.override.reset", spindle);
     }
 
     for (joint=0; joint < num_joints ; joint++) {
@@ -699,23 +682,25 @@ int halui_hal_init(void)
     retval =  hal_pin_bit_newf(HAL_OUT, &(halui_data->joint_is_homed[num_joints]), comp_id, "halui.joint.selected.is-homed");
     if (retval < 0) return retval;
 
+    bool first_axis = true;
     for (axis_num=0; axis_num < EMCMOT_MAX_AXIS ; axis_num++) {
         if ( !(axis_mask & (1 << axis_num)) ) { continue; }
         char c = "xyzabcuvw"[axis_num];
-
         retval =  hal_pin_bit_newf(HAL_OUT, &(halui_data->axis_is_selected[axis_num]), comp_id, "halui.axis.%c.is-selected", c);
         if (retval < 0) return retval;
-	retval =  hal_pin_float_newf(HAL_OUT, &(halui_data->axis_pos_commanded[axis_num]), comp_id, "halui.axis.%c.pos-commanded", c);
+	    retval =  hal_pin_float_newf(HAL_OUT, &(halui_data->axis_pos_commanded[axis_num]), comp_id, "halui.axis.%c.pos-commanded", c);
         if (retval < 0) return retval;
-	retval =  hal_pin_float_newf(HAL_OUT, &(halui_data->axis_pos_feedback[axis_num]), comp_id, "halui.axis.%c.pos-feedback", c);
+	    retval =  hal_pin_float_newf(HAL_OUT, &(halui_data->axis_pos_feedback[axis_num]), comp_id, "halui.axis.%c.pos-feedback", c);
         if (retval < 0) return retval;
-	retval =  hal_pin_float_newf(HAL_OUT, &(halui_data->axis_pos_relative[axis_num]), comp_id, "halui.axis.%c.pos-relative", c);
+	    retval =  hal_pin_float_newf(HAL_OUT, &(halui_data->axis_pos_relative[axis_num]), comp_id, "halui.axis.%c.pos-relative", c);
         if (retval < 0) return retval;
+        if (first_axis) {
+            // at startup, indicate first item is selected:
+            *halui_data->joint_is_selected[0] = 1;
+            *halui_data->axis_is_selected[axis_num] = 1;
+        }
+        first_axis = false;
     }
-
-    // at startup, indicate [0] item is selected:
-    *halui_data->joint_is_selected[0] = 1;
-    *halui_data->axis_is_selected[0] = 1;
 
     retval =  hal_pin_float_newf(HAL_OUT, &(halui_data->mv_value), comp_id, "halui.max-velocity.value");
     if (retval < 0) return retval;
@@ -778,10 +763,6 @@ int halui_hal_init(void)
     if (retval < 0) return retval;
     retval = halui_export_pin_IN_bit(&(halui_data->flood_off), "halui.flood.off");
     if (retval < 0) return retval;
-    retval = halui_export_pin_IN_bit(&(halui_data->lube_on), "halui.lube.on");
-    if (retval < 0) return retval;
-    retval = halui_export_pin_IN_bit(&(halui_data->lube_off), "halui.lube.off");
-    if (retval < 0) return retval;
     retval = halui_export_pin_IN_bit(&(halui_data->program_run), "halui.program.run");
     if (retval < 0) return retval;
     retval = halui_export_pin_IN_bit(&(halui_data->program_pause), "halui.program.pause");
@@ -832,6 +813,8 @@ int halui_hal_init(void)
     if (retval < 0) return retval;
     retval = halui_export_pin_IN_bit(&(halui_data->fo_decrease), "halui.feed-override.decrease");
     if (retval < 0) return retval;
+    retval = halui_export_pin_IN_bit(&(halui_data->fo_reset), "halui.feed-override.reset");
+    if (retval < 0) return retval;
 
     retval = halui_export_pin_IN_s32(&(halui_data->ro_counts), "halui.rapid-override.counts");
     if (retval < 0) return retval;
@@ -847,6 +830,8 @@ int halui_hal_init(void)
     retval = halui_export_pin_IN_bit(&(halui_data->ro_increase), "halui.rapid-override.increase");
     if (retval < 0) return retval;
     retval = halui_export_pin_IN_bit(&(halui_data->ro_decrease), "halui.rapid-override.decrease");
+    if (retval < 0) return retval;
+    retval = halui_export_pin_IN_bit(&(halui_data->ro_reset), "halui.rapid-override.reset");
     if (retval < 0) return retval;
 
     if (have_home_all) {
@@ -880,20 +865,20 @@ int halui_hal_init(void)
 
     for (axis_num = 0; axis_num < EMCMOT_MAX_AXIS; axis_num++) {
         char c = "xyzabcuvw"[axis_num];
-	retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->axis_nr_select[axis_num]), comp_id, "halui.axis.%c.select", c);
-	if (retval < 0) return retval;
-	retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->ajog_plus[axis_num]), comp_id, "halui.axis.%c.plus", c);
-	if (retval < 0) return retval;
-	retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->ajog_minus[axis_num]), comp_id, "halui.axis.%c.minus", c);
-	if (retval < 0) return retval;
-	retval =  hal_pin_float_newf(HAL_IN, &(halui_data->ajog_analog[axis_num]), comp_id, "halui.axis.%c.analog", c);
-	if (retval < 0) return retval;
-	retval =  hal_pin_float_newf(HAL_IN, &(halui_data->ajog_increment[axis_num]), comp_id, "halui.axis.%c.increment", c);
-	if (retval < 0) return retval;
-	retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->ajog_increment_plus[axis_num]), comp_id, "halui.axis.%c.increment-plus", c);
-	if (retval < 0) return retval;
-	retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->ajog_increment_minus[axis_num]), comp_id, "halui.axis.%c.increment-minus", c);
-	if (retval < 0) return retval;
+        retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->axis_nr_select[axis_num]), comp_id, "halui.axis.%c.select", c);
+        if (retval < 0) return retval;
+        retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->ajog_plus[axis_num]), comp_id, "halui.axis.%c.plus", c);
+        if (retval < 0) return retval;
+        retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->ajog_minus[axis_num]), comp_id, "halui.axis.%c.minus", c);
+        if (retval < 0) return retval;
+        retval =  hal_pin_float_newf(HAL_IN, &(halui_data->ajog_analog[axis_num]), comp_id, "halui.axis.%c.analog", c);
+        if (retval < 0) return retval;
+        retval =  hal_pin_float_newf(HAL_IN, &(halui_data->ajog_increment[axis_num]), comp_id, "halui.axis.%c.increment", c);
+        if (retval < 0) return retval;
+        retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->ajog_increment_plus[axis_num]), comp_id, "halui.axis.%c.increment-plus", c);
+        if (retval < 0) return retval;
+        retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->ajog_increment_minus[axis_num]), comp_id, "halui.axis.%c.increment-minus", c);
+        if (retval < 0) return retval;
     }
 
     retval =  hal_pin_bit_newf(HAL_IN, &(halui_data->joint_home[num_joints]), comp_id, "halui.joint.selected.home");
@@ -944,7 +929,7 @@ static int sendMachineOn()
 {
     EMC_TASK_SET_STATE state_msg;
 
-    state_msg.state = EMC_TASK_STATE_ON;
+    state_msg.state = EMC_TASK_STATE::ON;
     return emcCommandSend(state_msg);
 }
 
@@ -952,7 +937,7 @@ static int sendMachineOff()
 {
     EMC_TASK_SET_STATE state_msg;
 
-    state_msg.state = EMC_TASK_STATE_OFF;
+    state_msg.state = EMC_TASK_STATE::OFF;
     return emcCommandSend(state_msg);
 }
 
@@ -960,7 +945,7 @@ static int sendEstop()
 {
     EMC_TASK_SET_STATE state_msg;
 
-    state_msg.state = EMC_TASK_STATE_ESTOP;
+    state_msg.state = EMC_TASK_STATE::ESTOP;
     return emcCommandSend(state_msg);
 }
 
@@ -968,7 +953,7 @@ static int sendEstopReset()
 {
     EMC_TASK_SET_STATE state_msg;
 
-    state_msg.state = EMC_TASK_STATE_ESTOP_RESET;
+    state_msg.state = EMC_TASK_STATE::ESTOP_RESET;
     return emcCommandSend(state_msg);
 }
 
@@ -976,11 +961,11 @@ static int sendManual()
 {
     EMC_TASK_SET_MODE mode_msg;
 
-    if (emcStatus->task.mode == EMC_TASK_MODE_MANUAL) {
+    if (emcStatus->task.mode == EMC_TASK_MODE::MANUAL) {
         return 0;
     }
 
-    mode_msg.mode = EMC_TASK_MODE_MANUAL;
+    mode_msg.mode = EMC_TASK_MODE::MANUAL;
     return emcCommandSend(mode_msg);
 }
 
@@ -988,11 +973,11 @@ static int sendAuto()
 {
     EMC_TASK_SET_MODE mode_msg;
 
-    if (emcStatus->task.mode == EMC_TASK_MODE_AUTO) {
+    if (emcStatus->task.mode == EMC_TASK_MODE::AUTO) {
         return 0;
     }
 
-    mode_msg.mode = EMC_TASK_MODE_AUTO;
+    mode_msg.mode = EMC_TASK_MODE::AUTO;
     return emcCommandSend(mode_msg);
 }
 
@@ -1000,11 +985,11 @@ static int sendMdi()
 {
     EMC_TASK_SET_MODE mode_msg;
 
-    if (emcStatus->task.mode == EMC_TASK_MODE_MDI) {
+    if (emcStatus->task.mode == EMC_TASK_MODE::MDI) {
         return 0;
     }
 
-    mode_msg.mode = EMC_TASK_MODE_MDI;
+    mode_msg.mode = EMC_TASK_MODE::MDI;
     return emcCommandSend(mode_msg);
 }
 
@@ -1022,9 +1007,16 @@ static int sendMdiCommand(int n)
         // so we can restore it when all the MDI commands finish.
         halui_old_mode = emcStatus->task.mode;
     }
+    
+    halui_sent_mdi = 1;
 
+    if (num_mdi_commands>0){
+    *(halui_data->halui_mdi_is_running) = halui_sent_mdi;
+    updateStatus();
+    }
+    
     // switch to MDI mode if needed
-    if (emcStatus->task.mode != EMC_TASK_MODE_MDI) {
+    if (emcStatus->task.mode != EMC_TASK_MODE::MDI) {
 	if (sendMdi() != 0) {
             rtapi_print("halui: %s: failed to Set Mode MDI\n", __func__);
             return -1;
@@ -1033,8 +1025,8 @@ static int sendMdiCommand(int n)
             rtapi_print("halui: %s: failed to update status\n", __func__);
 	    return -1;
 	}
-	if (emcStatus->task.mode != EMC_TASK_MODE_MDI) {
-            rtapi_print("halui: %s: switched mode, but got %d instead of mdi\n", __func__, emcStatus->task.mode);
+	if (emcStatus->task.mode != EMC_TASK_MODE::MDI) {
+            rtapi_print("halui: %s: switched mode, but got %d instead of mdi\n", __func__, (int)emcStatus->task.mode);
 	    return -1;
 	}
     }
@@ -1043,7 +1035,7 @@ static int sendMdiCommand(int n)
         rtapi_print("halui: %s: failed to send mdi command %d\n", __func__, n);
 	return -1;
     }
-    halui_sent_mdi = 1;
+
     return 0;
 }
 
@@ -1095,20 +1087,6 @@ static int sendFloodOff()
     EMC_COOLANT_FLOOD_OFF emc_coolant_flood_off_msg;
 
     return emcCommandSend(emc_coolant_flood_off_msg);
-}
-
-static int sendLubeOn()
-{
-    EMC_LUBE_ON emc_lube_on_msg;
-
-    return emcCommandSend(emc_lube_on_msg);
-}
-
-static int sendLubeOff()
-{
-    EMC_LUBE_OFF emc_lube_off_msg;
-
-    return emcCommandSend(emc_lube_off_msg);
 }
 
 // programStartLine is the saved valued of the line that
@@ -1265,8 +1243,8 @@ static void sendJogStop(int ja, int jjogmode)
 {
     EMC_JOG_STOP emc_jog_stop_msg;
 
-    if (   ( (jjogmode == JOGJOINT) && (emcStatus->motion.traj.mode == EMC_TRAJ_MODE_TELEOP) )
-        || ( (jjogmode == JOGTELEOP ) && (emcStatus->motion.traj.mode != EMC_TRAJ_MODE_TELEOP) )
+    if (   ( (jjogmode == JOGJOINT) && (emcStatus->motion.traj.mode == EMC_TRAJ_MODE::TELEOP) )
+        || ( (jjogmode == JOGTELEOP ) && (emcStatus->motion.traj.mode != EMC_TRAJ_MODE::TELEOP) )
        ) {
        return;
     }
@@ -1285,9 +1263,9 @@ static void sendJogCont(int ja, double speed, int jjogmode)
 {
     EMC_JOG_CONT emc_jog_cont_msg;
 
-    if (emcStatus->task.state != EMC_TASK_STATE_ON) { return; }
-    if (   ( (jjogmode == JOGJOINT) && (emcStatus->motion.traj.mode == EMC_TRAJ_MODE_TELEOP) )
-        || ( (jjogmode == JOGTELEOP ) && (emcStatus->motion.traj.mode != EMC_TRAJ_MODE_TELEOP) )
+    if (emcStatus->task.state != EMC_TASK_STATE::ON) { return; }
+    if (   ( (jjogmode == JOGJOINT) && (emcStatus->motion.traj.mode == EMC_TRAJ_MODE::TELEOP) )
+        || ( (jjogmode == JOGTELEOP ) && (emcStatus->motion.traj.mode != EMC_TRAJ_MODE::TELEOP) )
        ) {
        return;
     }
@@ -1307,9 +1285,9 @@ static void sendJogIncr(int ja, double speed, double incr, int jjogmode)
 {
     EMC_JOG_INCR emc_jog_incr_msg;
 
-    if (emcStatus->task.state != EMC_TASK_STATE_ON) { return; }
-    if (   ( (jjogmode == JOGJOINT) && (emcStatus->motion.traj.mode == EMC_TRAJ_MODE_TELEOP) )
-        || ( (jjogmode == JOGTELEOP ) && (emcStatus->motion.traj.mode != EMC_TRAJ_MODE_TELEOP) )
+    if (emcStatus->task.state != EMC_TASK_STATE::ON) { return; }
+    if (   ( (jjogmode == JOGJOINT) && (emcStatus->motion.traj.mode == EMC_TRAJ_MODE::TELEOP) )
+        || ( (jjogmode == JOGTELEOP ) && (emcStatus->motion.traj.mode != EMC_TRAJ_MODE::TELEOP) )
        ) {
        return;
     }
@@ -1393,121 +1371,123 @@ static int sendSpindleOverride(int spindle, double override)
 
 static int iniLoad(const char *filename)
 {
-    IniFile inifile;
-    const char *inistring;
-    double d;
-    int i;
+    IniFile inifile(filename);
 
-    // open it
-    if (inifile.Open(filename) == false) {
+    if (!inifile) {
 	return -1;
     }
 
-    if (NULL != (inistring = inifile.Find("DEBUG", "EMC"))) {
-	// copy to global
-	if (1 != sscanf(inistring, "%i", &emc_debug)) {
-	    emc_debug = 0;
-	}
+    // EMC debugging flags
+    emc_debug = (unsigned)inifile.findUIntV("DEBUG", "EMC", 0);
+
+    // set output for RCS messages
+    if (auto inival = mapRcsDestination(inifile, "RCS_DEBUG_DEST", "EMC")) {
+        set_rcs_print_destination(*inival);
     } else {
-	// not found, use default
-	emc_debug = 0;
+        set_rcs_print_destination(RCS_PRINT_TO_STDOUT);
     }
 
-    if (NULL != (inistring = inifile.Find("NML_FILE", "EMC"))) {
+    // NML/RCS debugging flags
+    set_rcs_print_flag(PRINT_RCS_ERRORS);  // only print errors by default
+    // enable all debug messages by default if RCS or NML debugging is enabled
+    if ((emc_debug & EMC_DEBUG_RCS) || (emc_debug & EMC_DEBUG_NML)) {
+        // output all RCS debug messages
+        set_rcs_print_flag(PRINT_EVERYTHING);
+    }
+
+    // set flags if RCS_DEBUG in ini file
+    if (auto inival = inifile.findUInt("RCS_DEBUG", "EMC")) {
+        // clear all flags
+        clear_rcs_print_flag(PRINT_EVERYTHING);
+        // set parsed flags
+        set_rcs_print_flag((long)*inival);
+    }
+    // output infinite RCS errors by default
+    max_rcs_errors_to_print = inifile.findIntV("RCS_MAX_ERR", "EMC", -1);
+
+    if (emc_debug & EMC_DEBUG_CONFIG) {
+        std::string version = inifile.findStringV("VERSION", "EMC", "<unknown>");
+        std::string machine = inifile.findStringV("MACHINE", "EMC", "<unknown>");
+        extern char *program_invocation_short_name;
+        rcs_print(
+            "%s (%d) halui: machine '%s'  version '%s'\n",
+            program_invocation_short_name, getpid(), machine.c_str(), version.c_str()
+        );
+    }
+
+    if (auto inistring = inifile.findString("NML_FILE", "EMC")) {
 	// copy to global
-	rtapi_strxcpy(emc_nmlfile, inistring);
-    } else {
-	// not found, use default
+	rtapi_strxcpy(emc_nmlfile, inistring->c_str());
+    } // else not found, use default
+
+    if (auto inival = inifile.findReal("MAX_FEED_OVERRIDE", "DISPLAY")) {
+        if (*inival > 0.0) {
+            maxFeedOverride =  *inival;
+        }
     }
 
-    if (NULL != (inistring = inifile.Find("MAX_FEED_OVERRIDE", "DISPLAY"))) {
-	if (1 == sscanf(inistring, "%lf", &d) && d > 0.0) {
-	    maxFeedOverride =  d;
-	}
-    }
-
-    if(inifile.Find(&maxMaxVelocity, "MAX_LINEAR_VELOCITY", "TRAJ") &&
-       inifile.Find(&maxMaxVelocity, "MAX_VELOCITY", "AXIS_X"))
+    if(!inifile.isSet("MAX_LINEAR_VELOCITY", "TRAJ") && !inifile.isSet("MAX_VELOCITY", "AXIS_X"))
         maxMaxVelocity = 1.0;
 
-    if (NULL != (inistring = inifile.Find("MIN_SPINDLE_OVERRIDE", "DISPLAY"))) {
-	if (1 == sscanf(inistring, "%lf", &d) && d > 0.0) {
-	    minSpindleOverride =  d;
-	}
+    if (auto inival = inifile.findReal("MIN_SPINDLE_OVERRIDE", "DISPLAY")) {
+        if (*inival > 0.0) {
+            minSpindleOverride = *inival;
+        }
     }
 
-    if (NULL != (inistring = inifile.Find("MAX_SPINDLE_OVERRIDE", "DISPLAY"))) {
-	if (1 == sscanf(inistring, "%lf", &d) && d > 0.0) {
-	    maxSpindleOverride =  d;
-	}
+    if (auto inival = inifile.findReal("MAX_SPINDLE_OVERRIDE", "DISPLAY")) {
+        if (*inival > 0.0) {
+            maxSpindleOverride = *inival;
+        }
     }
 
-    inistring = inifile.Find("COORDINATES", "TRAJ");
     num_axes = 0;
-    if (inistring) {
-        if(strchr(inistring, 'x') || strchr(inistring, 'X')) { axis_mask |= 0x0001; num_axes++; }
-        if(strchr(inistring, 'y') || strchr(inistring, 'Y')) { axis_mask |= 0x0002; num_axes++; }
-        if(strchr(inistring, 'z') || strchr(inistring, 'Z')) { axis_mask |= 0x0004; num_axes++; }
-        if(strchr(inistring, 'a') || strchr(inistring, 'A')) { axis_mask |= 0x0008; num_axes++; }
-        if(strchr(inistring, 'b') || strchr(inistring, 'B')) { axis_mask |= 0x0010; num_axes++; }
-        if(strchr(inistring, 'c') || strchr(inistring, 'C')) { axis_mask |= 0x0020; num_axes++; }
-        if(strchr(inistring, 'u') || strchr(inistring, 'U')) { axis_mask |= 0x0040; num_axes++; }
-        if(strchr(inistring, 'v') || strchr(inistring, 'V')) { axis_mask |= 0x0080; num_axes++; }
-        if(strchr(inistring, 'w') || strchr(inistring, 'W')) { axis_mask |= 0x0100; num_axes++; }
+    axis_mask = 0;
+    if (auto coord = inifile.findString("COORDINATES", "TRAJ")) {
+        static std::string axes{"XYZABCUVW"};
+        for (auto c : *coord) {
+            size_t pos = axes.find(std::toupper(c & 0xff));
+            if (std::string::npos != pos) {
+                num_axes++;
+                axis_mask |= 1 << pos;
+            }
+            // else we could warn...
+        }
     }
     if (num_axes ==0) {
-       rcs_print("halui: no [TRAJ]COORDINATES specified, enabling all axes\n");
-       num_axes = EMCMOT_MAX_AXIS;
-       axis_mask = 0xFFFF;
+        rcs_print("halui: no [TRAJ]COORDINATES specified, enabling all axes\n");
+        num_axes = EMCMOT_MAX_AXIS;
+        axis_mask = (1 << EMCMOT_MAX_AXIS) - 1;
     }
 
-    if (NULL != (inistring = inifile.Find("JOINTS", "KINS"))) {
-        if (1 == sscanf(inistring, "%d", &i) && i > 0) {
-            num_joints =  i;
+    if (auto inival = inifile.findSInt("JOINTS", "KINS")) {
+        if (*inival > 0) {
+            num_joints = *inival;
         }
     }
 
-    if (NULL != (inistring = inifile.Find("SPINDLES", "TRAJ"))) {
-        if (1 == sscanf(inistring, "%d", &i) && i > 0) {
-            num_spindles =  i;
+    if (auto inival = inifile.findSInt("SPINDLES", "TRAJ")) {
+        if (*inival > 0) {
+            num_spindles = *inival;
         }
     }
 
-    if (NULL != inifile.Find("HOME_SEQUENCE", "JOINT_0")) {
+    if (inifile.isSet("HOME_SEQUENCE", "JOINT_0")) {
         have_home_all = 1;
     }
 
-    if (NULL != (inistring = inifile.Find("LINEAR_UNITS", "DISPLAY"))) {
-	if (!strcmp(inistring, "AUTO")) {
-	    linearUnitConversion = LINEAR_UNITS_AUTO;
-	} else if (!strcmp(inistring, "INCH")) {
-	    linearUnitConversion = LINEAR_UNITS_INCH;
-	} else if (!strcmp(inistring, "MM")) {
-	    linearUnitConversion = LINEAR_UNITS_MM;
-	} else if (!strcmp(inistring, "CM")) {
-	    linearUnitConversion = LINEAR_UNITS_CM;
-	}
+    if (auto v = mapLinearUnits(inifile, "LINEAR_UNITS", "DISPLAY")) {
+        linearUnitConversion = *v;
+    }
+    if (auto v = mapAngularUnits(inifile, "ANGULAR_UNITS", "DISPLAY")) {
+        angularUnitConversion = *v;
     }
 
-    if (NULL != (inistring = inifile.Find("ANGULAR_UNITS", "DISPLAY"))) {
-	if (!strcmp(inistring, "AUTO")) {
-	    angularUnitConversion = ANGULAR_UNITS_AUTO;
-	} else if (!strcmp(inistring, "DEG")) {
-	    angularUnitConversion = ANGULAR_UNITS_DEG;
-	} else if (!strcmp(inistring, "RAD")) {
-	    angularUnitConversion = ANGULAR_UNITS_RAD;
-	} else if (!strcmp(inistring, "GRAD")) {
-	    angularUnitConversion = ANGULAR_UNITS_GRAD;
-	}
+    while(num_mdi_commands < MDI_MAX) {
+        auto mc = inifile.findString(num_mdi_commands+1, "MDI_COMMAND", "HALUI");
+        if (!mc) break;
+        mdi_commands[num_mdi_commands++] = strdup(mc->c_str());
     }
-
-    const char *mc;
-    while(num_mdi_commands < MDI_MAX && (mc = inifile.Find("MDI_COMMAND", "HALUI", num_mdi_commands+1))) {
-        mdi_commands[num_mdi_commands++] = strdup(mc);
-    }
-
-    // close it
-    inifile.Close();
 
     return 0;
 }
@@ -1622,7 +1602,7 @@ static bool jogging_selected_axis(local_halui_str &hal) {
 
 
 // this function looks if any of the hal pins has changed
-// and sends appropiate messages if so
+// and sends appropriate messages if so
 static void check_hal_changes()
 {
     hal_s32_t counts;
@@ -1678,12 +1658,6 @@ static void check_hal_changes()
 
     if (check_bit_changed(new_halui_data.flood_off, old_halui_data.flood_off) != 0)
 	sendFloodOff();
-
-    if (check_bit_changed(new_halui_data.lube_on, old_halui_data.lube_on) != 0)
-	sendLubeOn();
-
-    if (check_bit_changed(new_halui_data.lube_off, old_halui_data.lube_off) != 0)
-	sendLubeOff();
 
     if (check_bit_changed(new_halui_data.program_run, old_halui_data.program_run) != 0)
 	sendProgramRun(0);
@@ -1779,11 +1753,15 @@ static void check_hal_changes()
         sendFeedOverride(new_halui_data.fo_value + new_halui_data.fo_scale);
     if (check_bit_changed(new_halui_data.fo_decrease, old_halui_data.fo_decrease) != 0)
         sendFeedOverride(new_halui_data.fo_value - new_halui_data.fo_scale);
+    if (check_bit_changed(new_halui_data.fo_reset, old_halui_data.fo_reset) != 0)
+        sendFeedOverride( 1.0 );
 
     if (check_bit_changed(new_halui_data.ro_increase, old_halui_data.ro_increase) != 0)
         sendRapidOverride(new_halui_data.ro_value + new_halui_data.ro_scale);
     if (check_bit_changed(new_halui_data.ro_decrease, old_halui_data.ro_decrease) != 0)
         sendRapidOverride(new_halui_data.ro_value - new_halui_data.ro_scale);
+    if (check_bit_changed(new_halui_data.ro_reset, old_halui_data.ro_reset) != 0)
+        sendRapidOverride( 1.0 );
 
 	// spindle stuff
     for (int spindle = 0; spindle < num_spindles; spindle++){
@@ -1791,6 +1769,8 @@ static void check_hal_changes()
 			sendSpindleOverride(spindle, new_halui_data.so_value[spindle] + new_halui_data.so_scale[spindle]);
 		if (check_bit_changed(new_halui_data.so_decrease[spindle], old_halui_data.so_decrease[spindle]) != 0)
 			sendSpindleOverride(spindle, new_halui_data.so_value[spindle] - new_halui_data.so_scale[spindle]);
+                if (check_bit_changed(new_halui_data.so_reset[spindle], old_halui_data.so_reset[spindle]) != 0)
+                        sendSpindleOverride(spindle, 1.0 );
 
 		if (check_bit_changed(new_halui_data.spindle_start[spindle], old_halui_data.spindle_start[spindle]) != 0)
 		sendSpindleForward(spindle);
@@ -2096,71 +2076,86 @@ static void check_hal_changes()
 }
 
 // this function looks at the received NML status message
-// and modifies the appropiate HAL pins
+// and modifies the appropriate HAL pins
 static void modify_hal_pins()
 {
     int joint;
     int spindle;
 
-    if (emcStatus->task.state == EMC_TASK_STATE_ON) {
+    if (emcStatus->task.state == EMC_TASK_STATE::ON) {
 	*(halui_data->machine_is_on)=1;
     } else {
 	*(halui_data->machine_is_on)=0;
     }
 
-    if (emcStatus->task.state == EMC_TASK_STATE_ESTOP) {
+    if (emcStatus->task.state == EMC_TASK_STATE::ESTOP) {
 	*(halui_data->estop_is_activated)=1;
     } else {
 	*(halui_data->estop_is_activated)=0;
     }
 
     if (halui_sent_mdi) { // we have an ongoing MDI command
-	if (emcStatus->status == 1) { //which seems to have finished
-	    halui_sent_mdi = 0;
+	if (emcStatus->status == RCS_STATUS::DONE) { //which seems to have finished
 	    switch (halui_old_mode) {
-		case EMC_TASK_MODE_MANUAL: sendManual();break;
-		case EMC_TASK_MODE_MDI: break;
-		case EMC_TASK_MODE_AUTO: sendAuto();break;
+		case EMC_TASK_MODE::MANUAL: sendManual();break;
+		case EMC_TASK_MODE::MDI: break;
+		case EMC_TASK_MODE::AUTO: sendAuto();break;
 		default: sendManual();break;
 	    }
 	}
     }
 	
 
-    if (emcStatus->task.mode == EMC_TASK_MODE_MANUAL) {
+    if (emcStatus->task.mode == EMC_TASK_MODE::MANUAL) {
 	*(halui_data->mode_is_manual)=1;
     } else {
 	*(halui_data->mode_is_manual)=0;
     }
 
-    if (emcStatus->task.mode == EMC_TASK_MODE_AUTO) {
+    if (emcStatus->task.mode == EMC_TASK_MODE::AUTO) {
 	*(halui_data->mode_is_auto)=1;
     } else {
 	*(halui_data->mode_is_auto)=0;
     }
 
-    if (emcStatus->task.mode == EMC_TASK_MODE_MDI) {
+    if (emcStatus->task.mode == EMC_TASK_MODE::MDI) {
 	*(halui_data->mode_is_mdi)=1;
     } else {
 	*(halui_data->mode_is_mdi)=0;
     }
 
-    if (emcStatus->motion.traj.mode == EMC_TRAJ_MODE_TELEOP) {
+    if (emcStatus->motion.traj.mode == EMC_TRAJ_MODE::TELEOP) {
 	*(halui_data->mode_is_teleop)=1;
     } else {
 	*(halui_data->mode_is_teleop)=0;
     }
 
-    if (emcStatus->motion.traj.mode == EMC_TRAJ_MODE_FREE) {
+    if (emcStatus->motion.traj.mode == EMC_TRAJ_MODE::FREE) {
 	*(halui_data->mode_is_joint)=1;
     } else {
 	*(halui_data->mode_is_joint)=0;
     }
 
-    *(halui_data->program_is_paused) = emcStatus->task.interpState == EMC_TASK_INTERP_PAUSED;
-    *(halui_data->program_is_running) = emcStatus->task.interpState == EMC_TASK_INTERP_READING ||
-                                        emcStatus->task.interpState == EMC_TASK_INTERP_WAITING;
-    *(halui_data->program_is_idle) = emcStatus->task.interpState == EMC_TASK_INTERP_IDLE;
+    *(halui_data->program_is_paused) = emcStatus->task.interpState == EMC_TASK_INTERP::PAUSED;
+    *(halui_data->program_is_running) = emcStatus->task.interpState == EMC_TASK_INTERP::READING ||
+                                        emcStatus->task.interpState == EMC_TASK_INTERP::WAITING;
+    *(halui_data->program_is_idle) = emcStatus->task.interpState == EMC_TASK_INTERP::IDLE;
+    
+    if (num_mdi_commands>0){
+		// we wants initialize program_is_idle and mode_is_mdi before halui_sent_mdi
+		if (halui_sent_mdi) { // we have an ongoing MDI command
+			if (emcStatus->status == RCS_STATUS::DONE){ //which seems to have finished
+			halui_sent_mdi = 0;
+			esleep(0.02); //sleep for a while
+			updateStatus();
+			esleep(0.02); //sleep for a while
+			}
+		}
+		*(halui_data->halui_mdi_is_running) = halui_sent_mdi;
+	}
+
+
+    
     *(halui_data->program_os_is_on) = emcStatus->task.optional_stop_state;
     *(halui_data->program_bd_is_on) = emcStatus->task.block_delete_state;
 
@@ -2170,7 +2165,6 @@ static void modify_hal_pins()
 
     *(halui_data->mist_is_on) = emcStatus->io.coolant.mist;
     *(halui_data->flood_is_on) = emcStatus->io.coolant.flood;
-    *(halui_data->lube_is_on) = emcStatus->io.lube.on;
 
     *(halui_data->tool_number) = emcStatus->io.tool.toolInSpindle;
     *(halui_data->tool_length_offset_x) = emcStatus->task.toolOffset.tran.x;

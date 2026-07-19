@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from PyQt5 import QtGui
-from PyQt5.QtDesigner import QPyDesignerCustomWidgetPlugin
+from qtpy import QtGui
+from qtpy.QtDesigner import QPyDesignerCustomWidgetPlugin
 from qtvcp.widgets.container_widgets import StateEnableGridLayout
 from qtvcp.widgets.container_widgets import JointEnableWidget
 from qtvcp.widgets.qtvcp_icons import Icon
@@ -82,7 +82,7 @@ class JointEnableWidgetPlugin(QPyDesignerCustomWidgetPlugin):
         return QtGui.QIcon(QtGui.QPixmap(ICON.get_path('jointenablewidget')))
 
     def toolTip(self):
-        return "Linuxcnc Joint Availablility enable/disable widget"
+        return "Linuxcnc Joint Availability enable/disable widget"
 
     def whatsThis(self):
         return ""

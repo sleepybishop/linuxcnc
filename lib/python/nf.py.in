@@ -16,10 +16,7 @@
 
 import os
 import sys
-if sys.version_info[0] == 3:
-    import tkinter
-else:
-    import Tkinter as tkinter
+import tkinter
 
 __all__ = 'makecommand makevar makebool makewidget start'.split()
 
@@ -30,7 +27,7 @@ def newinstance(klass):
     value.__class__ = klass
     return value
 
-# Tkinter.py rev 65400 introduces a change which makes Menu.delete blow
+# tkinter.py rev 65400 introduces a change which makes Menu.delete blow
 # chunks.  Until this is resolved, monkeypatch it
 def delete(self, index1, index2=None):
     self.tk.call(self._w, 'delete', index1, index2)
@@ -108,6 +105,7 @@ def find_prefix(f):
     return find_prefix(os.path.dirname(f))
 
 PREFIX = "@prefix@"
+EMC2_TCL_DIR = "@EMC2_TCL_DIR@"
 SHARE = os.path.join(PREFIX, "share", "axis")
 tcl_libdir = os.path.join(SHARE, "tcl")
 

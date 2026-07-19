@@ -2,7 +2,8 @@
 * {
     color: foregnd;
     background: backgnd;
-    font: 10pt Lato }
+    font: 10pt DejaVuSans;
+    outline: none }
 
 *:disabled {
     color: inactive;
@@ -19,7 +20,9 @@
 #motion_config, #probe_config, #safety_config,
 #scribe_config, #spotting_config, #utility_frame,
 #gui_frame, #materials_frame, #camview_frame,
-#conv_frame, #stats_frame {
+#conv_frame, #stats_frame, #pmx_stats_frame,
+#machinelog_frame, #ub_frame, #sd_frame,
+#webview_frame, #pierce_config{
     border: 1px solid frames;
     background: backgnd;
     border-radius: 4px }
@@ -27,30 +30,38 @@
 /****** LABEL ************/
 #dro_label, #file_button_label,
 #machine_label, #button_label, #edit_label,
-#file_label, #jog_label,
-#cut_rec_label, #thc_label, #sensor_label,
-#arc_label, #control_label, #open_label,
-#mdi_label, #config_label, #config_conf_lbl,
-#arc_conf_lbl, #thc_conf_lbl, #motion_conf_lbl,
-#probe_conf_lbl, #safety_conf_lbl, #scribe_conf_lbl,
+#file_label, #jog_label, #cut_rec_label,
+#thc_label, #sensor_label, #arc_label,
+#control_label, #open_label, #mdi_label,
+#config_conf_lbl, #arc_conf_lbl, #thc_conf_lbl,
+#motion_conf_lbl, #probe_conf_lbl,
+#safety_conf_lbl, #scribe_conf_lbl,
 #spotting_conf_lbl, #utility_label, #gui_label,
-#materials_label, #camview_label, #conv_label,
-#stats_label {
+#camview_label, #conv_label, #stats_label,
+#pmx_stats_label, #machinelog_label,
+#pierce_conf_lbl {
     color: backgnd;
     background: frames;
     border-top-left-radius: 2px;
     border-top-right-radius: 2px }
 
+/****** MAX VELOCITY ************/
+#max_offset_velocity_in {
+    font: 11pt }
+
 /****** TOOLTIPS ************/
 QToolTip {
+    font: 13px;
+    padding: 4 }
+
+/****** MATERIAL LABEL ************/
+#material_label {
     color: backgnd;
-    background: backgnd;
-    border: none;
-    font: 1px;
-    opacity: 0 }
+    background: frames;
+    border-top-left-radius: 2px }
 
 /****** VELOCITY LABELS ************/
-#velocity_label{
+#velocity_label {
     color: backgnd;
     background: frames }
 
@@ -65,31 +76,77 @@ QLineEdit {
     border-radius: 4px;
     height: 24px }
 
-/****** DIALOG ************/
+/****** DIALOGS ************/
+QFileDialog {
+    min-width: 686 }
+
+QFileDialog QListView {
+    border: 1px solid foregnd;
+    border-radius: 4px }
+
 QDialog {
     border: 1px solid foregnd;
     border-radius: 4px;
-    margin: 4px
- }
+    margin: 4px }
+
+QDialog QHeaderView::section {
+    background: backgnd;
+    border: 1px solid foregnd;
+    border-radius: 4px;
+    font: italic;
+    margin: 1;
+    height: 20;
+    padding-top: 5 }
+
+QDialog QListView {
+    font: 11pt }
+
+QDialog QTreeView {
+    border: 1px solid foregnd;
+    border-radius: 4px;
+    font: 11pt;
+    alternate-background-color: backalt;
+    padding: 2px }
+
+QDialog QTreeView::item {
+    height: 36px }
+
+QDialog QTreeView::item:selected:active {
+    color: backgnd;
+    background-color: foregnd }
+
+QDialog QTreeView::item:selected:!active {
+    color: backgnd;
+    background-color: foregnd }
 
 QDialog QLabel {
-    font: 13pt }
+    font: 11pt }
 
 QDialog QPushButton {
-    font: 13pt;
-    height: 40px;
-    width: 80px }
+    font: 11pt;
+    height: 30px;
+    width: 80px;
+    margin: 4 }
+
+QDialog QLineEdit {
+    selection-color: foregnd;
+    selection-background-color: backgnd;
+    font: 11pt;
+    height: 30px }
+
+QDialog QComboBox {
+    font: 11pt;
+    height: 30px }
 
 QDialog QDoubleSpinBox {
- font: 13pt }
-
+    font: 11pt }
 
 /****** BUTTON ************/
 QPushButton, QToolButton {
     border: 1px solid foregnd;
     border-radius: 4px }
 
-QPushButton:pressed,    QToolButton:pressed {
+QPushButton:pressed, QToolButton:pressed {
     color: backgnd;
     background: highlight }
 
@@ -105,7 +162,7 @@ QPushButton:checked:pressed, QToolButton:checked:pressed {
 #feed_label, #rapid_label,
 #jogs_label, #height_reset {
     border: none }
-    
+
 #feed_label:pressed, #rapid_label:pressed,
 #jogs_label:pressed, #height_reset:pressed {
     color: foregnd;
@@ -126,31 +183,60 @@ QPushButton:checked:pressed, QToolButton:checked:pressed {
     background: e-stop;
     border-color: e-stop }
 
+/****** POWER BUTTON ************/
+#power,
+#power:checked:pressed {
+    color: foregnd;
+    background: backgnd;
+    border-color: foregnd }
+
+#power:disabled {
+    color: inactive;
+    background: backgnd;
+    border-color: inactive }
+
+#power:pressed,
+#power:checked {
+    color: backgnd;
+    background: foregnd;
+    border-color: foregnd }
+
+/****** ERROR LABEL ************/
+#error_label {
+    color: e-stop;
+}
+
 /****** TOUCHOFF BUTTON<<<<<<<<<<<<*/
-#touch_a, #touch_x, #touch_y, #touch_z    {
-    font: 20pt 'Lato' }
+#touch_x, #touch_y, #touch_z, #touch_a, #touch_b, #touch_c {
+    font: 20pt 'DejaVuSans' }
 
 /******    JOG BUTTON ************/
-#jog_a_minus, #jog_a_plus, #jog_x_minus, #jog_x_plus,
-#jog_y_minus, #jog_y_plus, #jog_z_minus, #jog_z_plus {
+#jog_x_minus, #jog_x_plus,
+#jog_y_minus, #jog_y_plus,
+#jog_z_minus, #jog_z_plus,
+#jog_a_minus, #jog_a_plus,
+#jog_b_minus, #jog_b_plus,
+#jog_c_minus, #jog_c_plus {
     background: backgnd;
     border: none }
 
 #jog_x_minus:pressed, #jog_x_plus:pressed,
 #jog_y_minus:pressed, #jog_y_plus:pressed,
 #jog_z_minus:pressed, #jog_z_plus:pressed,
-#jog_a_minus:pressed, #jog_a_plus:pressed {
+#jog_a_minus:pressed, #jog_a_plus:pressed,
+#jog_b_minus:pressed, #jog_b_plus:pressed,
+#jog_c_minus:pressed, #jog_c_plus:pressed {
     background: backalt }
 
 /******    CUT_RECOVERY BUTTON ************/
 #cut_rec_n, #cut_rec_s,
 #cut_rec_e, #cut_rec_w {
-    background: backgnd; 
+    background: backgnd;
     border: none }
 
 #cut_rec_ne, #cut_rec_nw,
 #cut_rec_se, #cut_rec_sw {
-    background: backgnd; 
+    background: backgnd;
     border: 2px solid backgnd }
 
 #cut_rec_n:pressed, #cut_rec_s:pressed,
@@ -159,8 +245,10 @@ QPushButton:checked:pressed, QToolButton:checked:pressed {
 #cut_rec_se:pressed, #cut_rec_sw:pressed {
     background: backalt }
 
-/****** OPEN BUTTON<<<<<<<<<<<<*/
-#file_open {
+/****** HEADERS WITH BUTTONS <<<<<<<<<<<<*/
+/* LEFT */
+#file_clear, #ub_save, #sd_save,
+#save_plasma, #save_material {
     color: backgnd;
     background: frames;
     border: none;
@@ -169,8 +257,41 @@ QPushButton:checked:pressed, QToolButton:checked:pressed {
     border-bottom-left-radius: 0px;
     border-bottom-right-radius: 0px }
 
-/****** OPEN BUTTON<<<<<<<<<<<<*/
-#file_reload {
+#file_clear:disabled, #ub_save:disabled,
+#sd_save:disabled, #save_plasma:disabled,
+#save_material:disabled {
+    background: inactive }
+
+#file_clear:pressed, #ub_save:pressed,
+#sd_save:pressed, #save_plasma:pressed,
+#save_material:pressed {
+    color: frames;
+    background: backgnd }
+
+/* CENTER */
+#file_open, #ub_label, #sd_label,
+#materials_label, #new_material,
+#delete_material, #config_label {
+    color: backgnd;
+    background: frames;
+    border: none;
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+    border-bottom-left-radius: 0px;
+    border-bottom-right-radius: 0px }
+
+#file_open:disabled, #materials_label:disabled,
+#new_material:disabled, #delete_material:disabled {
+    background: inactive }
+
+#file_open:pressed, #materials_label:pressed,
+#new_material:pressed, #delete_material:pressed {
+    color: frames;
+    background: backgnd }
+
+/* RIGHT */
+#file_reload, #ub_reload, #sd_reload,
+#reload_plasma, #reload_material {
     color: backgnd;
     background: frames;
     border: none;
@@ -179,32 +300,47 @@ QPushButton:checked:pressed, QToolButton:checked:pressed {
     border-bottom-left-radius: 0px;
     border-bottom-right-radius: 0px }
 
+#file_reload:disabled, #sd_reload:disabled,
+#ub_reload:disabled, #reload_plasma:disabled,
+#reload_material:disabled {
+    background: inactive }
+
+#file_reload:pressed, #up_reload:pressed,
+#sd_reload:pressed, #reload_plasma:pressed,
+#reload_material:pressed {
+    color: frames;
+    background: backgnd }
+
 /****** DRO DISPLAY<<<<<<<<<<<<*/
 DROLabel {
     color: foregnd;
     border: 1px solid foregnd;
     border-radius: 4px;
-    font: 20pt 'Lato' }
+    font: 20pt 'DejaVuSans' }
 
 DROLabel[homed=false] {
     color: inactive;
     border-color: inactive }
 
-/****** DRO LABEL ************/
-#dro_label_a,
+/****** DRO AXIS LABEL ************/
 #dro_label_x,
 #dro_label_y,
-#dro_label_z {
+#dro_label_z,
+#dro_label_a,
+#dro_label_b,
+#dro_label_c {
     color: backgnd;
     background: foregnd;
     border: 1px solid foregnd;
     border-radius: 4px;
-    font: 20pt 'Lato' }
+    font: 20pt 'DejaVuSans' }
 
-#dro_label_a[homed=false],
 #dro_label_x[homed=false],
 #dro_label_y[homed=false],
-#dro_label_z[homed=false] {
+#dro_label_z[homed=false],
+#dro_label_a[homed=false],
+#dro_label_b[homed=false],
+#dro_label_c[homed=false] {
     background: inactive;
     border-color: inactive }
 
@@ -217,42 +353,32 @@ DROLabel[homed=false] {
 
 /****** RADIO BUTTON ************/
 QRadioButton {
-    border: 1px solid foregnd;
-    border-radius: 4 }
+    font: 12pt }
 
 QRadioButton::indicator {
-    width: 0;
-    background: backgnd }
+    border: 1px solid foregnd;
+    border-radius: 4;
+    width: 26;
+    height: 26 }
 
-QRadioButton:checked {
+QRadioButton::indicator:checked {
     color: backgnd;
-    background: highlight }
-
-/*QRadioButton::indicator:checked {
-    background: highlight }*/
-
-QRadioButton:pressed {
-    color: backgnd;
-    background: highlight }
-
-/*QRadioButton::indicator:pressed {
-    background: highlight }*/
-
-QRadioButton:checked:pressed {
-    color: foregnd;
-    background: backgnd }
-
-/*QRadioButton::indicator:checked:pressed {
-    background: backgnd }*/
+    background: foregnd }
 
 /****** SETTINGS PUSHBUTTONS ************/
-#color_foregrnd, #color_foregalt, 
+#color_foregrnd, #color_foregalt,
 #color_led, #color_backgrnd,
 #color_backgalt, #color_frams,
 #color_estop, #color_disabled,
 #color_preview, #opt_stp, #opt_blk {
     width: 26px;
     height: 26px }
+
+#opt_stp:disabled, #opt_blk:disabled {
+    border-color: inactive }
+
+#opt_stp:disabled:checked, #opt_blk:disabled:checked {
+    background: inactive }
 
 /****** CHECK BOX COMMON ************/
 QCheckBox {
@@ -267,6 +393,12 @@ QCheckBox::indicator {
 QCheckBox::indicator:pressed {
     background: highlight }
 
+QCheckBox::indicator:disabled {
+border-color: inactive }
+
+QCheckBox::indicator:disabled:checked {
+background: inactive }
+
 QCheckBox::indicator:checked {
     background: highlight }
 
@@ -274,70 +406,75 @@ QCheckBox::indicator:checked:pressed {
     background: backgnd }
 
 /****** CHECK BOX CONTROL ************/
-#torch_enable, #cornerlock_enable, #kerfcross_enable,
+#torch_enable, #cornerlock_enable, #voidlock_enable,
 #use_auto_volts, #ohmic_probe_enable, #mesh_enable,
-#ignore_arc_ok, #pmx485_enable, #thc_enable {
+#ignore_arc_ok, #pmx485_enable, #thc_auto, #thc_enable {
     border: none;
     spacing: 0px }
 
 #torch_enable::indicator,
 #cornerlock_enable::indicator,
-#kerfcross_enable::indicator,
+#voidlock_enable::indicator,
 #use_auto_volts::indicator,
 #ohmic_probe_enable::indicator,
 #mesh_enable::indicator,
 #ignore_arc_ok::indicator,
 #pmx485_enable::indicator,
+#thc_auto::indicator,
 #thc_enable::indicator {
     background: backgnd;
     border: 1px solid foregnd;
     border-radius: 4px;
     width: 22px;
-    height: 22px;    }
+    height: 22px }
 
 #torch_enable::indicator:checked,
 #cornerlock_enable::indicator:checked,
-#kerfcross_enable::indicator:checked,
+#voidlock_enable::indicator:checked,
 #use_auto_volts::indicator:checked,
 #ohmic_probe_enable::indicator:checked,
 #mesh_enable::indicator:checked,
 #ignore_arc_ok::indicator:checked,
 #pmx485_enable::indicator:checked,
+#thc_auto::indicator:checked,
 #thc_enable::indicator:checked {
     background: highlight;
     border-color: foregnd }
 
 #torch_enable::indicator:!checked,
 #cornerlock_enable::indicator:!checked,
-#kerfcross_enable::indicator:!checked,
+#voidlock_enable::indicator:!checked,
 #use_auto_volts::indicator:!checked,
 #ohmic_probe_enable::indicator:!checked,
 #mesh_enable::indicator:!checked,
 #ignore_arc_ok::indicator:!checked,
 #pmx485_enable::indicator:!checked,
+#thc_auto::indicator:!checked,
 #thc_enable::indicator:!checked {
     background: backgnd;
     border-color: foregnd }
 
 #torch_enable::indicator:pressed,
 #cornerlock_enable::indicator:pressed,
-#kerfcross_enable::indicator:pressed,
+#voidlock_enable::indicator:pressed,
 #use_auto_volts::indicator:pressed,
 #ohmic_probe_enable::indicator:pressed,
 #mesh_enable::indicator:pressed,
 #ignore_arc_ok::indicator:pressed,
 #pmx485_enable::indicator:pressed,
+#thc_auto::indicator:pressed,
 #thc_enable::indicator:pressed {
     background: highlight }
 
 #torch_enable::indicator:checked:pressed,
 #cornerlock_enable::indicator:checked:pressed,
-#kerfcross_enable::indicator:checked:pressed,
+#voidlock_enable::indicator:checked:pressed,
 #use_auto_volts::indicator:checked:pressed,
 #ohmic_probe_enable::indicator:checked:pressed,
 #mesh_enable::indicator:checked:pressed,
 #ignore_arc_ok::indicator:checked:pressed,
 #pmx485_enable::indicator:checked:pressed,
+#thc_auto::indicator:checked:pressed,
 #thc_enable::indicator:checked:pressed {
     background: backgnd }
 
@@ -349,13 +486,13 @@ QDoubleSpinBox {
     border-radius: 2px;
     height: 24px;
     width: 180px;
-    font: 12pt;
+    font: 11pt;
     selection-color: backgnd;
     selection-background-color: foregnd }
 
 QDoubleSpinBox::up-button {
     subcontrol-origin:padding;
-    subcontrol-position:right;     
+    subcontrol-position:right;
     width: 28px;
     height: 24px }
 
@@ -364,72 +501,6 @@ QDoubleSpinBox::down-button {
     subcontrol-position:left;
     width: 28px;
     height: 24px }
-
-
-/*
-QSpinBox,
-QDoubleSpinBox {
-    font: 12pt;
-    border: 1px solid foregnd;
-    border-radius: 4px;
-    height: 24px;
-    width: 180px;
-    selection-color: backgnd;
-    selection-background-color: foregnd }
-
-QSpinBox,::up-button
-QDoubleSpinBox::up-button {
-    background: foregnd;
-    width: 28px;
-    border-left: 1px solid foregnd;
-    border-top-right-radius: 4px;
-    border-bottom-right-radius: 4px;
-    height: 28px;
-    subcontrol-origin: margin;
-    subcontrol-position: center right }
-
-QSpinBox::down-button,
-QDoubleSpinBox::down-button {
-    background: foregnd;
-    border: 1px solid foregnd;
-    border-top-left-radius: 4px;
-    border-bottom-left-radius: 4px;
-    width: 28px;
-    height: 28px;
-    subcontrol-origin: margin;
-    subcontrol-position: center left }
-
-QSpinBox::up-arrow,
-QDoubleSpinBox::up-arrow {
-    width: 28px;
-    height: 28px;
-    margin-bottom: 2px;
-    margin-left: 1px;
-    image: url(qtplasmac/images/spin_plus.png) }
-
-QSpinBox::down-arrow,
-QDoubleSpinBox::down-arrow {
-    width: 28px;
-    height: 28px;
-    margin-bottom: 2px;
-    image: url(qtplasmac/images/spin_minus.png) }
-
-QSpinBox::down-arrow:pressed,
-QDoubleSpinBox::up-arrow:pressed {
-    margin-bottom: 4px }
-
-QSpinBox,::down-arrow:pressed
-QDoubleSpinBox::down-arrow:pressed {
-    margin-top: 1px }
-*/
-
-/*QSpinBox::up-arrow:disabled,
-QDoubleSpinBox::up-arrow:disabled {
-    image: url(qtplasmac/images/spin_plus_d.png) }
-
-QSpinBox::down-arrow:disabled,
-QDoubleSpinBox::down-arrow:disabled {
-    image: url(qtplasmac/images/spin_minus_d.png) }*/
 
 /****** VERTICAL SLIDER ************/
 QSlider::groove:vertical {
@@ -468,60 +539,67 @@ QSlider::groove:vertical:disabled {
 QComboBox {
     border: 1px solid foregnd;
     border-radius: 4px;
-    font: 11pt 'Lato';
-    padding: 0px 0px 0px 12px;
-    selection-color: backgnd;
-    selection-background-color: foregnd }
+    padding-left: 6px }
+
+QComboBox#jogincrements {
+    padding-left: 18px }
+
+QComboBox#material_selector {
+    color: backgnd;
+    background: frames;
+    border: none;
+    border-radius: 0;
+    height: 16px }
+
+QComboBox#default_material {
+    height: 24px;
+    font: 11pt;
+    padding-left: 60px }
 
 QComboBox::drop-down {
     width: 0;
     image: none }
 
-QComboBox QListView {
-    border: 4px solid foregnd;
-    border-radius: 0px }
+QComboBox QAbstractItemView {
+    border: 1px solid foregnd;
+    border-radius: 4;
+    padding: 20 4 20 4 }
 
-/****** MATERIAL SELECTOR COMBO BOX ************/
-#material_selector {
+QComboBox::item:selected {
     color: backgnd;
-    background: frames;
-    border: none;
-    border-top-left-radius: 2px;
-    border-top-right-radius: 0px;
-    border-bottom-left-radius: 0px;
-    border-bottom-right-radius: 0px;
-    font: 11pt 'Lato';
-    padding: 0px 0px 0px 16px;
-    height: 16px;
-    selection-color: backgnd;
-    selection-background-color: frames }
+    background-color: foregnd;
+    margin-left: 0 }
 
-#material_selector:!editable:off,
-#material_selector::drop-down:editable:off,
-#material_selector:!editable:on,
-#material_selector::drop-down:editable:on {
-    color: frames;
-    background: backgnd }
-
-#material_selector QListView {
-    border-color: frames }
-
-/****** FILE DIALOGS************/
-QHeaderView::section {
-    background-color: backalt;
+QComboBox::item:!selected {
     color: foregnd;
-    border: none }
+    background-color: backgnd }
+
+QComboBox::indicator {
+    color: transparent;
+    background-color: transparent }
+
+#material_selector:disabled,
+#material_label:disabled,
+#velocity_label:disabled,
+#velocity_show:disabled {
+    background: inactive }
+
+/****** FILEMANAGER ************/
+QHeaderView::section {
+    background: backgnd;
+    border: 1px solid foregnd;
+    border-radius: 4px;
+    font-size: 11pt;
+    font: italic;
+    margin: 1;
+    padding-top: 5 }
 
 #filemanager QTableView {
     border: 1px solid foregnd;
     border-radius: 4px;
-    font: 13pt 'Lato';
+    font: 11pt 'DejaVuSans';
     alternate-background-color: backalt;
     padding: 2px }
-
-#filemanager QTableView::item {
-    height: 36px;
-}
 
 #filemanager QTableView::item:selected:active {
     color: backgnd;
@@ -531,43 +609,83 @@ QHeaderView::section {
     color: backgnd;
     background-color: foregnd }
 
+#filemanager QListView {
+  border: 1px solid foregnd;
+  border-radius: 4px;
+  font: 11pt 'DejaVuSans';
+  alternate-background-color: backalt;
+  padding: 2px }
+
+#filemanager QListView::item:selected:active {
+  color: backgnd;
+  background-color: foregnd }
+
+#filemanager QListView::item:selected:!active {
+  color: backgnd;
+  background-color: foregnd }
+
 #filemanager QComboBox {
     height: 40px;
-    font: 12pt;
- }
+    padding-right: 6px}
 
 #filemanager QLineEdit {
     height: 40px;
-    font: 12pt;
- }
+    font: 11pt }
 
 #filemanager QToolButton {
-    font: 11pt;
-    height: 40px;
-/*    width: 80px;*/
-    margin: 0px;
- }
+    height: 40px }
+
+#filemanager QPushButton {
+    height: 40px }
+
+#file_buttons_2 QPushButton {
+    height: 40px }
+
+/****** ORIGIN OFFSET VIEW ************/
+/* this also uses QHeaderView from FILEMANAGER */
+#originoffsetview QHeaderView::section {
+    padding-top: 0;
+    padding-left: 4;
+    height: 30px;
+    width: 60px }
+
+#originoffsetview {
+    font: 11pt 'Mono';
+    border: 1px solid foregnd;
+    border-radius: 4px;
+    alternate-background-color: backgnd;
+    padding: 2px;
+    gridline-color: backalt;
+    qproperty-styleColorHighlight: backalt }
+
+#originoffsetview::item:selected:active {
+    color: backgnd;
+    background-color: foregnd }
+
+#originoffsetview::item:selected:!active {
+    color: backgnd;
+    background-color: foregnd }
 
 /****** MDI HISTORY************/
 #mdihistory QListView {
     border: 1px solid foregnd;
     border-radius: 4px;
-    font: 13pt 'Lato';
+    font: 11pt 'DejaVuSans';
     alternate-background-color: backalt;
-    show-decoration-selected: 1;
-    selection-background-color: foregnd;
-    selection-color:backgnd;
     padding: 2 }
 
 #mdihistory QListView::item {
-    height: 36;
-}
+    height: 36 }
+
+#mdihistory QListView::item:selected {
+    color: backgnd;
+    background-color: foregnd }
 
 #mdihistory QLineEdit {
     border: 1px solid foregnd;
     border-radius: 4px;
     height: 30px;
-    font: 13pt }
+    font: 11pt }
 
 /****** SCROLL BAR ************/
 QScrollBar:horizontal {
@@ -610,24 +728,35 @@ QScrollBar::add-line:vertical {
 QScrollBar::sub-line:vertical {
     height: 0px }
 
+QListView QScrollBar:vertical {
+  margin-left: 1px }
+
+QListView QScrollBar:horizontal {
+  margin-top: 1px }
+
 /****** MENU ************/
 QMenu {
-    background: foregnd;
-    font: 13pt;
-    margin: 4px }
+    font: 11pt;
+    margin: 0 16 0 16 }
 
 QMenu::item {
     color: foregnd;
     background: backgnd;
-    border: 4px solid foregnd;
-    padding: 8px }
+    border: 1px solid foregnd;
+    border-radius: 4px;
+    padding: 8 0 8 8;
+    margin: 8 0 8 0;
+    width: 68 }
+
+#wcs_button::menu-indicator {
+    width: 0 }
 
 /****** TAB ************/
 QTabWidget::pane {
     border: none;
-    top:-2px; 
-    left:-2px; 
-    right:-2px; 
+    top:-2px;
+    left:-2px;
+    right:-2px;
     bottom:-2px }
 
 QTabWidget::tab-bar {
@@ -638,7 +767,7 @@ QTabBar::tab {
     border-radius: 4px;
     padding: 1px;
     margin-left: 1;
-    margin-right: 1 } 
+    margin-right: 1 }
 
 QTabBar::tab:selected {
     color: backgnd;
@@ -646,22 +775,28 @@ QTabBar::tab:selected {
 
 /****** STATUS BAR ************/
 QStatusBar {
-border: none }
+    border: none }
 
 QStatusBar::item {
- image: none }
+    image: none }
 
 QProgressBar {
     color: foregnd;
-    border: 1px solid foregnd;
-    border-radius: 4px }
+    background: backalt;
+    border: 0px;
+    border-radius: 4px;
+    max-width: 20px; }
 
 QProgressBar::chunk {
-    background-color: foregnd }
+    background-color: foregnd;
+    height: 1px;
+    margin: 0.5px }
 
 /****** LED ************/
 LED {
     qproperty-color: l-e-d;
+    qproperty-off_color: backgnd;
+    qproperty-border_color: backgnd;
     qproperty-diameter: 20 }
 
 /****** TEXT ENTRY ************/
@@ -674,21 +809,32 @@ QPlainTextEdit {
     qproperty-background_color: prevu }
 
 /****** GCODE EDITOR & GCODE DISPLAY ************/
+EditorBase#lexer {
+    height: 44 }
+
+/*QTableView::item {
+    height: 44 }*/
+
 EditorBase {
     qproperty-styleColorBackground: backgnd;
-    qproperty-styleColor0: foregnd;
-    qproperty-styleColor1: foregnd;
-    qproperty-styleColor2: foregnd;
-    qproperty-styleColor3: foregnd;
-    qproperty-styleColor4: foregnd;
+    qproperty-styleColor0: foregnd;   /* parameters */
+    qproperty-styleColor1: foregnd;   /* comments */
+    qproperty-styleColor2: foregnd;   /* g codes */
+    qproperty-styleColor3: foregnd;   /* m codes */
+    qproperty-styleColor4: foregnd;   /* axes */
+    qproperty-styleColor5: foregnd;   /* non axes */
+    qproperty-styleColor6: foregnd;   /* axes values */
+    qproperty-styleColor7: foregnd;   /* non axes values */
     qproperty-styleColorMarginText: foregnd;
     qproperty-styleColorMarginBackground: backgnd;
-    qproperty-styleFont0: 'Lato,12,-1,0,60,0,0,0,0,0';
-    qproperty-styleFont1: 'Lato,12,-1,0,60,0,0,0,0,0';
-    qproperty-styleFont2: 'Lato,12,-1,0,60,0,0,0,0,0';
-    qproperty-styleFont3: 'Lato,12,-1,0,60,0,0,0,0,0';
-    qproperty-styleFont4: 'Lato,12,-1,0,60,0,0,0,0,0';
-    qproperty-styleFontMargin: 'Lato,12,-1,0,20,00,0,0,0,0';
+    qproperty-styleFont0: 'DejaVuSansMono,11,-1,0,60,0,0,0,0,0';
+    qproperty-styleFont1: 'DejaVuSansMono,11,-1,0,60,0,0,0,0,0';
+    qproperty-styleFont2: 'DejaVuSansMono,11,-1,0,60,0,0,0,0,0';
+    qproperty-styleFont3: 'DejaVuSansMono,11,-1,0,60,0,0,0,0,0';
+    qproperty-styleFont4: 'DejaVuSansMono,11,-1,0,60,0,0,0,0,0';
+    qproperty-styleFont5: 'DejaVuSansMono,11,-1,0,60,0,0,0,0,0';
+    qproperty-styleFont6: 'DejaVuSansMono,11,-1,0,60,0,0,0,0,0';
+    qproperty-styleFont7: 'DejaVuSansMono,11,-1,0,60,0,0,0,0,0';
     qproperty-styleColorSelectionText: backgnd;
     qproperty-styleColorSelectionBackground: foregnd }
 
@@ -709,48 +855,52 @@ EditorBase {
 #gcode_editor QToolBar {
     spacing: 4 }
 
+#gcode_editor QToolBar::separator {
+    width: 8 }
+
 #gcode_editor QToolButton {
-/*    qproperty-icon: none;*/
     width: 40px;
     height: 37px }
 
 #gcode_editor QLineEdit {
     border: 1px solid foregnd;
     border-radius: 4px;
+    width: 94px;
     height: 40px }
 
 /****** MESSAGE BOX ************/
-QMessageBox{
+QMessageBox {
     border: 1px solid foregnd;
     border-radius: 4px;
     margin: 2 }
 
-QMessageBox QLabel{
-    font: 12pt }
+QMessageBox QLabel {
+    font: 11pt }
 
 QMessageBox QPushButton {
     width: 120;
     height: 40;
-    font: 12pt }
+    font: 11pt }
 
 /****** INPUT DIALOG ************/
-QInputDialog{
+QInputDialog {
     border: 1px solid foregnd;
     border-radius: 4px;
     margin: 2 }
 
-QInputDialog QLabel{
-    font: 16pt }
+QInputDialog QLabel {
+    font: 11pt }
 
-QInputDialog QLineEdit{
+QInputDialog QLineEdit {
     background: backalt;
     border: 1px solid foregnd;
     border-radius: 4px;
-    font: 16pt }
+    font: 11pt }
 
 QInputDialog QPushButton {
+    width: 120;
     height: 40;
-    font: 16pt }
+    font: 11pt }
 
 /****** CALCULATOR ************/
 Calculator {
@@ -767,17 +917,25 @@ Calculator QLineEdit {
     font: 20pt }
 
 /****** KEYBOARD ************/
-KeyboardDialog QLineEdit{
+KeyboardDialog QLineEdit {
     font: 20pt;
     height: 36px }
 
-/****** SOFT KEYBOARD ************/
-/*SoftInputWidget {
-margin: 0;
-border: 1px solid foregnd;
-border-radius: 4px }
+/****** WEBVIEW ************/
+QWebView {
+    color: black;
+    background: white }
 
-MyFlatPushButton {
-margin: 3 ;
-max-height: 30;
- } */
+#webview_back, #webview_reload, #webview_forward {
+    color: backgnd;
+    background: foregnd;
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+    border-bottom-left-radius: 0px;
+    border-bottom-right-radius: 0px }
+
+#webview_back {
+    border-top-left-radius: 2px }
+
+#webview_forward {
+    border-top-right-radius: 2px }

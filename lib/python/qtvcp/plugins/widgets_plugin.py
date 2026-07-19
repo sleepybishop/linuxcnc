@@ -1,12 +1,16 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtDesigner import QPyDesignerCustomWidgetPlugin
+from qtpy import QtGui
+from qtpy.QtDesigner import QPyDesignerCustomWidgetPlugin
 from qtvcp.widgets.dro_widget import DROLabel
+from qtvcp.widgets.user_dro_label import UserDROLabel
 from qtvcp.widgets.mdi_line import MDILine
+from qtvcp.widgets.operator_value_line import OperatorValueLine
+from qtvcp.widgets.tool_chooser import ToolChooser
 from qtvcp.widgets.mdi_history import MDIHistory
 from qtvcp.widgets.mdi_touchy import MDITouchy
 from qtvcp.widgets.gcode_editor import GcodeEditor, GcodeDisplay
+from qtvcp.widgets.geditor import GEditor
 from qtvcp.widgets.status_stacked import StatusStacked
 from qtvcp.widgets.widget_switcher import WidgetSwitcher
 from qtvcp.widgets.origin_offsetview import OriginOffsetView
@@ -61,6 +65,48 @@ class LcncDROLabelPlugin(QPyDesignerCustomWidgetPlugin):
     def includeFile(self):
         return "qtvcp.widgets.dro_widget"
 
+####################################
+# Axis Position UserDROLabel
+####################################
+class UserDROLabelPlugin(QPyDesignerCustomWidgetPlugin):
+    def __init__(self, parent=None):
+        super(UserDROLabelPlugin, self).__init__(parent)
+        self.initialized = False
+
+    def initialize(self, formEditor):
+        if self.initialized:
+            return
+        self.initialized = True
+
+    def isInitialized(self):
+        return self.initialized
+
+    def createWidget(self, parent):
+        return UserDROLabel(parent)
+
+    def name(self):
+        return "UserDROLabel"
+
+    def group(self):
+        return "Linuxcnc - Widgets"
+
+    def icon(self):
+        return QtGui.QIcon(QtGui.QPixmap(ICON.get_path('UserDROLabel')))
+
+    def toolTip(self):
+        return "User Referenced Axis Position Display Widget"
+
+    def whatsThis(self):
+        return ""
+
+    def isContainer(self):
+        return False
+
+    def domXml(self):
+        return '<widget class="UserDROLabel" name="userdro" />\n'
+
+    def includeFile(self):
+        return "qtvcp.widgets.user_dro_label"
 
 ####################################
 # MDI edit line
@@ -104,6 +150,94 @@ class MDILinePlugin(QPyDesignerCustomWidgetPlugin):
 
     def includeFile(self):
         return "qtvcp.widgets.mdi_line"
+
+
+####################################
+# Tool Chooser
+####################################
+class ToolChooserPlugin(QPyDesignerCustomWidgetPlugin):
+    def __init__(self, parent=None):
+        super(ToolChooserPlugin, self).__init__(parent)
+        self.initialized = False
+
+    def initialize(self, formEditor):
+        if self.initialized:
+            return
+        self.initialized = True
+
+    def isInitialized(self):
+        return self.initialized
+
+    def createWidget(self, parent):
+        return ToolChooser(parent)
+
+    def name(self):
+        return "ToolChooser"
+
+    def group(self):
+        return "Linuxcnc - Controller"
+
+    def icon(self):
+        return QtGui.QIcon(QtGui.QPixmap(ICON.get_path('toolchooser')))
+
+    def toolTip(self):
+        return "Tool chooser Widget"
+
+    def whatsThis(self):
+        return ""
+
+    def isContainer(self):
+        return True
+
+    def domXml(self):
+        return '<widget class="ToolChooser" name="toolchooser" />\n'
+
+    def includeFile(self):
+        return "qtvcp.widgets.tool_chooser"
+    
+
+####################################
+# Operator Value edit line
+####################################
+class OperatorValueLinePlugin(QPyDesignerCustomWidgetPlugin):
+    def __init__(self, parent=None):
+        super(OperatorValueLinePlugin, self).__init__(parent)
+        self.initialized = False
+
+    def initialize(self, formEditor):
+        if self.initialized:
+            return
+        self.initialized = True
+
+    def isInitialized(self):
+        return self.initialized
+
+    def createWidget(self, parent):
+        return OperatorValueLine(parent)
+
+    def name(self):
+        return "OperatorValueLine"
+
+    def group(self):
+        return "Linuxcnc - Controller"
+
+    def icon(self):
+        return QtGui.QIcon(QtGui.QPixmap(ICON.get_path('operatorvalueline')))
+
+    def toolTip(self):
+        return "Operator value edit line Widget"
+
+    def whatsThis(self):
+        return ""
+
+    def isContainer(self):
+        return True
+
+    def domXml(self):
+        return '<widget class="OperatorValueLine" name="operatorvalueline" />\n'
+
+    def includeFile(self):
+        return "qtvcp.widgets.operator_value_line"
 
 
 ####################################
@@ -281,6 +415,48 @@ class GcodeDisplayPlugin(QPyDesignerCustomWidgetPlugin):
     def includeFile(self):
         return "qtvcp.widgets.gcode_editor"
 
+####################################
+# GEditor
+####################################
+class GEditorPlugin(QPyDesignerCustomWidgetPlugin):
+    def __init__(self, parent=None):
+        super(GEditorPlugin, self).__init__(parent)
+        self.initialized = False
+
+    def initialize(self, formEditor):
+        if self.initialized:
+            return
+        self.initialized = True
+
+    def isInitialized(self):
+        return self.initialized
+
+    def createWidget(self, parent):
+        return GEditor(parent, designer=True)
+
+    def name(self):
+        return "GEditor"
+
+    def group(self):
+        return "Linuxcnc - Controller"
+
+    def icon(self):
+        return QtGui.QIcon(QtGui.QPixmap(ICON.get_path('GEditor')))
+
+    def toolTip(self):
+        return "Gcode display / editor Widget using ToolBars"
+
+    def whatsThis(self):
+        return ""
+
+    def isContainer(self):
+        return True
+
+    def domXml(self):
+        return '<widget class="GEditor" name="geditor" />\n'
+
+    def includeFile(self):
+        return "qtvcp.widgets.geditor"
 
 ####################################
 # StatusStacked
@@ -486,7 +662,7 @@ class MacroTabPlugin(QPyDesignerCustomWidgetPlugin):
         return "MacroTab"
 
     def group(self):
-        return "Linuxcnc - Controller"
+        return "Linuxcnc - Widgets"
 
     def icon(self):
         return QtGui.QIcon(QtGui.QPixmap(ICON.get_path('macrotab')))

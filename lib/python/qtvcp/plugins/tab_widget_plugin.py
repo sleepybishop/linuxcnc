@@ -1,8 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QWidget
-from PyQt5.QtDesigner import QPyDesignerCustomWidgetPlugin
+from qtpy import QtGui
+from qtpy.QtDesigner import QPyDesignerCustomWidgetPlugin
 
 from qtvcp.widgets.tab_widget import TabWidget
 from qtvcp.widgets.qtvcp_icons import Icon

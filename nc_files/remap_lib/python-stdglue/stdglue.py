@@ -21,6 +21,25 @@ from interpreter import *
 from emccanon import MESSAGE
 throw_exceptions = 1
 
+# used so screens can get info.
+# add this to toplevel to call it:
+
+# import remap
+# def __init__(self):
+#     if self.task:
+#         remap.build_hal(self)
+
+def build_hal(self):
+    import hal
+    try:
+        h=hal.component('remapStat')
+        h.newpin("tool", hal.HAL_S32, hal.HAL_OUT)
+        h.newpin("wear", hal.HAL_S32, hal.HAL_OUT)
+        h.ready()
+        self.hal_tool_comp = h
+    except Exception as e:
+        print(e)
+
 # REMAP=S   prolog=setspeed_prolog  ngc=setspeed epilog=setspeed_epilog
 # exposed parameter: #<speed>
 
@@ -50,8 +69,8 @@ def setspeed_epilog(self,**words):
             pass
             #print "---------- S builtin recursion, nothing to do"
         else:
-            self.speed = self.params["speed"]
-            emccanon.enqueue_SET_SPINDLE_SPEED(self.speed)
+            self.speed[0] = self.params["speed"]
+            emccanon.enqueue_SET_SPINDLE_SPEED(self.speed[0])
         return INTERP_OK
     except Exception as e:
         self.set_errormsg("S/setspeed_epilog: %s)" % (e))
@@ -148,13 +167,6 @@ def prepare_epilog(self, **words):
 
 def change_prolog(self, **words):
     try:
-        # this is relevant only when using iocontrol-v2.
-        if self.params[5600] > 0.0:
-            if self.params[5601] < 0.0:
-                self.set_errormsg("Toolchanger hard fault %d" % (int(self.params[5601])))
-                return INTERP_ERROR
-            print("change_prolog: Toolchanger soft fault %d" % int(self.params[5601]))
-
         if self.selected_pocket < 0:
             self.set_errormsg("M6: no tool prepared")
             return INTERP_ERROR
@@ -177,12 +189,6 @@ def change_epilog(self, **words):
             self.set_errormsg("the %s remap procedure %s did not return a value"
                              % (r.name,r.remap_ngc if r.remap_ngc else r.remap_py))
             yield INTERP_ERROR
-        # this is relevant only when using iocontrol-v2.
-        if self.params[5600] > 0.0:
-            if self.params[5601] < 0.0:
-                self.set_errormsg("Toolchanger hard fault %d" % (int(self.params[5601])))
-                yield INTERP_ERROR
-            print("change_epilog: Toolchanger soft fault %d" % int(self.params[5601]))
 
         if self.blocks[self.remap_level].builtin_used:
             #print "---------- M6 builtin recursion, nothing to do"
@@ -191,7 +197,7 @@ def change_epilog(self, **words):
             if self.return_value > 0.0:
                 # commit change
                 self.selected_pocket =  int(self.params["selected_pocket"])
-                emccanon.CHANGE_TOOL(self.selected_pocket)
+                emccanon.CHANGE_TOOL()
                 self.current_pocket = self.selected_pocket
                 self.selected_pocket = -1
                 self.selected_tool = -1
@@ -200,6 +206,8 @@ def change_epilog(self, **words):
                 self.toolchange_flag = True
                 yield INTERP_EXECUTE_FINISH
             else:
+                # yield to print any messages from the NGC program
+                yield INTERP_EXECUTE_FINISH
                 self.set_errormsg("M6 aborted (return code %.1f)" % (self.return_value))
                 yield INTERP_ERROR
     except Exception as e:
@@ -337,7 +345,7 @@ def cycle_prolog(self,**words):
         if not "r" in self.sticky_params[r.name]:
             return "%s: cycle requires R word" % (r.name)
         else:
-            if self.sticky_params[r.name] <= 0.0:
+            if self.sticky_params[r.name]['r'] <= 0.0:
                 return "%s: R word must be > 0 if used (%.4f)" % (r.name, words["r"])
 
         if "l" in words:
@@ -363,8 +371,8 @@ def cycle_prolog(self,**words):
         raise
         return "cycle_prolog failed: %s" % (e)
 
-# make sure the next line has the same motion code, unless overriden by a
-# new G code
+# make sure the next line has the same motion code, unless overridden by a
+# new G-code
 def cycle_epilog(self,**words):
     try:
         c = self.blocks[self.remap_level]
@@ -400,16 +408,16 @@ def index_lathe_tool_with_wear(self,**words):
     # only run this if we are really moving the machine
     # skip this if running task for the screen
     if not self.task:
-        return INTERP_OK
+        yield INTERP_OK
     try:
         # check there is a tool number from the Gcode
         cblock = self.blocks[self.remap_level]
         if not cblock.t_flag:
             self.set_errormsg("T requires a tool number")
-            return INTERP_ERROR
+            yield INTERP_ERROR
         tool_raw = int(cblock.t_number)
 
-        # interpet the raw tool number into tool and wear number
+        # interpret the raw tool number into tool and wear number
         # If it's less then 100 someone forgot to add the wear #, so we added it automatically
         # separate out tool number (tool) and wear number (wear), add 10000 to wear number
         if tool_raw <100:
@@ -424,7 +432,7 @@ def index_lathe_tool_with_wear(self,**words):
             (status, pocket) = self.find_tool_pocket(tool)
             if status != INTERP_OK:
                 self.set_errormsg("T%d: tool entry not found" % (tool))
-                return status
+                yield status
         else:
             tool = -1
             pocket = -1
@@ -432,17 +440,21 @@ def index_lathe_tool_with_wear(self,**words):
         self.params["tool"] = tool
         self.params["pocket"] = pocket
         self.params["wear"] =  wear
-
+        try:
+            self.hal_tool_comp['tool']= tool_raw
+            self.hal_tool_comp['wear']= wear
+        except:
+            pass
         # index tool immediately to tool number
         self.selected_tool = int(self.params["tool"])
         self.selected_pocket = int(self.params["pocket"])
         emccanon.SELECT_TOOL(self.selected_tool)
         if self.selected_pocket < 0:
             self.set_errormsg("T0 not valid")
-            return INTERP_ERROR
+            yield INTERP_ERROR
         if self.cutter_comp_side:
             self.set_errormsg("Cannot change tools with cutter radius compensation on")
-            return INTERP_ERROR
+            yield INTERP_ERROR
         self.params["tool_in_spindle"] = self.current_tool
         self.params["selected_tool"] = self.selected_tool
         self.params["current_pocket"] = self.current_pocket
@@ -451,7 +463,7 @@ def index_lathe_tool_with_wear(self,**words):
         # change tool
         try:
             self.selected_pocket =  int(self.params["selected_pocket"])
-            emccanon.CHANGE_TOOL(self.selected_pocket)
+            emccanon.CHANGE_TOOL()
             self.current_pocket = self.selected_pocket
             self.selected_pocket = -1
             self.selected_tool = -1
@@ -460,26 +472,28 @@ def index_lathe_tool_with_wear(self,**words):
             self.toolchange_flag = True
         except:
             self.set_errormsg("T change aborted (return code %.1f)" % (self.return_value))
-            return INTERP_ERROR
+            yield INTERP_ERROR
 
         # add tool offset
         self.execute("g43 h%d"% tool)
         # if the wear offset is specified, add it's offset
-        if wear>10000:
-            self.execute("g43.2 h%d"% wear)
-        return INTERP_OK
-
-    except Exception as e:
-        print(e)
-        self.set_errormsg("T%d index_lathe_tool_with_wear: %s" % (int(words['t']), e))
-        return INTERP_ERROR
+        try:
+            if wear>10000:
+                self.execute("g43.2 h%d"% wear)
+            yield INTERP_OK
+        except:
+            self.set_errormsg("Tool change aborted - No wear %d entry found in tool table" %wear)
+            yield INTERP_ERROR
+    except:
+        self.set_errormsg("Tool change aborted (return code %.1f)" % (self.return_value))
+        yield INTERP_ERROR
 
 
 # REMAP=M6 modalgroup=10 python=tool_probe_m6
 #
 # auto tool probe on m6
 # move to tool change position for toolchange
-# wait for acknoledge of tool change
+# wait for acknowledge of tool change
 # move to tool setter probe position
 # probe tool on tool setter
 # move back to tool change position
@@ -545,7 +559,7 @@ def tool_probe_m6(self, **words):
 
         try:
             self.selected_pocket =  int(self.params["selected_pocket"])
-            emccanon.CHANGE_TOOL(self.selected_pocket)
+            emccanon.CHANGE_TOOL()
             self.current_pocket = self.selected_pocket
             self.selected_pocket = -1
             self.selected_tool = -1
@@ -559,7 +573,7 @@ def tool_probe_m6(self, **words):
         yield INTERP_EXECUTE_FINISH
 
         # record current position; probably should record every axis
-        self.params[4990] = emccanon.GET_EXTERNAL_POSITION_X()
+        self.params[4999] = emccanon.GET_EXTERNAL_POSITION_X()
         self.params[4998] = emccanon.GET_EXTERNAL_POSITION_Y()
         self.params[4997] = emccanon.GET_EXTERNAL_POSITION_Z()
 
@@ -607,7 +621,7 @@ def tool_probe_m6(self, **words):
             # set back absolute state
             self.execute("G90")
 
-            # return to recorded tool change positon
+            # return to recorded tool change position
             self.execute("G53 G0 Z[#4997]")
             yield INTERP_EXECUTE_FINISH
             self.execute("G53 G0 X[#4999] Y[#4998]")
@@ -637,9 +651,8 @@ def tool_probe_m6(self, **words):
             print (msg)
             yield INTERP_ERROR
 
-    except Exception as e:
-        print (e)
-        self.set_errormsg("tool_probe_m6 remap error: %s" % (e))
+    except:
+        self.set_errormsg("tool_probe_m6 remap error." )
         yield INTERP_ERROR
 
 

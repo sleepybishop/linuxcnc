@@ -18,8 +18,8 @@
 # This widget pops up an onscreen keyboard for entries
 # Used in the Macro and MDI line widget
 
-from PyQt5 import QtWidgets, QtCore, QtGui
-from decimal import Decimal
+from qtpy import QtWidgets, QtCore, QtGui
+#from decimal import Decimal
 
 # applicationle widgets
 SIP_WIDGETS = [QtWidgets.QLineEdit]
@@ -56,7 +56,8 @@ class SoftInputWidget(QtWidgets.QDialog):
 
         self.do_layout(keyboard_type)
 
-        self.signalMapper.mapped[int].connect(self.buttonClicked)
+        mapped = getattr(self.signalMapper, 'mappedInt', None) or self.signalMapper.mapped[int]
+        mapped.connect(self.buttonClicked)
 
     def do_layout(self, keyboard_type='default'):
         """
@@ -66,25 +67,11 @@ class SoftInputWidget(QtWidgets.QDialog):
         gl = QtWidgets.QVBoxLayout()
         self.setFont(self.PARENT_OBJECT.font())
         number_widget_list = []
-        sym_list = list(range(0, 6))
+        sym_list = list(range(0, 10))
         for sym in sym_list:
             button = MyFlatPushButton(str(sym))
             button.KEY_CHAR = ord(str(sym))
             number_widget_list.append(button)
-
-        number_widget_list.append('new_row')
-        sym_list = list(range(6, 10))
-        for sym in sym_list:
-            button = MyFlatPushButton(str(sym))
-            button.KEY_CHAR = ord(str(sym))
-            number_widget_list.append(button)
-
-        button = MyFlatPushButton('.')
-        button.KEY_CHAR = ord('.')
-        number_widget_list.append(button)
-        button = MyFlatPushButton('-')
-        button.KEY_CHAR = ord('-')
-        number_widget_list.append(button)
 
         # alphabets
         alpha_widget_list = []
@@ -101,40 +88,47 @@ class SoftInputWidget(QtWidgets.QDialog):
                 button.KEY_CHAR = ord(sym)
                 alpha_widget_list.append(button)
 
+        button = MyFlatPushButton('.')
+        button.KEY_CHAR = ord('.')
+        alpha_widget_list.append(button)
+        button = MyFlatPushButton('-')
+        button.KEY_CHAR = ord('-')
+        alpha_widget_list.append(button)
+
         control_widget_list = []
 
-        button = MyFlatPushButton('Up')
+        button = MyFlatPushButton('LINE\nUP')
         button.setToolTip('Cursor Up')
         button.KEY_CHAR = QtCore.Qt.Key_Up
         control_widget_list.append(button)
-        control_widget_list.append('sep')
 
-        button = MyFlatPushButton('Dwn')
+        button = MyFlatPushButton('LINE\nDOWN')
         button.setToolTip('Cursor Down')
         button.KEY_CHAR = QtCore.Qt.Key_Down
         control_widget_list.append(button)
-        control_widget_list.append('sep')
+
+        # space
+        button = MyFlatPushButton('SPACE', min_size=(160, 50))
+        button.KEY_CHAR = QtCore.Qt.Key_Space
+        control_widget_list.append(button)
 
         # back space
-        button = MyFlatPushButton('<B')
+        button = MyFlatPushButton('BACK')
         button.setToolTip('Backspace')
         button.KEY_CHAR = QtCore.Qt.Key_Backspace
         control_widget_list.append(button)
-        control_widget_list.append('sep')
 
         # close
-        button = MyFlatPushButton('Close')
+        button = MyFlatPushButton('CLOSE')
         button.setToolTip('Close Keyboard')
         button.KEY_CHAR = QtCore.Qt.Key_Escape
         control_widget_list.append(button)
-        control_widget_list.append('sep')
 
         # enter
-        button = MyFlatPushButton('Enter', min_size=(110, 60))
+        button = MyFlatPushButton('ENTER', min_size=(105, 50))
         button.setToolTip('Enter Command')
         button.KEY_CHAR = QtCore.Qt.Key_Enter
         control_widget_list.append(button)
-        control_widget_list.append('sep')
 
         MAX_COL = 10
         col = 0
@@ -155,9 +149,6 @@ class SoftInputWidget(QtWidgets.QDialog):
         for widget in widget_list:
             if widget == 'new_row':
                 col = MAX_COL
-            elif widget == 'sep':
-                tlist.append(self.get_vline())
-                continue
             else:
                 tlist.append(widget)
                 widget.clicked.connect(self.signalMapper.map)
@@ -181,8 +172,8 @@ class SoftInputWidget(QtWidgets.QDialog):
         list(map(v.addWidget, tlist))
         v.addStretch()
         gl.addLayout(v)
-        gl.setContentsMargins(0, 0, 0, 0)
-        gl.setSpacing(5)
+        gl.setContentsMargins(4, 4, 4, 4)
+        gl.setSpacing(4)
         gl.setSizeConstraint(gl.SetFixedSize)
 
         self.setLayout(gl)
@@ -205,7 +196,7 @@ class SoftInputWidget(QtWidgets.QDialog):
             if char_ord == QtCore.Qt.Key_Enter:
                 self.hide()
 
-        # line edit returnPressed event is triggering twise for press and release both
+        # line edit returnPressed event is triggering twice for press and release both
         # that is why do not send release event for special key
         if char_ord not in self.NO_ORD_KEY_LIST:
             keyRelease = QtGui.QKeyEvent(QtCore.QEvent.KeyPress, char_ord, QtCore.Qt.NoModifier, '')
@@ -225,7 +216,7 @@ class SoftInputWidget(QtWidgets.QDialog):
         widget_rect = widget.rect()
         widget_bottom = widget.mapToGlobal(QtCore.QPoint(widget.frameGeometry().x(),
                                                          widget.frameGeometry().y())).y()
-        screen_height = QtWidgets.qApp.desktop().availableGeometry().height()
+        screen_height = QtWidgets.QApplication.primaryScreen().availableGeometry().height()
         input_panel_height = self.geometry().height() + 5
 
         if (screen_height - widget_bottom) > input_panel_height:
@@ -237,22 +228,6 @@ class SoftInputWidget(QtWidgets.QDialog):
 
         panelPos = widget.mapToGlobal(panelPos)
         self.move(panelPos)
-
-    def _get_line(self, vertical=True):
-        line = QtWidgets.QFrame()
-        line.setContentsMargins(0, 0, 0, 0)
-        if vertical is True:
-            line.setFrameShape(line.VLine)
-        else:
-            line.setFrameShape(line.HLine)
-        line.setFrameShadow(line.Sunken)
-        return line
-
-    def get_hline(self):
-        return self._get_line(vertical=False)
-
-    def get_vline(self):
-        return self._get_line()
 
 
 # a widget that calls our keyboard dialog
@@ -282,7 +257,7 @@ class TouchInterface(QtWidgets.QWidget):
         return False
 
     # can be class patched to call other entries - like qtvcp dialogs
-    def callDialog(self,widget, ktype):
+    def callDialog(self, widget, ktype):
         if ktype == 'alpha':
             self._input_panel_alpha.show_input_panel(widget)
         elif ktype == 'numeric':
@@ -290,13 +265,21 @@ class TouchInterface(QtWidgets.QWidget):
         else:
             self._input_panel_full.show_input_panel(widget)
 
-
-
+## testing ##
 if __name__ == '__main__':
     import sys
+    from qtpy.QtWidgets import QWidget
     app = QtWidgets.QApplication([])
-    #ExampleWidget().show()
-    test = ExampleDialog()
-    test.show()
-    #numEdit().show()
-    sys.exit(app.exec_())
+    w = QWidget()
+    w.setGeometry(100, 100, 200, 100)
+    w.setWindowTitle('Entry Widget')
+    line = QtWidgets.QLineEdit()
+    layout = QtWidgets.QVBoxLayout()
+    layout.addWidget(line)
+    test = TouchInterface(line)
+#    test.callDialog(line, 'numeric')
+#    test.callDialog(line, 'alpha')
+    test.callDialog(line, 'default')
+    w.setLayout(layout)
+    w.show()
+    sys.exit(app.exec())

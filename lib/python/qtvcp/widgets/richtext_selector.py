@@ -1,16 +1,16 @@
-#!/usr/bin/python3
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-from PyQt5.QtPrintSupport import *
+#!/usr/bin/env python3
+from qtpy.QtGui import *
+from qtpy.QtWidgets import *
+from qtpy.QtCore import *
+from qtpy.QtPrintSupport import *
 
-from qtvcp.core import Info
+from qtvcp.core import Info, Path
 
 import os
 import sys
 import uuid
 
-INFO = Info()
+PATH = Path()
 
 FONT_SIZES = [7, 8, 9, 10, 11, 12, 13, 14, 18, 24, 36, 48, 64, 72, 96, 144, 288]
 IMAGE_EXTENSIONS = ['.jpg','.png','.bmp']
@@ -70,7 +70,7 @@ class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
 
-        filepath = os.path.join(INFO.LIB_PATH, 'images/widgets/RichTextEditor')
+        filepath = os.path.join(PATH.SHAREDIR, 'images/widgets/RichTextEditor')
 
         layout = QVBoxLayout()
         self.editor = TextEdit()
@@ -377,7 +377,7 @@ class RichTextEditorDialog(QDialog):
     def showDialog(self, pretext = None):
         if pretext:
             self.window.editor.setText(pretext)
-        retval = self.exec_()
+        retval = self.exec()
         self.hide()
         if retval:
             return self.window.editor.toHtml()
@@ -407,4 +407,4 @@ if __name__ == '__main__':
 
     d.setLayout(l)
     d.show()
-    app.exec_()
+    app.exec()

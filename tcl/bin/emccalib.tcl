@@ -38,7 +38,7 @@ foreach class { Button Checkbutton Entry Label Listbox Menu Menubutton \
 }
 
 set ::EC(numjoints) [emc_ini "JOINTS" "KINS"]
-set ::EC(numspindles) 10 ;# curently 8 spindles allowed (0..7)
+set ::EC(numspindles) 10 ;# currently 8 spindles allowed (0..7)
                          ;# but legacy configs may have [SPINDLE_9]
                          ;# so allow up to 10 (0..9)
 
@@ -57,7 +57,7 @@ set ::EC(stanzas)  [list TUNE JOINT_ AXIS_ SPINDLE_]
 #               [JOINT_n]name=value
 #               where n is a suffix in {0 1 ...}
 #
-#  item==TUNE   using howmany==1 and items=="" specfies
+#  item==TUNE   using howmany==1 and items=="" specifies
 #               name/value pairs with no suffix like:
 #               [TUNE]name=value
 
@@ -179,12 +179,16 @@ proc find_ini_refs {stanza} {
             if { [lindex $halcommand 1] == "\=" } {
                 set tmpstring "setp [lindex $halcommand 0] [lindex $halcommand 2]"
             }
+            # tunable item is the setp value (3rd token); ignore ini refs
+            # that only appear inside the pin name (issue #4165)
+            set valuestring [lindex $tmpstring 2]
             for {set sfx 0} {$sfx < $::EC($stanza,howmany)} {incr sfx} {
                 set tabno $::EC($stanza,$sfx,tabno)
                 set itag [lindex $::EC($stanza,suffixes) $sfx]
-                if {[string match *${stanza}${itag}* $tmpstring]} {
+                if {[string match *${stanza}${itag}* $valuestring]} {
                     # this is a hal file search ordered loop
-                    set thisininame [string trimright [lindex [split $tmpstring "\]" ] end ]]
+                    set thisininame [lindex [split $valuestring "\]" ] end ]
+                    set thisininame [string map {( "" ) ""} $thisininame]
                     set lowername "[string tolower $thisininame]"
                     set thishalcommand [lindex $tmpstring 1]
                     set tmpval [string trim [hal getp [halcmdSubstitute $thishalcommand]]]
@@ -301,7 +305,7 @@ proc incompatible_ini_file {} {
                L is an axis letter\n\
                S is a spindle number\n\n\
                A Halfile must include a setp\n\
-               for a suppored section item\n\n\
+               for a supported section item\n\n\
                Inifile example:\n\
                \[JOINT_0\]\n\
                PGAIN=1\n\

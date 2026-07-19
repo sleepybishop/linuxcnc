@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # QTvcp Tool Bar Action
 #
 # Copyright (c) 2019 Chris Morley
@@ -14,8 +14,7 @@
 # GNU General Public License for more details.
 
 import os
-from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtGui import QIcon
+from qtpy import QtWidgets, QtCore
 from qtvcp.core import Status, Action, Info
 from qtvcp.qt_makegui import VCPWindow
 from qtvcp.lib.aux_program_loader import Aux_program_loader
@@ -47,6 +46,9 @@ class ToolBarActions():
         self.selected_line = 0
         self._viewActiongroup = QtWidgets.QActionGroup(None)
         self._touchoffActiongroup = QtWidgets.QActionGroup(None)
+        self._machineModeActiongroup = QtWidgets.QActionGroup(None)
+        self._homeSelectedActiongroup = QtWidgets.QActionGroup(None)
+        self._homeSelectedActiongroup.setExclusive(False)
         self.runfromLineWidget = None
 
     def configure_action(self, widget, action, extFunction=None):
@@ -71,20 +73,26 @@ class ToolBarActions():
                 self.runfromLineWidget.setText('Run From Line: {}'.format(line))
 
         if action == 'estop':
-            STATUS.connect('state-estop', lambda w: widget.setChecked(True))
-            STATUS.connect('state-estop-reset', lambda w: widget.setChecked(False))
+            STATUS.connect('state-estop', lambda w: self.statusOfEstop(widget,True))
+            STATUS.connect('state-estop-reset', lambda w: self.statusOfEstop(widget,False))
             function = (self.actOnEstop)
         elif action == 'power':
             STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
             STATUS.connect('state-estop-reset', lambda w: widget.setEnabled(True))
             STATUS.connect('state-estop', lambda w: widget.setChecked(False))
+            STATUS.connect('state-on', lambda w: widget.setChecked(True))
+            STATUS.connect('state-off', lambda w: widget.setChecked(False))
             function = (self.actOnPower)
-        elif action == 'load':
+        elif action == 'load_restricted':
             STATUS.connect('state-off', lambda w: widget.setEnabled(False))
             STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
             STATUS.connect('interp-idle', lambda w: widget.setEnabled(STATUS.machine_is_on()))
             STATUS.connect('interp-run', lambda w: widget.setEnabled(False))
             STATUS.connect('all-homed', lambda w: widget.setChecked(True))
+            function = (self.actOnLoad)
+        elif action == 'load':
+            STATUS.connect('interp-idle', lambda w: widget.setEnabled(True))
+            STATUS.connect('interp-run', lambda w: widget.setEnabled(False))
             function = (self.actOnLoad)
         elif action == 'reload':
             STATUS.connect('state-off', lambda w: widget.setEnabled(False))
@@ -111,6 +119,13 @@ class ToolBarActions():
             STATUS.connect('interp-paused', lambda w: widget.setEnabled(homed_on_test()))
             STATUS.connect('file-loaded', lambda w, f: widget.setEnabled(homed_on_test()))
             function = (self.actOnRun)
+        elif action == 'step':
+            STATUS.connect('state-off', lambda w: widget.setEnabled(False))
+            STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
+            STATUS.connect('interp-idle', lambda w: widget.setEnabled(homed_on_test()))
+            STATUS.connect('all-homed', lambda w: widget.setEnabled(True))
+            STATUS.connect('not-all-homed', lambda w, data: widget.setEnabled(False))
+            function = (self.actOnStep)
         elif action == 'pause':
             STATUS.connect('state-off', lambda w: widget.setEnabled(False))
             STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
@@ -213,12 +228,16 @@ class ToolBarActions():
             function = (self.actOnViewClear)
         elif action == 'show_offsets':
             function = (self.actOnViewOffsets)
+        elif action == 'large_dro':
+            function = (self.actOnLargeDRO)
         elif action == 'quit':
             function = (self.actOnQuit)
         elif action == 'system_shutdown':
             function = (self.actOnSystemShutdown)
         elif action == 'tooloffsetdialog':
             function = (self.actOnToolOffsetDialog)
+        elif action == 'toolchooserdialog':
+            function = (self.actOnToolChooserDialog)
         elif action == 'originoffsetdialog':
             function = (self.actOnOriginOffsetDialog)
         elif action == 'calculatordialog':
@@ -229,6 +248,82 @@ class ToolBarActions():
             function = (self.actOnInhibitSelection)
         elif action == 'show_dimensions':
             function = (self.actOnShowDimensions)
+        elif action == 'message_recall':
+            function = (self.actOnMessageRecall)
+        elif action == 'message_close':
+            function = (self.actOnMessageClose)
+        elif action == 'homeall':
+            STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
+            STATUS.connect('state-estop-reset', lambda w: widget.setEnabled(True))
+            STATUS.connect('state-estop', lambda w: widget.setChecked(False))
+            function = (self.actOnHomeAll)
+        elif action == 'unhomeall':
+            STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
+            STATUS.connect('state-estop-reset', lambda w: widget.setEnabled(True))
+            STATUS.connect('state-estop', lambda w: widget.setChecked(False))
+            function = (self.actOnUnHomeAll)
+        elif action == 'homeselected':
+            STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
+            STATUS.connect('state-estop-reset', lambda w: widget.setEnabled(True))
+            STATUS.connect('state-estop', lambda w: widget.setChecked(False))
+            function = (self.actOnHomeSelected)
+        elif action == 'unhomeselected':
+            STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
+            STATUS.connect('state-estop-reset', lambda w: widget.setEnabled(True))
+            STATUS.connect('state-estop', lambda w: widget.setChecked(False))
+            function = (self.actOnUnHomeSelected)
+        elif action in ('selecthomex'):
+            widget.JOINT = 0
+            self._homeSelectedActiongroup.addAction(widget)
+        elif action in ('selecthomez'):
+            widget.JOINT = 2
+            self._homeSelectedActiongroup.addAction(widget)
+        elif action == 'manual':
+            STATUS.connect('state-off', lambda w: widget.setEnabled(False))
+            STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
+            STATUS.connect('interp-idle', lambda w: widget.setEnabled(STATUS.machine_is_on()))
+            STATUS.connect('interp-run', lambda w: widget.setEnabled(False))
+            STATUS.connect('mode-manual', lambda w: widget.setChecked(True))
+            #STATUS.connect('mode-mdi', lambda w: widget.setChecked(False))
+            self._machineModeActiongroup.addAction(widget)
+            self._machineModeActiongroup.setExclusive(True)
+            function = (self.actOnManualMode)
+        elif action == 'mdi':
+            STATUS.connect('state-off', lambda w: widget.setEnabled(False))
+            STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
+            STATUS.connect('interp-idle', lambda w: widget.setEnabled(STATUS.machine_is_on()))
+            STATUS.connect('interp-run', lambda w: widget.setEnabled(False))
+            STATUS.connect('mode-mdi', lambda w: widget.setChecked(True))
+            self._machineModeActiongroup.addAction(widget)
+            self._machineModeActiongroup.setExclusive(True)
+            function = (self.actOnMDIMode)
+        elif action == 'auto':
+            STATUS.connect('state-off', lambda w: widget.setEnabled(False))
+            STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
+            STATUS.connect('interp-idle', lambda w: widget.setEnabled(STATUS.machine_is_on()))
+            STATUS.connect('interp-run', lambda w: widget.setEnabled(False))
+            STATUS.connect('mode-auto', lambda w: widget.setChecked(True))
+            self._machineModeActiongroup.addAction(widget)
+            self._machineModeActiongroup.setExclusive(True)
+            function = (self.actOnAutoMode)
+        elif action == 'joint_mode':
+            STATUS.connect('state-off', lambda w: widget.setEnabled(False))
+            STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
+            STATUS.connect('interp-idle', lambda w: widget.setEnabled(STATUS.machine_is_on()))
+            STATUS.connect('interp-run', lambda w: widget.setEnabled(False))
+            STATUS.connect('mode-auto', lambda w: widget.setChecked(True))
+            STATUS.connect('motion-mode-changed', lambda w,data: \
+                widget.setChecked(STATUS.is_joint_mode()))
+            function = (self.actOnJointMode)
+        elif action == 'axis_mode':
+            STATUS.connect('state-off', lambda w: widget.setEnabled(False))
+            STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
+            STATUS.connect('interp-idle', lambda w: widget.setEnabled(STATUS.machine_is_on()))
+            STATUS.connect('interp-run', lambda w: widget.setEnabled(False))
+            STATUS.connect('mode-auto', lambda w: widget.setChecked(True))
+            STATUS.connect('motion-mode-changed', lambda w,data: \
+                widget.setChecked(STATUS.is_world_mode()))
+            function = (self.actOnAxisMode)
         elif not extFunction:
             LOG.warning('Unrecogzied action command: {}'.format(action))
 
@@ -262,6 +357,12 @@ class ToolBarActions():
             self.addUnHomeActions(widget)
         elif submenu == 'recent_submenu':
             self._recentActionWidget = widget
+            STATUS.connect('interp-idle', lambda w: widget.setEnabled(True))
+            STATUS.connect('interp-run', lambda w: widget.setEnabled(False))
+            STATUS.connect('file-loaded', lambda w, d: self.updateRecentPaths(widget, d))
+            self.addRecentPaths()
+        elif submenu == 'recent_submenu_restricted':
+            self._recentActionWidget = widget
             STATUS.connect('state-off', lambda w: widget.setEnabled(False))
             STATUS.connect('state-estop', lambda w: widget.setEnabled(False))
             STATUS.connect('interp-idle', lambda w: widget.setEnabled(STATUS.machine_is_on()))
@@ -290,13 +391,30 @@ class ToolBarActions():
         elif option == 'message_close':
             self.addMessageControlsClose(widget)
         else:
-            LOG.warning('Unrecogzied statusbar command: {}'.format(submenu))
+            LOG.warning('Unrecogzied statusbar command: {}'.format(option))
 
     #########################################################
     # Standard Actions
     #########################################################
+
+    # estop button checked status follows linuxcnc E stop state
+    # we kep the button state the same, while we request a linuxcnc state
+    # change
     def actOnEstop(self, widget, state):
-        ACTION.SET_ESTOP_STATE(state)
+            widget.blockSignals(True)
+            if STATUS.estop_is_clear():
+                widget.setChecked(False)
+            else:
+                widget.setChecked(True)
+            widget.blockSignals(False)
+            ACTION.SET_ESTOP_STATE(state)
+
+    # estop button checked status follows linuxcnc E stop state
+    def statusOfEstop(self, widget, state):
+        if STATUS.estop_is_clear():
+            widget.setChecked(False)
+        else:
+            widget.setChecked(True)
 
     def actOnPower(self, widget, state):
         ACTION.SET_MACHINE_STATE(state)
@@ -308,22 +426,41 @@ class ToolBarActions():
         STATUS.emit('reload-display')
 
     def actOnProperties(self, widget, state=None):
+        # substitute nice looking text:
+        property_names = {
+            'name': "Name:", 'size': "Size:",
+    '       tools': "Tool order:", 'g0': "Rapid distance:",
+            'g1': "Feed distance:", 'g': "Total distance:",
+            'run': "Run time:",'machine_unit_sys':"Machine Unit System:",
+            'x': "X bounds:",'x_zero_rxy':'X @ Zero Rotation:',
+            'y': "Y bounds:",'y_zero_rxy':'Y @ Zero Rotation:',
+            'z': "Z bounds:",'z_zero_rxy':'Z @ Zero Rotation:',
+            'a': "A bounds:", 'b': "B bounds:",
+            'c': "C bounds:",'toollist':'Tool Change List:',
+            'gcode_units':"Gcode Units:"
+        }
+
         mess = ''
         if self.gcode_properties:
             for i in self.gcode_properties:
-                mess += '<b>%s</b>: %s<br>' % (i, self.gcode_properties[i])
-        else:
-            mess = 'No properties to display'
+                mess += '<span style=" font-size:16pt; font-weight:600; color:black;">%s </span>\
+<span style=" font-size:12pt; font-weight:600; color:#aa0000;">%s</span>\
+<br>'% (property_names.get(i), self.gcode_properties[i])
+
+        # pop a dialog of the properties
         msg = QtWidgets.QMessageBox()
         msg.setIcon(QtWidgets.QMessageBox.Information)
         msg.setText(mess)
         msg.setWindowTitle("Gcode Properties")
         msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
         msg.show()
-        retval = msg.exec_()
+        retval = msg.exec()
 
     def actOnRun(self, widget, state=None):
         ACTION.RUN()
+
+    def actOnStep(self, widget, state=None):
+        ACTION.STEP()
 
     def actOnPause(self, widget, state=None):
         ACTION.PAUSE()
@@ -397,8 +534,14 @@ class ToolBarActions():
         else:
             ACTION.SET_GRAPHICS_VIEW('overlay-offsets-off')
 
+    def actOnLargeDRO(self, widget, state=None):
+        if state:
+            ACTION.SET_GRAPHICS_VIEW('set-large-dro')
+        else:
+            ACTION.SET_GRAPHICS_VIEW('set-small-dro')
+
     def actOnQuit(self, widget, state=None):
-        STATUS.emit('shutdown')
+        WIDGETS.close()
 
     def actOnSystemShutdown(self, widget, state=None):
         if 'system_shutdown_request__' in dir(WIDGETS):
@@ -406,15 +549,23 @@ class ToolBarActions():
             WIDGETS.system_shutdown_request__()
             # make sure to close qtvcp/linuxcnc properly
             # screenoptions widget redirects the close function to add a prompt
-            # now we re-redirect to remove the prompt 
+            # now we re-redirect to remove the prompt
             WIDGETS.closeEvent = WIDGETS.originalCloseEvent_
             WIDGETS.close()
         else:
             ACTION.SHUT_SYSTEM_DOWN_PROMPT()
 
     def actOnAbout(self, widget, state=None):
-        msg = QtWidgets.QMessageBox()
+        # there should be a default dialog loaded from screenoptions
+        try:
+            info = ACTION.GET_ABOUT_INFO()
+            WIDGETS.aboutDialog_.showdialog()
+            return
+        except:
+            pass
 
+        # ok we will build one then
+        msg = QtWidgets.QMessageBox()
         mess = ''
         path = os.path.join(CONFIGDIR, 'README')
         if os.path.exists(path):
@@ -424,24 +575,27 @@ class ToolBarActions():
         else:
             msg.setWindowTitle("About")
             mess = 'This is a QtVCP based screen for Linuxcnc'
-        msg.setText(mess)
 
+        msg.setText(mess)
         msg.setIcon(QtWidgets.QMessageBox.Information)
         msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
         msg.show()
-        retval = msg.exec_()
+        retval = msg.exec()
 
     def actOnRunFromLine(self, widget, state=False):
         STATUS.emit('dialog-request', {'NAME': 'RUNFROMLINE', 'LINE':self.selected_line})
         #ACTION.RUN(self.selected_line)
 
-    def actOnToolOffsetDialog(self, wudget, state=None):
+    def actOnToolChooserDialog(self, widget, state=None):
+        STATUS.emit('dialog-request', {'NAME': 'TOOLCHOOSER'})
+
+    def actOnToolOffsetDialog(self, widget, state=None):
         STATUS.emit('dialog-request', {'NAME': 'TOOLOFFSET'})
 
-    def actOnOriginOffsetDialog(self, wudget, state=None):
+    def actOnOriginOffsetDialog(self, widget, state=None):
         STATUS.emit('dialog-request', {'NAME': 'ORIGINOFFSET'})
 
-    def actOnCalculatorDialog(self, wudget, state=None):
+    def actOnCalculatorDialog(self, widget, state=None):
         STATUS.emit('dialog-request', {'NAME': 'CALCULATOR'})
 
     def actOnAlphaMode(self, widget, state):
@@ -461,6 +615,61 @@ class ToolBarActions():
             ACTION.SET_GRAPHICS_VIEW('dimensions-on')
         else:
             ACTION.SET_GRAPHICS_VIEW('dimensions-off')
+
+    def actOnMessageClose(self, widget, state=None):
+        WIDGETS._NOTICE.external_close()
+
+    def actOnMessageRecall(self, widget, state=None):
+        WIDGETS._NOTICE.show_last()
+
+    def actOnHomeAll(self, widget, state=None):
+        ACTION.SET_MACHINE_HOMING(-1)
+
+    def actOnUnHomeAll(self, widget, state=None):
+        ACTION.SET_MACHINE_UNHOMED(-1)
+
+        # assumed there are axis selection actions
+        # and one for every available axis
+    def actOnHomeSelected(self, widget, state=None):
+        l = self._homeSelectedActiongroup.actions()
+        temp = []
+        for i in l:
+            if i.isChecked():
+                temp.append(i)
+        if len(temp) == len(l):
+            ACTION.SET_MACHINE_HOMING(-1)
+        else:
+            for i in temp:
+                ACTION.SET_MACHINE_HOMING(i.JOINT)
+
+        # assumed there are axis selection actions
+        # and one for every available axis
+    def actOnUnHomeSelected(self, widget, state=None):
+        l = self._homeSelectedActiongroup.actions()
+        temp = []
+        for i in l:
+            if i.isChecked():
+                temp.append(i)
+        if len(temp) == len(l):
+            ACTION.SET_MACHINE_UNHOMED(-1)
+        else:
+            for i in temp:
+                ACTION.SET_MACHINE_UNHOMED(i.JOINT)
+
+    def actOnManualMode(self, widget, state=None):
+        ACTION.SET_MANUAL_MODE()
+
+    def actOnMDIMode(self, widget, state=None):
+        ACTION.SET_MDI_MODE()
+
+    def actOnAutoMode(self, widget, state=None):
+        ACTION.SET_AUTO_MODE()
+
+    def actOnJointMode(self, widget, state=None):
+        ACTION.SET_MOTION_TELEOP(0)
+
+    def actOnAxisMode(self, widget, state=None):
+        ACTION.SET_MOTION_TELEOP(1)
 
     #########################################################
     # Sub menus
@@ -555,7 +764,7 @@ class ToolBarActions():
                 return
 
         # are we past 5 files? remove the lowest
-        # else update cuurrent number
+        # else update current number
         if self.recentNum > self.maxRecent:
             widget.removeAction(alist[self.maxRecent])
         else:

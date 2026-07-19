@@ -28,13 +28,14 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <signal.h>
 
-#include "hal.h"
-#include "motion_debug.h"
-#include "motion.h"
-#include "motion_struct.h"
+#include <hal.h>
+#include "motion/motion.h"
+#include "motion/motion_struct.h"
 #include "motion_types.h"
-#include "mot_priv.h"
+#include "motion/mot_priv.h"
+#include "motion/axis.h"
 
 static struct motion_logger_data_t {
     hal_bit_t *reopen;
@@ -43,25 +44,19 @@ static struct motion_logger_data_t {
 FILE *logfile = NULL;
 char *logfile_name = NULL;
 
-emcmot_struct_t *emcmotStruct = 0;
+emcmot_struct_t *emcmotStruct = NULL;
 
-struct emcmot_command_t *c = 0;
-struct emcmot_status_t *emcmotStatus = 0;
-struct emcmot_config_t *emcmotConfig = 0;
-struct emcmot_debug_t *emcmotDebug = 0;
-struct emcmot_internal_t *emcmotInternal = 0;
-struct emcmot_error_t *emcmotError = 0;
+struct emcmot_command_t *c = NULL;
+struct emcmot_status_t *emcmotStatus = NULL;
+struct emcmot_config_t *emcmotConfig = NULL;
+struct emcmot_internal_t *emcmotInternal = NULL;
+struct emcmot_error_t *emcmotError = NULL;
 
-int mot_comp_id;
+static int mot_comp_id;
 
-emcmot_joint_t joint_array[EMCMOT_MAX_JOINTS];
+emcmot_joint_t joints[EMCMOT_MAX_JOINTS];
 int num_joints = EMCMOT_MAX_JOINTS;
-emcmot_joint_t *joints = 0;
 int num_spindles = EMCMOT_MAX_SPINDLES;
-
-emcmot_axis_t axis_array[EMCMOT_MAX_AXIS];
-int num_axes = EMCMOT_MAX_AXIS;
-emcmot_axis_t *axes = 0;
 
 void emcmot_config_change(void) {
     if (emcmotConfig->head == emcmotConfig->tail) {
@@ -72,22 +67,29 @@ void emcmot_config_change(void) {
     }
 }
 
+static int shmem_id;
+
+static volatile int quit;
+
+static void sighandler(int sig)
+{
+    (void)sig;
+    quit = 1;
+}
 
 static int init_comm_buffers(void) {
     int joint_num, axis_num, n;
     emcmot_joint_t *joint;
-    emcmot_axis_t *axis;
     int retval;
-    int shmem_id;
 
     rtapi_print_msg(RTAPI_MSG_INFO,
 	"MOTION: init_comm_buffers() starting...\n");
 
-    emcmotStruct = 0;
-    emcmotDebug = 0;
-    emcmotStatus = 0;
-    c = 0;
-    emcmotConfig = 0;
+    emcmotStruct = NULL;
+    emcmotInternal = NULL;
+    emcmotStatus = NULL;
+    c = NULL;
+    emcmotConfig = NULL;
 
     /* allocate and initialize the shared memory structure */
     shmem_id = rtapi_shmem_new(DEFAULT_SHMEM_KEY, mot_comp_id, sizeof(emcmot_struct_t));
@@ -103,14 +105,10 @@ static int init_comm_buffers(void) {
 	return -1;
     }
 
-    /* zero shared memory before doing anything else. */
-    memset(emcmotStruct, 0, sizeof(emcmot_struct_t));
-
     /* we'll reference emcmotStruct directly */
     c = &emcmotStruct->command;
     emcmotStatus = &emcmotStruct->status;
     emcmotConfig = &emcmotStruct->config;
-    emcmotDebug = &emcmotStruct->debug;
     emcmotInternal = &emcmotStruct->internal;
     emcmotError = &emcmotStruct->error;
 
@@ -124,7 +122,7 @@ static int init_comm_buffers(void) {
     emcmotStatus->rapid_scale = 1.0;
     for (int n = 0; n < EMCMOT_MAX_SPINDLES; n++) emcmotStatus->spindle_status[n].scale = 1.0;
     emcmotStatus->net_feed_scale = 1.0;
-    /* adaptive feed is off by default, feed override, spindle 
+    /* adaptive feed is off by default, feed override, spindle
        override, and feed hold are on */
     emcmotStatus->enables_new = FS_ENABLED | SS_ENABLED | FH_ENABLED;
     emcmotStatus->enables_queued = emcmotStatus->enables_new;
@@ -132,9 +130,6 @@ static int init_comm_buffers(void) {
     emcmotConfig->kinType = KINEMATICS_IDENTITY;
 
     emcmot_config_change();
-
-    /* init pointer to joint structs */
-    joints = joint_array;
 
     /* init per-joint stuff */
     for (joint_num = 0; joint_num < num_joints; joint_num++) {
@@ -176,26 +171,14 @@ static int init_comm_buffers(void) {
 	SET_JOINT_INPOS_FLAG(joint, 1);
     }
 
-    /* init pointer to axes structs */
-    axes = axis_array;
-
     /* init per-axis stuff */
-    for (axis_num = 0; axis_num < num_axes; axis_num++) {
-	/* point to structure for this axis */
-	axis = &axes[axis_num];
-	axis->pos_cmd = 0.0;
-	axis->teleop_vel_cmd = 0.0;
-	axis->max_pos_limit = 1.0;
-	axis->min_pos_limit = -1.0;
-	axis->vel_limit = 1.0;
-	axis->acc_limit = 1.0;
-	//simple_tp_t teleop_tp
-	axis->old_ajog_counts = 0;
-	axis->kb_ajog_active = 0;
-	axis->wheel_ajog_active = 0;
+    axis_init_all();
+    for (axis_num = 0; axis_num < EMCMOT_MAX_AXIS; axis_num++) {
+        axis_set_max_pos_limit(axis_num,  1.0);
+        axis_set_min_pos_limit(axis_num, -1.0);
+        axis_set_vel_limit(axis_num, 1.0);
+        axis_set_acc_limit(axis_num, 1.0);
     }
-
-    emcmotDebug->start_time = time(NULL);
 
     rtapi_print_msg(RTAPI_MSG_INFO, "MOTION: init_comm_buffers() complete\n");
     return 0;
@@ -272,7 +255,7 @@ void log_print(const char *fmt, ...) {
             logfile = fopen(logfile_name, "w");
             if (logfile == NULL) {
                 fprintf(stderr, "error opening %s: %s\n", logfile_name, strerror(errno));
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         }
     }
@@ -293,26 +276,52 @@ int main(int argc, char* argv[]) {
         logfile_name = argv[1];
     } else {
         fprintf(stderr, "usage: motion-logger [LOGFILE]\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
-    mot_comp_id = hal_init("motion-logger");
-    motion_logger_data = hal_malloc(sizeof(*motion_logger_data));
-    int r = hal_pin_bit_new("motion-logger.reopen-log", HAL_IO, &motion_logger_data->reopen,
-            mot_comp_id);
-    if(r < 0) { errno = -r; perror("hal_pin_bit_new"); exit(1); }
-    *motion_logger_data->reopen = 0;
-    r = hal_ready(mot_comp_id);
-    if(r < 0) { errno = -r; perror("hal_ready"); exit(1); }
-    init_comm_buffers();
+    signal(SIGINT,  sighandler); // ^C interrupt
+    signal(SIGQUIT, sighandler); // Quit from keyboard
+    signal(SIGTERM, sighandler); // Sent to terminate
+    signal(SIGHUP,  sighandler); // Terminal closed or parent died
+    signal(SIGUSR1, SIG_IGN);    // User signal 1
+    signal(SIGUSR2, SIG_IGN);    // User signal 2
 
-    while (1) {
-        if (c->commandNum != c->tail) {
-            // "split read"
-            continue;
-        }
+    if((mot_comp_id = hal_init("motion-logger")) < 0) {
+        fprintf(stderr, "motion-logger: failed to init hal.\n");
+        exit(EXIT_FAILURE);
+    }
+    if(!(motion_logger_data = hal_malloc(sizeof(*motion_logger_data)))) {
+        hal_exit(mot_comp_id);
+        fprintf(stderr, "motion-logger: failed to allocate hal memory.\n");
+        exit(EXIT_FAILURE);
+    }
+    int r;
+    if((r = hal_pin_bit_new("motion-logger.reopen-log", HAL_IO, &motion_logger_data->reopen, mot_comp_id)) < 0) {
+        hal_exit(mot_comp_id);
+        errno = -r;
+        perror("hal_pin_bit_new");
+        exit(EXIT_FAILURE);
+    }
+    *motion_logger_data->reopen = 0;
+    if((r = hal_ready(mot_comp_id)) < 0) {
+        hal_exit(mot_comp_id);
+        errno = -r;
+        perror("hal_ready");
+        exit(EXIT_FAILURE);
+    }
+    
+    r = init_comm_buffers();
+    if (r) {
+        fprintf(stderr,"init_comm_buffer init failure\n");
+        exit(EXIT_FAILURE);
+    }
+
+    while (!quit) {
+        rtapi_mutex_get(&emcmotStruct->command_mutex);
+
         if (c->commandNum == emcmotStatus->commandNumEcho) {
             // nothing new
+            rtapi_mutex_give(&emcmotStruct->command_mutex);
             maybe_reopen_logfile();
             usleep(10 * 1000);
             continue;
@@ -329,8 +338,8 @@ int main(int argc, char* argv[]) {
                 log_print("ABORT\n");
                 break;
 
-            case EMCMOT_JOINT_ABORT:
-                log_print("JOINT_ABORT joint=%d\n", c->joint);
+            case EMCMOT_JOG_ABORT:
+                log_print("JOG_ABORT joint=%d\n", c->joint);
                 break;
 
             case EMCMOT_ENABLE:
@@ -343,14 +352,6 @@ int main(int argc, char* argv[]) {
                 log_print("DISABLE\n");
                 SET_MOTION_ENABLE_FLAG(0);
                 update_motion_state();
-                break;
-
-            case EMCMOT_JOINT_ENABLE_AMPLIFIER:
-                log_print("ENABLE_AMPLIFIER\n");
-                break;
-
-            case EMCMOT_JOINT_DISABLE_AMPLIFIER:
-                log_print("DISABLE_AMPLIFIER\n");
                 break;
 
             case EMCMOT_ENABLE_WATCHDOG:
@@ -521,8 +522,8 @@ int main(int argc, char* argv[]) {
                     "SET_AXIS_POSITION_LIMITS axis=%d, min=%.6g, max=%.6g\n",
                     c->axis, c->minLimit, c->maxLimit
                 );
-                axes[c->axis].max_pos_limit = c->maxLimit;
-                axes[c->axis].min_pos_limit = c->minLimit;
+                axis_set_min_pos_limit(c->axis, c->minLimit);
+                axis_set_max_pos_limit(c->axis, c->maxLimit);
                 break;
 
             case EMCMOT_SET_AXIS_LOCKING_JOINT:
@@ -530,7 +531,11 @@ int main(int argc, char* argv[]) {
                     "SET_AXIS_LOCKING_JOINT axis=%d, locking_joint=%d\n",
                     c->axis, c->joint
                 );
-                axes[c->axis].locking_joint = c->joint;
+                axis_set_locking_joint(c->axis, c->joint);
+                break;
+
+            case EMCMOT_SET_AXIS_JERK_LIMIT:
+                log_print("SET_AXIS_JERK_LIMIT axis=%d, jerk=%.6g\n", c->axis, c->jerk);
                 break;
 
             case EMCMOT_SET_JOINT_BACKLASH:
@@ -573,6 +578,14 @@ int main(int argc, char* argv[]) {
                 log_print("SET_ACC acc=%.6g\n", c->acc);
                 break;
 
+            case EMCMOT_SET_JERK:
+                log_print("SET_JERK jerk=%.6g\n", c->jerk);
+                break;
+
+            case EMCMOT_SET_PLANNER_TYPE:
+                log_print("SET_PLANNER_TYPE planner_type=%d\n", c->planner_type);
+                break;
+
             case EMCMOT_SET_TERM_COND:
                 log_print("SET_TERM_COND termCond=%d, tolerance=%.6g\n", c->termCond, c->tolerance);
                 break;
@@ -605,6 +618,10 @@ int main(int argc, char* argv[]) {
                 );
                 break;
 
+            case EMCMOT_SET_JOINT_JERK_LIMIT:
+                log_print("SET_JOINT_JERK_LIMIT joint=%d, jerk=%.6g\n", c->joint, c->jerk);
+                break;
+
             case EMCMOT_UPDATE_JOINT_HOMING_PARAMS:
                 log_print(
                     "UPDATE_JOINT_HOMING_PARAMS joint=%d, offset=%.6g home=%.6g home_sequence=%d\n",
@@ -622,6 +639,10 @@ int main(int argc, char* argv[]) {
 
             case EMCMOT_SET_AOUT:
                 log_print("SET_AOUT\n");
+                break;
+
+            case EMCMOT_SET_SPINDLE_PARAMS:
+                log_print("SET_SPINDLE_PARAMS, %.2e, %.2e, %.2e, %.2e\n", c->maxLimit, c->min_pos_speed, c->minLimit, c->max_neg_speed);
                 break;
 
             case EMCMOT_SET_SPINDLESYNC:
@@ -701,8 +722,18 @@ int main(int argc, char* argv[]) {
         emcmotStatus->commandNumEcho = c->commandNum;
         emcmotStatus->commandStatus = EMCMOT_COMMAND_OK;
         emcmotStatus->tail = emcmotStatus->head;
+
+        rtapi_mutex_give(&emcmotStruct->command_mutex);
     }
 
+    if((r = rtapi_shmem_delete(shmem_id, mot_comp_id)) < 0) {
+        errno = -r;
+        perror("rtapi_shmem_delete");
+    }
+    if((r = hal_exit(mot_comp_id)) < 0) {
+        errno = -r;
+        perror("hal_exit");
+    }
     return 0;
 }
 

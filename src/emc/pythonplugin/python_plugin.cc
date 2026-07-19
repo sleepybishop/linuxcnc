@@ -17,7 +17,7 @@
  *    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 #include "python_plugin.hh"
-#include "inifile.hh"
+#include <inifile.hh>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,8 +28,10 @@
 #include <boost/python/exec.hpp>
 #include <boost/python/extract.hpp>
 #include <boost/python/import.hpp>
+#include <pyconfig.h>
 
 namespace bp = boost::python;
+using namespace linuxcnc;
 
 #define MAX_ERRMSG_SIZE 256
 
@@ -55,25 +57,12 @@ namespace bp = boost::python;
 
 static const char *strstore(const char *s);
 
-// boost python versions from 1.58 to 1.61 (the latest at the time of
-// writing) all have a bug in boost::python::execfile that results in a
-// double free.  Work around it by using the Python implementation of
-// execfile instead.
-// The bug was introduced at https://github.com/boostorg/python/commit/fe24ab9dd5440562e27422cd38f7de03356bfd16
-bp::object working_execfile(const char *filename, bp::object globals, bp::object locals) {
-    #if PY_MAJOR_VERSION >=3 
-        return bp::exec_file(filename,globals,locals);
-    #else
-        return bp::import("__builtin__").attr("execfile")(filename, globals, locals);
-    #endif
-}
-
 int PythonPlugin::run_string(const char *cmd, bp::object &retval, bool as_file)
 {
     reload();
     try {
 	if (as_file)
-	    retval = working_execfile(cmd, main_namespace, main_namespace);
+	    retval = bp::exec_file(cmd, main_namespace, main_namespace);
 	else
 	    retval = bp::exec(cmd, main_namespace, main_namespace);
 	status = PLUGIN_OK;
@@ -248,6 +237,8 @@ std::string handle_pyerror()
     bp::object formatted_list, formatted;
 
     PyErr_Fetch(&exc, &val, &tb);
+    PyErr_NormalizeException(&exc, &val, &tb);
+
     bp::handle<> hexc(exc), hval(bp::allow_null(val)), htb(bp::allow_null(tb));
     bp::object traceback(bp::import("traceback"));
     if (!tb) {
@@ -273,9 +264,7 @@ int PythonPlugin::initialize()
 		main_namespace[inittab_entries[i]] = bp::import(inittab_entries[i].c_str());
 	    }
 	    if (toplevel) // only execute a file if there's one configured.
-		bp::object result = working_execfile(abs_path,
-						  main_namespace,
-						  main_namespace);
+		bp::object result = bp::exec_file(abs_path, main_namespace, main_namespace);
 	    status = PLUGIN_OK;
 	}
 	catch (bp::error_already_set &) {
@@ -302,14 +291,15 @@ PythonPlugin::PythonPlugin(struct _inittab *inittab) :
     status(0),
     module_mtime(0),
     reload_on_change(0),
-    toplevel(0),
-    abs_path(0),
+    toplevel(NULL),
+    abs_path(NULL),
     log_level(0)
 {
-#if PY_MAJOR_VERSION >= 3
+  PyConfig config;
+  PyConfig_InitPythonConfig(&config);
   if (abs_path) {
     wchar_t *program = Py_DecodeLocale(abs_path, NULL);
-    Py_SetProgramName(program);
+    PyConfig_SetString(&config, &config.program_name, program);
   }
     if (inittab != NULL) {
       if (!Py_IsInitialized()) {
@@ -337,16 +327,11 @@ PythonPlugin::PythonPlugin(struct _inittab *inittab) :
         }
       }
   }
-  Py_UnbufferedStdioFlag = 1;
-#else
-    Py_SetProgramName((char *) abs_path);
-    if ((inittab != NULL) && PyImport_ExtendInittab(inittab)) {
-	    logPP(-1, "cant extend inittab");
-	    status = PLUGIN_INITTAB_FAILED;
-	    return;
-    }
-#endif
-  Py_Initialize();
+  config.buffered_stdio = 0;
+  if (!Py_IsInitialized()) {
+    Py_InitializeFromConfig(&config);
+  }
+  PyConfig_Clear(&config);
   initialize();
 }
 
@@ -354,9 +339,6 @@ PythonPlugin::PythonPlugin(struct _inittab *inittab) :
 int PythonPlugin::configure(const char *iniFilename,
 			   const char *section) 
 {
-    IniFile inifile;
-    const char *inistring;
-
     if (section == NULL) {
 	logPP(1, "no section");
 	status = PLUGIN_NO_SECTION;
@@ -368,21 +350,28 @@ int PythonPlugin::configure(const char *iniFilename,
 	status = PLUGIN_NO_INIFILE;
 	return status;
     }
-    if (inifile.Open(iniFilename) == false) {
+
+    IniFile inifile(iniFilename);
+    if (!inifile) {
           logPP(-1, "Unable to open inifile:%s:\n", iniFilename);
 	  status = PLUGIN_BAD_INIFILE;
 	  return status;
     }
 
     char real_path[PATH_MAX];
-    if ((inistring = inifile.Find("TOPLEVEL", section)) != NULL) {
-	toplevel = strstore(inistring);
+    std::string expandinistring;
+    if (auto inistring = inifile.findString("TOPLEVEL", section)) {
+        if (inifile.TildeExpansion(*inistring, expandinistring)) {
+	        logPP(-1, "TildeExpansion failed  '%s'", toplevel);
+	        status = PLUGIN_BAD_PATH;
+	        return status;
+        }
+	toplevel = strstore(expandinistring.c_str());
 
-	if ((inistring = inifile.Find("RELOAD_ON_CHANGE", section)) != NULL)
-	    reload_on_change = (atoi(inistring) > 0);
+        reload_on_change = inifile.findBoolV("RELOAD_ON_CHANGE", section, false);
 
 	if (realpath(toplevel, real_path) == NULL) {
-	    logPP(-1, "cant resolve path to '%s'", toplevel);
+	    logPP(-1, "can\'t resolve path to '%s'", toplevel);
 	    status = PLUGIN_BAD_PATH;
 	    return status;
 	}
@@ -404,20 +393,22 @@ int PythonPlugin::configure(const char *iniFilename,
 	abs_path = strstore(real_path);
     }
 
-    if ((inistring = inifile.Find("LOG_LEVEL", section)) != NULL)
-	log_level = atoi(inistring);
-    else log_level = 0;
+    log_level = inifile.findIntV("LOG_LEVEL", section, 0);
 
-    char pycmd[PATH_MAX];
+    char pycmd[PATH_MAX + 64];
     int n = 1;
-    int lineno;
-    while (NULL != (inistring = inifile.Find("PATH_PREPEND", "PYTHON",
-					     n, &lineno))) {
-	snprintf(pycmd, sizeof(pycmd), "import sys\nsys.path.insert(0,\"%s\")", inistring);
-	logPP(1, "%s:%d: executing '%s'",iniFilename, lineno, pycmd);
+    while (auto inistring = inifile.findString(n, "PATH_PREPEND", "PYTHON")) {
+        auto lineno = inifile.lineOf(n, "PATH_PREPEND", "PYTHON");
+        if (inifile.TildeExpansion(*inistring, expandinistring)) {
+	        logPP(-1, "TildeExpansion failed  '%s'", toplevel);
+	        status = PLUGIN_EXCEPTION_DURING_PATH_PREPEND;
+	        return status;
+        }
+	snprintf(pycmd, sizeof(pycmd), "import sys\nsys.path.insert(0,\"%s\")", expandinistring.c_str());
+	logPP(1, "%s:%d: executing '%s'", lineno.first.c_str(), lineno.second, pycmd);
 
 	if (PyRun_SimpleString(pycmd)) {
-	    logPP(-1, "%s:%d: exception running '%s'",iniFilename, lineno, pycmd);
+	    logPP(-1, "%s:%d: exception running '%s'", lineno.first.c_str(), lineno.second, pycmd);
 	    exception_msg = "exception running:" + std::string((const char*)pycmd);
 	    status = PLUGIN_EXCEPTION_DURING_PATH_PREPEND;
 	    return status;
@@ -425,12 +416,17 @@ int PythonPlugin::configure(const char *iniFilename,
 	n++;
     }
     n = 1;
-    while (NULL != (inistring = inifile.Find("PATH_APPEND", "PYTHON",
-					     n, &lineno))) {
-	snprintf(pycmd, sizeof(pycmd), "import sys\nsys.path.append(\"%s\")", inistring);
-	logPP(1, "%s:%d: executing '%s'",iniFilename, lineno, pycmd);
+    while (auto inistring = inifile.findString(n, "PATH_APPEND", "PYTHON")) {
+        auto lineno = inifile.lineOf(n, "PATH_APPEND", "PYTHON");
+        if (inifile.TildeExpansion(*inistring, expandinistring)) {
+	        logPP(-1, "TildeExpansion failed  '%s'", toplevel);
+	        status = PLUGIN_EXCEPTION_DURING_PATH_APPEND;
+	        return status;
+        }
+	snprintf(pycmd, sizeof(pycmd), "import sys\nsys.path.append(\"%s\")", expandinistring.c_str());
+	logPP(1, "%s:%d: executing '%s'", lineno.first.c_str(), lineno.second, pycmd);
 	if (PyRun_SimpleString(pycmd)) {
-	    logPP(-1, "%s:%d: exception running '%s'",iniFilename, lineno, pycmd);
+	    logPP(-1, "%s:%d: exception running '%s'", lineno.first.c_str(), lineno.second, pycmd);
 	    exception_msg = "exception running " + std::string((const char*)pycmd);
 	    status = PLUGIN_EXCEPTION_DURING_PATH_APPEND;
 	    return status;

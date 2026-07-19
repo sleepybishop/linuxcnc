@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtDesigner import QPyDesignerCustomWidgetPlugin
+from qtpy import QtGui
+from qtpy.QtDesigner import QPyDesignerCustomWidgetPlugin
 from qtvcp.widgets.basic_probe import BasicProbe
 from qtvcp.widgets.qtvcp_icons import Icon
 
@@ -31,7 +31,7 @@ class BasicProbePlugin(QPyDesignerCustomWidgetPlugin):
         return "BasicProbe"
 
     def group(self):
-        return "Linuxcnc - Controller"
+        return "Linuxcnc - Widgets"
 
     def icon(self):
         return QtGui.QIcon(QtGui.QPixmap(ICON.get_path('basicprobe')))

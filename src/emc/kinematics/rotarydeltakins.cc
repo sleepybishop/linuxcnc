@@ -33,7 +33,7 @@ static object forward(double j0, double j1, double j2)
 static object inverse(double x, double y, double z)
 {
     double joints[9];
-    EmcPose pos = {{x,y,z}};
+    EmcPose pos = {{x,y,z}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     int result = kinematics_inverse(&pos, joints);
     if(result == 0)
         return make_tuple(joints[0], joints[1], joints[2]);
@@ -45,6 +45,8 @@ static object get_geometry()
     return make_tuple(platformradius, thighlength, shinlength, footradius);
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 BOOST_PYTHON_MODULE(rotarydeltakins)
 {
     set_geometry(RDELTA_PFR, RDELTA_TL, RDELTA_SL, RDELTA_FR);
@@ -53,3 +55,4 @@ BOOST_PYTHON_MODULE(rotarydeltakins)
     def("forward", forward);
     def("inverse", inverse);
 }
+#pragma GCC diagnostic pop

@@ -1,11 +1,8 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
-import sip
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtGui import QIcon, QPixmap, QTextFormat
-from PyQt5.QtWidgets import QDialog, QLabel
-from PyQt5.QtCore import pyqtProperty, QVariant
-from PyQt5.QtDesigner import QPyDesignerCustomWidgetPlugin, QExtensionFactory, QPyDesignerTaskMenuExtension, \
+from qtpy import QtCore, QtGui, QtWidgets
+from qtpy.QtGui import QIcon, QPixmap
+from qtpy.QtDesigner import QPyDesignerCustomWidgetPlugin, QExtensionFactory, QPyDesignerTaskMenuExtension, \
     QPyDesignerPropertySheetExtension, QDesignerFormWindowInterface
 
 from qtvcp.widgets.richtext_selector import RichTextEditorDialog
@@ -101,9 +98,13 @@ class GstatLabelPropertySheet(QPyDesignerPropertySheetExtension):
         self.temp_flag = True
         # print dir(self.widget.pyqtConfigure.__sizeof__)
         # print self.widget.pyqtConfigure.__sizeof__()
+        try:
+            from qtpy.QtCore import Property as _QtProperty
+        except Exception:
+            from PyQt5.QtCore import pyqtProperty as _QtProperty
         for i in StatusLabel.__dict__:
             # print i
-            if 'PyQt5.QtCore.pyqtProperty' in str(StatusLabel.__dict__[i]):
+            if isinstance(StatusLabel.__dict__[i], _QtProperty):
                 self.propertylist.append(i)
                 print(i)
         # print dir(self.widget)
@@ -115,12 +116,12 @@ class GstatLabelPropertySheet(QPyDesignerPropertySheetExtension):
         name = self.propertyName(index)
         print('property index:', index, name)
         if 'object' in name:
-            return QVariant('default')
+            return 'default'
         if 'orient' in name:
-            return QVariant(False)
+            return False
         if 'text' == name or 'alt' in name:
-            return QVariant(self.widget.text)
-        return QVariant(self.widget[str(name)])
+            return self.widget.text
+        return self.widget[str(name)]
 
     def indexOf(self, name):
         # print 'NAME:',name
@@ -160,7 +161,7 @@ class GstatLabelPropertySheet(QPyDesignerPropertySheetExtension):
             self.widget.setObjectName(value)
         if 'geometry' in prop:
             self.widget.setGeometry(value)
-        if prop is 'text':
+        if prop == 'text':
             self.widget.setText(value)
         if 'Status' in prop:
             self.do_alt_text_test(prop, index, value)
@@ -168,7 +169,7 @@ class GstatLabelPropertySheet(QPyDesignerPropertySheetExtension):
 
         return
         if self.formWindow:
-            self.formWindow.cursor().setProperty(self.propertyName(index), QVariant(value))
+            self.formWindow.cursor().setProperty(self.propertyName(index), value)
         return
 
     def getVisible(self, index, data):
@@ -206,7 +207,7 @@ class StatusLabelMenuEntry(QPyDesignerTaskMenuExtension):
 
     def updateOptions(self):
         dialog = StatusLabelDialog(self.widget)
-        dialog.exec_()
+        dialog.exec()
 
 
 class StatusLabelTaskMenuFactory(QExtensionFactory):
@@ -219,8 +220,6 @@ class StatusLabelTaskMenuFactory(QExtensionFactory):
             return None
         if iid == Q_TYPEID['QDesignerTaskMenuExtension']:
             return StatusLabelMenuEntry(obj, parent)
-        elif iid == Q_TYPEID['QDesignerMemberSheetExtension']:
-            return StatusLabelMemberSheet(obj, parent)
         return None
 
 
@@ -332,24 +331,25 @@ class StatusLabelDialog(QtWidgets.QDialog):
                   ('Spindle Override', ['spindle_override', 2], []),
                   ('Max Velocity Override', ['max_velocity_override', 2], []))
         node_2 = (('Jog Rate', ['jograte', 6], []),
-                  ('Jog Rate Angular', ['jograte_angular', 6], []),
+                  ('Jog Rate Angular', ['jograte_angular', 2], []),
                   ('Jog Increment', ['jogincr', 6], []),
                   ('Jog Increment Angular', ['jogincr_angular', 2], []))
-        node_3 = (('Spindle Rate Requested', ['requested_spindle_speed', 2], []),
-                  ('Spindle Rate Actual', ['actual_spindle_speed', 2], []))
+        node_3 = (('Spindle Rate Requested', ['requested_spindle_speed', 6], []),
+                  ('Spindle Rate Actual', ['actual_spindle_speed', 6], []))
         node_4 = (('Current Feed Rate', ['current_feedrate', 6], []),
                   ('Current Feed Unit', ['current_feedunit', 6], []))
         node_5 = (('Tool Number', ['tool_number', 2], []),
-                  ('Tool Diameter', ['tool_diameter', 2], []),
+                  ('Tool Diameter', ['tool_diameter', 6], []),
                   ('Tool Offset', ['tool_offset', 3], []),
                   ('Tool Comment', ['tool_comment', 2], []))
-        node_6 = (('Active G Codes', ['gcodes', 2], []),
-                  ('Active M Codes', ['mcodes', 2], []),
+        node_6 = (('Active G-Codes', ['gcodes', 2], []),
+                  ('Active M-Codes', ['mcodes', 2], []),
                   ('Active G5X System', ['user_system', 2], []))
         node_7 = (('File Name', ['filename', 2], []),
                   ('File Path', ['filepath', 2], []))
-        node_8 = (('Machine State', ['machine_state', 2], []),)
-        node_9 = (('Time', ['time_stamp', 2], []),)
+        node_8 = (('Machine State', ['machine_state', 8], []),)
+        node_9 = (('Time', ['time_stamp', 2], []),
+                    ('HAL Pin Status', ['halpin', 22], []))
         node_none = (('Unused', ['unused', 2], []),)
 
         parent_node = [('Unset', [None, None], node_none),
@@ -395,7 +395,7 @@ class StatusLabelDialog(QtWidgets.QDialog):
         # text template
         self.ud2 = QtWidgets.QWidget()
         vbox2 = QtWidgets.QVBoxLayout(self.ud2)
-        label = QtWidgets.QLabel('Text Template')
+        label = QtWidgets.QLabel('Imperial/Angular Text Template')
         vbox2.addWidget(label)
 
         hbox = QtWidgets.QHBoxLayout()
@@ -427,6 +427,27 @@ class StatusLabelDialog(QtWidgets.QDialog):
         vbox4.addLayout(hbox)
         layout.addWidget(self.ud4)
         self.ud4.hide()
+
+        self.ud8 = QtWidgets.QWidget()
+        vbox8 = QtWidgets.QVBoxLayout(self.ud8)
+        label = QtWidgets.QLabel('Please edit state_label_list \nproperty directly')
+        vbox8.addWidget(label)
+        layout.addWidget(self.ud8)
+        self.ud8.hide()
+
+        self.ud16 = QtWidgets.QWidget()
+        vbox2 = QtWidgets.QVBoxLayout(self.ud16)
+        label = QtWidgets.QLabel('HalPin Name')
+        vbox2.addWidget(label)
+
+        hbox = QtWidgets.QHBoxLayout()
+        self.halpinEditBox = QtWidgets.QLineEdit()
+        self.halpinEditBox.setText(self.widget._halpin_name)
+        hbox.addWidget(self.halpinEditBox)
+
+        vbox2.addLayout(hbox)
+        layout.addWidget(self.ud16)
+
 
         self.tab1.setLayout(layout)
 
@@ -468,8 +489,9 @@ class StatusLabelDialog(QtWidgets.QDialog):
             # if collapsed: return True
             # self.combo.select(0,0)
             return True
+        # hide/show user data widgets
         if not userDataCode is None:
-            for i in (1, 2, 4):
+            for i in (1, 2, 4, 8, 16):
                 widg = self['ud%s' % i]
                 if userDataCode & i:
                     widg.show()
@@ -487,25 +509,27 @@ class StatusLabelDialog(QtWidgets.QDialog):
 
         if formWindow and winProperty == 'unused':
             formWindow.cursor().setProperty('feed_override_status',
-                                            QtCore.QVariant(True))
+                                            True)
             formWindow.cursor().setProperty('feed_override_status',
-                                            QtCore.QVariant(False))
+                                            False)
         elif formWindow:
             # set widget option
             formWindow.cursor().setProperty(winProperty + '_status',
-                                            QtCore.QVariant(True))
+                                            True)
 
         # set related data
         formWindow.cursor().setProperty('index_number',
-                                        QtCore.QVariant(self.JNumSpinBox.value()))
+                                        self.JNumSpinBox.value())
         # block signal so button text doesn't change when selecting action
         self.widget._designer_block_signal = True
         formWindow.cursor().setProperty('textTemplate',
-                                        QtCore.QVariant(self.textTemplateEditBox.text()))
+                                        self.textTemplateEditBox.text())
         formWindow.cursor().setProperty('alt_textTemplate',
-                                        QtCore.QVariant(self.altTextTemplateEditBox.text()))
+                                        self.altTextTemplateEditBox.text())
         formWindow.cursor().setProperty('text',
-                                        QtCore.QVariant(self.defaultTextTemplateEditBox.text()))
+                                        self.defaultTextTemplateEditBox.text())
+        formWindow.cursor().setProperty('halpin_name',
+                                        self.halpinEditBox.text())
         self.widget._designer_block_signal = False
 
         self.accept()

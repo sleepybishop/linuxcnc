@@ -2,7 +2,7 @@
 
 PATH=@EMC2_BIN_DIR@:$PATH
 REALTIME=@REALTIME@
-THIS=$(basename $0)
+THIS=$(basename "$0")
 
 export HAL_RTMOD_DIR=@EMC2_RTLIB_DIR@
 
@@ -60,7 +60,7 @@ while getopts "ef:hi:kqsvIRQTUV" opt ; do
        exit 1;;
   esac
 done
-shift $(($OPTIND - 1))
+shift $((OPTIND - 1))
 
 if [ $# -gt 1 ] ; then
   echo "$THIS: too many arguments <$*>"
@@ -71,7 +71,7 @@ fi
 #    as parameter for -f ('f filename')
 # or as trailing parameter
 if [ $# -gt 0 ] ; then
-  if [ "X$filename" = "X" ] ; then
+  if [ -z "$filename" ] ; then
     filename=$1
     shift
   else
@@ -141,26 +141,30 @@ esac
 
 $REALTIME start || exit $?
 
+result=0
 if $HAVEFILE ; then
   if $IS_INI; then
     if ! inivar -ini "$filename" -sec HAL -var TWOPASS > /dev/null 2>&1 ; then
-        echo "$THIS: A .ini file may only be used if it specifies [HAL]TWOPASS"
+        echo "$THIS: An INI file may only be used if it specifies [HAL]TWOPASS"
         result=1
     else
         halcmd_twopass "$filename"; result=$?    
     fi
   elif $IS_HALTCL; then
+    # Arguments need to be word split
+    # shellcheck disable=SC2068
     haltcl $@; result=$?
   else
+    # shellcheck disable=SC2068
     halcmd $@; result=$?
   fi
 fi
 
-if [ ! -z "$INTERACTIVE" ]; then $INTERACTIVE; fi
+if [ -n "$INTERACTIVE" ]; then $INTERACTIVE; fi
 
 halcmd stop || result=$?
 halcmd unload all || result=$?
 
 $REALTIME stop || result=$?
 
-exit $result
+exit "$result"

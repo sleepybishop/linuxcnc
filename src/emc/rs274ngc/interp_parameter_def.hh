@@ -17,7 +17,7 @@
 
 namespace interp_param_global
 {
-// 31-5000 - G code user parameters. These parameters are global in the G code file, and available for general use. Volatile.
+// 31-5000 - G-code user parameters. These parameters are global in the G-code file, and available for general use. Volatile.
 enum InterpParameterIndex {
 // 5061-5069 - Coordinates of a G38 probe result (X, Y, Z, A, B, C, U, V & W). Coordinates are in the coordinate system in which the G38 took place. Volatile.
     G38_X=5061,
@@ -31,6 +31,16 @@ enum InterpParameterIndex {
     G38_W,
 // 5070 - G38 probe result: 1 if success, 0 if probe failed to close. Used with G38.3 and G38.5. Volatile.
     G38_TRIPPED=5070,
+// 5081-5089 - Tool length offset actually applied to motion for X, Y, Z, A, B, C, U, V & W (Fanuc #5081-#5088 semantic). Set by G43/G43.1/G43.2, cleared by G49. Volatile.
+    APPLIED_TOOL_OFFSET_X=5081,
+    APPLIED_TOOL_OFFSET_Y,
+    APPLIED_TOOL_OFFSET_Z,
+    APPLIED_TOOL_OFFSET_A,
+    APPLIED_TOOL_OFFSET_B,
+    APPLIED_TOOL_OFFSET_C,
+    APPLIED_TOOL_OFFSET_U,
+    APPLIED_TOOL_OFFSET_V,
+    APPLIED_TOOL_OFFSET_W,
 // 5161-5169 - "G28" Home for X, Y, Z, A, B, C, U, V & W. Persistent.
     G28_X=5161,
     G28_Y,
@@ -167,7 +177,7 @@ enum InterpParameterIndex {
 // 5399 - Result of M66 - Check or wait for input. Volatile.
     M66_RESULT=5399,
 // 5400 - Tool Number. Volatile.
-// 5401-5409 - Tool Offsets for X, Y, Z, A, B, C, U, V & W. Volatile.
+// 5401-5409 - Loaded tool's stored offset for X, Y, Z, A, B, C, U, V & W. Set on tool change (M6), startup, and G10 L1/L10/L11. See #5081-#5089 for the offset actually applied to motion. Volatile.
     TOOL_NUMBER=5400,
     TOOL_OFFSET_X=5401,
     TOOL_OFFSET_Y,
@@ -198,10 +208,6 @@ enum InterpParameterIndex {
     RELATIVE_POSITION_W,
 // 5599 - Flag for controlling the output of (DEBUG,) statements. 1=output, 0=no output; default=1. Volatile.
     DEBUG_LEVEL_FLAG=5599,
-// 5600 - Toolchanger fault indicator. Used with the iocontrol-v2 component. 1: toolchanger faulted, 0: normal. Volatile.
-    TOOLCHANGER_FAULT=5600,
-// 5601 - Toolchanger fault code. Used with the iocontrol-v2 component. Reflects the value of the toolchanger-reason HAL pin if a fault occurred. Volatile.
-    TOOLCHANGER_FAULT_CODE=5601,
     RS274NGC_MAX_PARAMETERS=5602
 };
 }

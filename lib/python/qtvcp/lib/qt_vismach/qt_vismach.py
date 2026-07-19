@@ -1,16 +1,15 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 
-from PyQt5.QtCore import pyqtSignal, QPoint, QSize, Qt, QTimer
-from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QOpenGLWidget, QSlider,
+from qtpy.QtCore import Signal, QPoint, QSize, Qt, QTimer
+from qtpy.QtGui import QColor
+from qtpy.QtWidgets import (QApplication, QHBoxLayout, QOpenGLWidget, QSlider,
                              QWidget)
 
 import OpenGL.GL as GL
 from OpenGL import GLU
-from .primitives import *
-
+from qtvcp.lib.qt_vismach.primitives import *
 
 class Window(QWidget):
 
@@ -62,12 +61,14 @@ class Window(QWidget):
 
         return slider
 
+    def setZoomRange(self, small, big):
+        self.zoomSlider.setRange(small, big)
 
 class GLWidget(QOpenGLWidget):
-    xRotationChanged = pyqtSignal(int)
-    yRotationChanged = pyqtSignal(int)
-    zRotationChanged = pyqtSignal(int)
-    zoomChanged = pyqtSignal(int)
+    xRotationChanged = Signal(int)
+    yRotationChanged = Signal(int)
+    zRotationChanged = Signal(int)
+    zoomChanged = Signal(int)
 
     def __init__(self, parent=None):
         super(GLWidget, self).__init__(parent)
@@ -78,12 +79,26 @@ class GLWidget(QOpenGLWidget):
         self.yRot = 2850
         self.zRot = 0
 
+        self.viewX = 0
+        self.viewY = 0
+
         self.lastPos = QPoint()
 
         self.r_back = self.g_back = self.b_back = 0
 
+        self.colors = {
+        'DEFAULT': (1.0, 1.0, 0.0),
+        'TRAVERSE': (0.30, 0.50, 0.50),
+        'FEED': (1.00, 1.00, 1.00),
+        'ARC': (1.00, 1.00, 1.00),
+        'TOOLCHANGE': (1.00, 1.00, 1.00),
+        'PROBE': (1.00, 1.00, 1.00),
+        'ROTARYINDEX': (1.00, 1.00, 1.00),
+        }
+
         self.plotdata = []
-        self.plotlen = 16000
+        self.plotColor = [1.0, 0.5, 0.5]
+        self.plotlen = 64000
 
         # Where we are centering.
         self.xcenter = 0.0
@@ -112,7 +127,37 @@ class GLWidget(QOpenGLWidget):
         # add a 100ms timer to poll linuxcnc stats
         self.timer = QTimer()
         self.timer.timeout.connect(self.update)
-        self.timer.start(100)
+        self.timer.start(50)
+
+    def choosePlotColor(self, data):
+        # by name
+        if isinstance(data, str):
+            if not data.upper() in self.colors:
+                return
+            color = self.colors[data.upper()]
+            self.plotColor = color
+            return
+        # by integer 0-6
+        elif isinstance(data, int):
+            for n,i in enumerate(self.colors):
+                if n == data:
+                    color = self.colors[i]
+                    self.plotColor = color
+                    return
+
+    def setColorsAttribute(self,attr, color):
+        # by string
+        if isinstance(attr.upper(), str):
+            if not attr.upper() in self.colors:
+                return
+            self.colors[attr.upper()] = color
+            return
+        # by integer 0-6
+        elif isinstance(attr, int):
+            for n,i in enumerate(self.colors):
+                if n == attr:
+                    self.colors[i] = color
+                    return
 
     def getOpenglInfo(self):
         info = """
@@ -167,15 +212,15 @@ class GLWidget(QOpenGLWidget):
         self.update()
 
     def zoomin(self):
-        self.distance = self.distance / 1.1
-        if self.distance < 600:
-            self.distance = 600
+        self.distance = self.distance / 1.2 - 20
+        if self.distance < self.near:
+            self.distance = self.near
         self.update()
 
     def zoomout(self):
-        self.distance = self.distance * 1.1
-        if self.distance > 5600:
-            self.distance = 5600
+        self.distance = self.distance * 1.2 + 20
+        if self.distance > self.far:
+            self.distance = self.far
         self.update()
 
     def set_latitudelimits(self, minlat, maxlat):
@@ -218,6 +263,8 @@ class GLWidget(QOpenGLWidget):
 
         # draw Objects
         GL.glPushMatrix()  # Protect our matrix
+
+        # set view size
         w = self.winfo_width()
         h = self.winfo_height()
         GL.glViewport(0, 0, w, h)
@@ -230,12 +277,13 @@ class GLWidget(QOpenGLWidget):
         GL.glLoadIdentity()
         GLU.gluPerspective(self.fovy, float(w) / float(h), self.near, self.far)
 
-        if 0:
+        if 1:
             # Now translate the scene origin away from the world origin
             GL.glMatrixMode(GL.GL_MODELVIEW)
             mat = GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)
             GL.glLoadIdentity()
-            GL.glTranslatef(-self.xcenter, -self.ycenter, -(self.zcenter + self.distance))
+            GL.glTranslatef(-(self.xcenter + self.viewX), -(self.ycenter + self.viewY),
+                             -(self.zcenter + self.distance))
             GL.glMultMatrixd(mat)
         else:
             GLU.gluLookAt(self.xcenter, self.ycenter, self.zcenter + self.distance,
@@ -268,21 +316,22 @@ class GLWidget(QOpenGLWidget):
         # so lets also invert the work2view matrix
         view2work = invert(self.work2view.t)
 
-        # since backplot lines only need vertexes, not orientation,
+        # since backplot lines only need vertices, not orientation,
         # and the tooltip is at the origin, getting the tool coords
         # is easy
-        tx, ty, tz = self.tool2view.t[12:15]
+        tx, ty, tz = self.tool2view.t[3][:3]
         # now we have to transform them to the work frame
-        wx = tx * view2work[0] + ty * view2work[4] + tz * view2work[8] + view2work[12]
-        wy = tx * view2work[1] + ty * view2work[5] + tz * view2work[9] + view2work[13]
-        wz = tx * view2work[2] + ty * view2work[6] + tz * view2work[10] + view2work[14]
+        wx = tx * view2work[0][0] + ty * view2work[1][0] + tz * view2work[2][0] + view2work[3][0]
+        wy = tx * view2work[0][1] + ty * view2work[1][1] + tz * view2work[2][1] + view2work[3][1]
+        wz = tx * view2work[0][2] + ty * view2work[1][2] + tz * view2work[2][2] + view2work[3][2]
         # wx, wy, wz are the values to use for backplot
         # so we save them in a buffer
         if len(self.plotdata) == self.plotlen:
-            del self.plotdata[:self.plotlen / 10]
+            del self.plotdata[:self.plotlen // 10]
         point = [wx, wy, wz]
-        if not self.plotdata or point != self.plotdata[-1]:
-            self.plotdata.append(point)
+        # if tool position is different from last time, record plot position
+        if not self.plotdata or point != self.plotdata[-1][0]:
+            self.plotdata.append([point,self.plotColor])
 
         # now lets draw something in the tool coordinate system
         # GL.glPushMatrix()
@@ -319,10 +368,10 @@ class GLWidget(QOpenGLWidget):
         # draw backplot
         GL.glDisable(GL.GL_LIGHTING)
         GL.glLineWidth(2)
-        GL.glColor3f(1.0, 0.5, 0.5)
 
         GL.glBegin(GL.GL_LINE_STRIP)
-        for p in self.plotdata:
+        for p,c in self.plotdata:
+            GL.glColor3f(*c)
             GL.glVertex3f(*p)
         GL.glEnd()
 
@@ -359,12 +408,15 @@ class GLWidget(QOpenGLWidget):
         dy = event.y() - self.lastPos.y()
 
         if event.buttons() & Qt.LeftButton:
-            self.setXRotation(self.xRot + 8 * dy)
-            self.setYRotation(self.yRot + 8 * dx)
+            scale = max(0.2, (self.distance ** 0.7) * 0.01)
+            self.viewX -= dx * scale
+            self.viewY += dy * scale
         elif event.buttons() & Qt.RightButton:
             self.setXRotation(self.xRot + 8 * dy)
             self.setZRotation(self.zRot + 8 * dx)
-
+        else:
+            self.setXRotation(self.xRot + 8 * dy)
+            self.setYRotation(self.yRot - 8 * dx)
         self.lastPos = event.pos()
 
     def mouseDoubleClickEvent(self, event):
@@ -388,12 +440,16 @@ class GLWidget(QOpenGLWidget):
         return angle
 
 
-def main(model, tool, work, size=10, hud=0, rotation_vectors=None, lat=0, lon=0):
+def main(model, tool, work, size=10, hud=None, rotation_vectors=None, lat=0, lon=0):
     app = QApplication(sys.argv)
 
     window = Window()
     t = window.glWidget
     t.set_latitudelimits(-180, 180)
+
+    if not hud is None:
+        t.hud = hud
+        t.hud.app = t #HUD needs to know where to draw
 
     world = Capture()
 
@@ -406,9 +462,11 @@ def main(model, tool, work, size=10, hud=0, rotation_vectors=None, lat=0, lon=0)
 
     t.work2view = work
 
+    window.setZoomRange(int(t.near),int(t.far))
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == '__main__':
     print('This is a library file - it needs to be imported')
+

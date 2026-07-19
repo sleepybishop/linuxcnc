@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #    This is a component of AXIS, a front-end for emc
 #    Copyright 2004, 2005, 2006 Jeff Epler <jepler@unpythonic.net>
 #
@@ -18,11 +18,10 @@
 
 import nf, os
 
-# lib/tcltk/emc2 for installed emc
-# tcl            for run-in-place emc
-for candidate in 'lib/tcltk/linuxcnc', 'tcl':
-    LINUXCNC_TCL = os.path.join(nf.PREFIX, candidate, 'linuxcnc.tcl')
-    if os.path.exists(LINUXCNC_TCL): break
+# system Tcl path for installed emc
+# tcl             for run-in-place emc
+rip = os.path.join(nf.PREFIX, 'tcl', 'linuxcnc.tcl')
+LINUXCNC_TCL = rip if os.path.exists(rip) else os.path.join(nf.EMC2_TCL_DIR, 'linuxcnc.tcl')
 
 options = '''
 . configure -bg #d9d9d9

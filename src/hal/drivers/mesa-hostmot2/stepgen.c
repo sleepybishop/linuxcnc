@@ -19,13 +19,13 @@
 
 #include <rtapi_slab.h>
 
-#include "rtapi.h"
-#include "rtapi_string.h"
-#include "rtapi_math.h"
+#include <rtapi.h>
+#include <rtapi_string.h>
+#include <rtapi_math.h>
 
-#include "hal.h"
+#include <hal.h>
 
-#include "hal/drivers/mesa-hostmot2/hostmot2.h"
+#include "hostmot2.h"
 
 
 #define f_period_s ((double)(l_period_ns * 1e-9))
@@ -38,6 +38,7 @@
 // 
 
 void hm2_stepgen_process_tram_read(hostmot2_t *hm2, long l_period_ns) {
+    (void)l_period_ns;
     int i;
     rtapi_u32 mode = 0;
     rtapi_u32 latch = 0;
@@ -459,7 +460,7 @@ static void hm2_stepgen_update_mode(hostmot2_t *hm2, int i) {
                 + (i * sizeof(rtapi_u32)), &buff, sizeof(rtapi_u32));
     }
     
-    hm2->stepgen.mode_reg[i] = 3 || modebuff;
+    hm2->stepgen.mode_reg[i] = 3 | modebuff; // force 2 LSbs to 1,1 to select table mode in stepgen hardware
 
     buff = inst->hal.param.step_type -1;	    
     
@@ -536,14 +537,14 @@ void hm2_stepgen_write(hostmot2_t *hm2) {
             hm2_stepgen_update_mode(hm2, i);
             hm2->llio->write(hm2->llio, hm2->stepgen.mode_addr + (i * sizeof(rtapi_u32)), &hm2->stepgen.mode_reg[i], sizeof(rtapi_u32));
             if (hm2->stepgen.firmware_supports_index) {
-                inst->written_index_enable  = *inst->hal.pin.index_enable; // we need to update these only after the write has occured
+                inst->written_index_enable  = *inst->hal.pin.index_enable; // we need to update these only after the write has occurred
                 inst->written_probe_enable  = *inst->hal.pin.latch_enable; // to avoid a race condition (index detected before index enable has been set)
             }
         }
     }
 
     if (hm2->stepgen.num_instances > 0 && hm2->dpll_module_present) {
-        if (*hm2->stepgen.hal->pin.dpll_timer_num != hm2->stepgen.written_dpll_timer_num) {
+        if (*hm2->stepgen.hal->pin.dpll_timer_num != (int)hm2->stepgen.written_dpll_timer_num) {
             hm2_stepgen_set_dpll_timer(hm2);
         }
     }

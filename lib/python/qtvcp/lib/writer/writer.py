@@ -1,21 +1,21 @@
-#!/usr/bin/python2
+#!/usr/bin/env python3
 
 # https://www.binpress.com/building-text-editor-pyqt-1/
 
 import sys
 import os
 
-from PyQt5 import QtWidgets
-from PyQt5 import QtPrintSupport
-from PyQt5 import QtGui, QtCore
-from PyQt5.QtCore import Qt
+from qtpy import QtWidgets
+from qtpy import QtPrintSupport
+from qtpy import QtGui, QtCore
+from qtpy.QtCore import Qt
 
 from .ext import *
-from qtvcp.core import Info
+from qtvcp.core import Path
 
-INFO = Info()
-ICONPATH = os.path.join(INFO.LIB_PATH, 'images/widgets/writer')
-IMAGEPATH = os.path.join(INFO.LIB_PATH, 'images')
+PATH = Path()
+ICONPATH = os.path.join(PATH.SHAREDIR, 'images/widgets/writer')
+IMAGEPATH = os.path.join(PATH.SHAREDIR, 'images')
 
 
 class Main(QtWidgets.QMainWindow):
@@ -374,7 +374,7 @@ class Main(QtWidgets.QMainWindow):
 
             popup.setDefaultButton(QtWidgets.QMessageBox.Save)
 
-            answer = popup.exec_()
+            answer = popup.exec()
 
             if answer == QtWidgets.QMessageBox.Save:
                 self.save()
@@ -611,14 +611,14 @@ class Main(QtWidgets.QMainWindow):
         # If a print is requested, open print dialog
         preview.paintRequested.connect(lambda p: self.text.print_(p))
 
-        preview.exec_()
+        preview.exec()
 
     def printHandler(self):
 
         # Open printing dialog
         dialog = QtPrintSupport.QPrintDialog()
 
-        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+        if dialog.exec() == QtWidgets.QDialog.Accepted:
             self.text.document().print_(dialog.printer())
 
     def cursorPosition(self):
@@ -874,7 +874,7 @@ def main():
     main = Main()
     main.show()
 
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

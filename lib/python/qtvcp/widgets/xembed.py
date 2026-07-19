@@ -1,14 +1,17 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 import sys, time
 import os
 import subprocess
 
-from PyQt5.QtCore import QSize, QEvent, pyqtProperty
-from PyQt5.QtGui import QWindow, QResizeEvent, QMoveEvent
-from PyQt5.QtWidgets import QWidget
+from qtpy.QtCore import QEvent, Property
+from qtpy.QtGui import QWindow, QResizeEvent, QMoveEvent
+from qtpy.QtWidgets import QWidget
 
 from qtvcp.widgets.widget_baseclass import _HalWidgetBase
-from qtvcp.lib import xembed
+try:
+    from qtvcp.lib import xembed
+except:
+    pass
 from qtvcp import logger
 
 # Instantiate the libraries with global reference
@@ -47,8 +50,8 @@ class XEmbeddable(QWidget, _HalWidgetBase):
         # there seems to be a race - sometimes the foreign window doesn't embed
         time.sleep(.2)
 
-    # we embed foreign program into our window 
-    def embed_program(self, command): 
+    # we embed foreign program into our window
+    def embed_program(self, command):
         try:
             self.external_id = self.launch_xid(command)
             window = QWindow.fromWinId(self.external_id)
@@ -95,7 +98,7 @@ class XEmbeddable(QWidget, _HalWidgetBase):
         LOG.debug( 'XID: {}'.format(sid))
         return int(sid)
 
-    def closing_cleanup__(self):
+    def _hal_cleanup(self):
         try:
             self.ob.terminate()
         except Exception as e:
@@ -128,13 +131,13 @@ class XEmbed(XEmbeddable, _HalWidgetBase):
     def reset_command(self):
         self.command = None
 
-    command_string = pyqtProperty(str, get_command, set_command, reset_command)
+    command_string = Property(str, get_command, set_command, reset_command)
 
 if __name__ == '__main__':
-    from PyQt5.QtWidgets import QApplication
+    from qtpy.QtWidgets import QApplication
     app = QApplication(sys.argv)
     ex = XEmbed()
     ex.embed('halcmd loadusr gladevcp --xid  ../../gladevcp/offsetpage.glade')
     ex.show()
     ex.setWindowTitle('embed')
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

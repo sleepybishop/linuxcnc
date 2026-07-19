@@ -33,11 +33,11 @@
 
 #include <modbus.h>
 
-#include "hal.h"
-#include "rtapi.h"
+#include <hal.h>
+#include <rtapi.h>
 
 
-// If a modbus transaction fails, retry this many times before giving up.
+// If a Modbus transaction fails, retry this many times before giving up.
 #define NUM_MODBUS_RETRIES 5
 
 
@@ -83,18 +83,18 @@ float min_freq = 0.0;
 int baud;
 
 static struct option long_options[] = {
-    {"device", 1, 0, 'd'},
-    {"rate", 1, 0, 'r'},
-    {"bits", 1, 0, 'b'},
-    {"parity", 1, 0, 'p'},
-    {"stopbits", 1, 0, 's'},
-    {"target", 1, 0, 't'},
-    {"verbose", 0, 0, 'v'},
-    {"help", 0, 0, 'h'},
-    {"motor-max-speed", 1, 0, 'S'},
-    {"max-frequency", 1, 0, 'F'},
-    {"min-frequency", 1, 0, 'f'},
-    {0,0,0,0}
+    {"device", 1, NULL, 'd'},
+    {"rate", 1, NULL, 'r'},
+    {"bits", 1, NULL, 'b'},
+    {"parity", 1, NULL, 'p'},
+    {"stopbits", 1, NULL, 's'},
+    {"target", 1, NULL, 't'},
+    {"verbose", 0, NULL, 'v'},
+    {"help", 0, NULL, 'h'},
+    {"motor-max-speed", 1, NULL, 'S'},
+    {"max-frequency", 1, NULL, 'F'},
+    {"min-frequency", 1, NULL, 'f'},
+    {NULL,0,NULL,0}
 };
 
 static char *option_string = "d:r:b:p:s:t:vhS:F:f:";
@@ -109,12 +109,14 @@ static char *stopstrings[] = {"1", "2", NULL};
 
 
 static void quit(int sig) {
+    (void)sig;
     done = 1;
 }
 
 
 int match_string(char *string, char **matches) {
-    int len, which, match;
+    size_t len;
+    int which, match;
     which=0;
     match=-1;
     if ((matches==NULL) || (string==NULL)) return -1;
@@ -131,6 +133,7 @@ int match_string(char *string, char **matches) {
 
 
 void usage(int argc, char **argv) {
+    (void)argc;
     printf("Usage:  %s [ARGUMENTS]\n", argv[0]);
     printf(
         "\n"
@@ -460,7 +463,7 @@ int main(int argc, char **argv) {
 
     mb = modbus_new_rtu(device, baud, parity, bits, stopbits);
     if (mb == NULL) {
-        printf("%s: ERROR: couldn't open modbus serial device: %s\n", modname, modbus_strerror(errno));
+        printf("%s: ERROR: couldn't open Modbus serial device: %s\n", modname, modbus_strerror(errno));
         goto out_noclose;
     }
 
@@ -470,7 +473,9 @@ int main(int argc, char **argv) {
         // Set the response timeout.
         t.tv_sec = 0;
         t.tv_usec = 30 * 1000;
-#if (LIBMODBUS_VERSION_CHECK(3, 1, 2))
+// Cppcheck fails to parse the function-like macro
+//#if (LIBMODBUS_VERSION_CHECK(3, 1, 2))
+# if LIBMODBUS_VERSION_HEX >= 0x030102
         modbus_set_response_timeout(mb, t.tv_sec, t.tv_usec);
 #else
         modbus_set_response_timeout(mb, &t);
@@ -478,7 +483,9 @@ int main(int argc, char **argv) {
 
         // Disable the byte timeout so it just waits for the complete
         // response timeout instead.
-#if (LIBMODBUS_VERSION_CHECK(3, 1, 2))
+// Cppcheck fails to parse the function-like macro
+//#if (LIBMODBUS_VERSION_CHECK(3, 1, 2))
+# if LIBMODBUS_VERSION_HEX >= 0x030102
         t.tv_sec = 0;
         t.tv_usec = 0;
         modbus_set_byte_timeout(mb, t.tv_sec, t.tv_usec);

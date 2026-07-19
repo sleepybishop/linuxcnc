@@ -10,22 +10,13 @@
 *    
 * Copyright (c) 2004 All rights reserved.
 ********************************************************************/
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-#include <string.h>
-#include <ctype.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include "rs274ngc.hh"
+
 #include "rs274ngc_return.hh"
 #include "rs274ngc_interp.hh"
-#include "interp_parameter_def.hh"
 
 using namespace interp_param_global;
 
-/* Interpreter global arrays for g_codes and m_codes. The nth entry
+/* Interpreter arrays for g_codes and m_codes. The nth entry
 in each array is the modal group number corresponding to the nth
 code. Entries which are -1 represent illegal codes. Remember g_codes
 in this interpreter are multiplied by 10.
@@ -78,12 +69,12 @@ group 16 = {g92.2,g92.3}   - whether g92 offset is applied
 */
 // This stops indent from reformatting the following code.
 // *INDENT-OFF*
-const int Interp::_gees[] = {
+const int Interp::gees[] = {
 /*   0 */   1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
 /*  20 */   1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
 /*  40 */ //0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
 /*  40 */   0,-1,-1,-1,-1,-1,-1,-1,-1,-1, 1, 1, 1, 0,-1,-1,-1,-1,-1,-1,
-/*  60 */  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,15,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+/*  60 */   1, 1, 1, 0,-1,-1,-1,-1,-1,-1,15,-1,-1,-1,-1,-1,-1,-1,-1,-1,	// jjf added G6
 /*  80 */  15,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
 /* 100 */   0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
 /* 120 */  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
@@ -154,7 +145,7 @@ group 9 = {m48,m49,          - feed and speed override switch bypass
 group 10 = {m100..m199}      - user-defined
 */
 
-const int Interp::_ems[] = {
+const int Interp::ems[] = {
    4,  4,  4,  7,  7,  7,  6,  8,  8,  8,  //  9
   -1, -1, -1, -1, -1, -1, -1, -1, -1,  7,  // 19
   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  // 29
@@ -185,7 +176,7 @@ Interp::save_parameters function.
 
 */
 
-const int Interp::_required_parameters[] = {
+const int Interp::required_parameters[] = {
  5161, 5162, 5163,   /* G28 home */
  5164, 5165, 5166, /* A, B, & C */
  5167, 5168, 5169, /* U, V, & W */
@@ -236,7 +227,8 @@ const int Interp::_required_parameters[] = {
  RS274NGC_MAX_PARAMETERS
 };
 
-const int Interp::_readonly_parameters[] = {
+const int Interp::readonly_parameters[] = {
+ 5021, 5022, 5023, 5024, 5025, 5026, 5027, 5028, 5029, // machine X Y ... W
  5400, // tool toolno
  5401, // tool x offset
  5402, // tool y offset
@@ -253,7 +245,7 @@ const int Interp::_readonly_parameters[] = {
  5413, // tool orientation
  5420, 5421, 5422, 5423, 5424, 5425, 5426, 5427, 5428, // current X Y ... W
 };
-const int Interp::_n_readonly_parameters = sizeof(_readonly_parameters)/sizeof(int);
+const int Interp::n_readonly_parameters = sizeof(readonly_parameters) / sizeof(int);
 
 /* _readers is an array of pointers to functions that read.
    It is used by read_one_item.
@@ -268,26 +260,26 @@ const int Interp::_n_readonly_parameters = sizeof(_readonly_parameters)/sizeof(i
    */
 const read_function_pointer Interp::default_readers[256] = {
 /* 00 */
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 /* 10 */
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 /* 20 */
-0, 0, 0,
+NULL, NULL, NULL,
 &Interp::read_parameter_setting, // reads # or ASCII 0x23
 &Interp::read_dollar,   // reads $ or ASCII 0x24
-0, 0, 0,
+NULL, NULL, NULL,
 &Interp::read_comment, // reads ( or ASCII 0x28
-0, 0, 0, 0, 0, 0, 0, 
+NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 /* 30 */
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 &Interp::read_semicolon, 
-0, 0, 0, 0,
+NULL, NULL, NULL, NULL,
 /* 40 */
-&Interp::read_atsign, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+&Interp::read_atsign, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 /* 50 */
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, &Interp::read_carat, 0,
+NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, &Interp::read_carat, NULL,
 /* 60 */
-0,
+NULL,
 &Interp::read_a, // reads a or ASCII 0x61
 &Interp::read_b, // reads b or ASCII 0x62
 &Interp::read_c, // reads c or ASCII 0x63
@@ -301,7 +293,7 @@ const read_function_pointer Interp::default_readers[256] = {
 &Interp::read_k, // reads k or ASCII 0x6B
 &Interp::read_l, // reads l or ASCII 0x6C
 &Interp::read_m, // reads m or ASCII 0x6D
-0, 0,
+NULL, NULL,
 &Interp::read_p, // reads p or ASCII 0x70
 &Interp::read_q, // reads q or ASCII 0x71
 &Interp::read_r, // reads r or ASCII 0x72
@@ -316,11 +308,3 @@ const read_function_pointer Interp::default_readers[256] = {
 // *INDENT-ON*
 // And now indent can continue.
 /****************************************************************************/
-
-/* There are four global variables*. The first three are _gees, _ems,
-and _readers. */
-
-/* The notion of "global variables" is a misnomer - These last four should only
-   be accessable by the interpreter and not exported to the rest of emc */
-
-

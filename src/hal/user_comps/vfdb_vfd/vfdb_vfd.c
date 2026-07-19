@@ -6,7 +6,6 @@
   Yishin Li, adapted from Michael Haberler's vfs11_vfd/.
 
   Copyright (C) 2007, 2008 Stephen Wille Padnos, Thoth Systems, Inc.
-  Copyright (C) 2009 John Thornton
   Copyright (C) 2009,2010,2011,2012 Michael Haberler
   Copyright (C) 2013 Yishin Li
   Copyright (C) 2013 Sebastian Kuzminsky
@@ -58,11 +57,11 @@
 #include <signal.h>
 #include <stdarg.h>
 
-#include "rtapi.h"
-#include "hal.h"
+#include <rtapi.h>
+#include <hal.h>
 #include <modbus.h>
 #include <modbus-tcp.h>
-#include "inifile.h"
+#include <inifile.h>
 
 // command registers for DELTA VFD-B Inverter
 #define REG_COMMAND1                    0x2000  // "Communication command" - start/stop, fwd/reverse, DC break, fault reset, panel override
@@ -161,7 +160,6 @@ typedef struct params {
     int stopbits;
     char *progname;
     char *section;
-    FILE *fp;
     char *inifile;
     int reconnect_delay;
     modbus_t *ctx;
@@ -178,7 +176,7 @@ typedef struct params {
     int motor_rpm;  // rated speed of the motor
 } params_type, *param_pointer;
 
-// default options; read from inifile or command line
+// default options; read from INI file or command line
 static params_type param = {
         .modname = NULL,
         .modbus_debug = 0,
@@ -192,7 +190,6 @@ static params_type param = {
         .stopbits = 1,
         .progname = "vfdb_vfd",
         .section = "VFD-B",
-        .fp = NULL,
         .inifile = NULL,
         .reconnect_delay = 1,
         .ctx = NULL,
@@ -215,14 +212,14 @@ enum connstate {NOT_CONNECTED, OPENING, CONNECTING, CONNECTED, RECOVER, DONE};
 
 static char *option_string = "dhrmn:S:I:";
 static struct option long_options[] = {
-        {"debug", no_argument, 0, 'd'},
-        {"help", no_argument, 0, 'h'},
-        {"modbus-debug", no_argument, 0, 'm'},
-        {"report-device", no_argument, 0, 'r'},
-        {"ini", required_argument, 0, 'I'},     // default: getenv(INI_FILE_NAME)
-        {"section", required_argument, 0, 'S'}, // default section = LIBMODBUS
-        {"name", required_argument, 0, 'n'},    // vfd-b
-        {0,0,0,0}
+        {"debug", no_argument, NULL, 'd'},
+        {"help", no_argument, NULL, 'h'},
+        {"modbus-debug", no_argument, NULL, 'm'},
+        {"report-device", no_argument, NULL, 'r'},
+        {"ini", required_argument, NULL, 'I'},     // default: getenv(INI_FILE_NAME)
+        {"section", required_argument, NULL, 'S'}, // default section = LIBMODBUS
+        {"name", required_argument, NULL, 'n'},    // vfd-b
+        {NULL,0,NULL,0}
 };
 
 
@@ -241,17 +238,20 @@ void  windup(param_pointer p)
 
 static void toggle_modbus_debug(int sig)
 {
+    (void)sig;
     param.modbus_debug = !param.modbus_debug;
     modbus_set_debug(param.ctx, param.modbus_debug);
 }
 
 static void toggle_debug(int sig)
 {
+    (void)sig;
     param.debug = !param.debug;
 }
 
 static void quit(int sig) 
 {
+    (void)sig;
     if (param.debug)
         fprintf(stderr,"quit(connection_state=%d)\n",connection_state);
 
@@ -275,19 +275,19 @@ enum kwdresult {NAME_NOT_FOUND, KEYWORD_INVALID, KEYWORD_FOUND};
 
 int findkwd(param_pointer p, const char *name, int *result, const char *keyword, int value, ...)
 {
-    const char *word;
+    char wordbuf[INI_MAX_LINELEN];
     va_list ap;
     const char *kwds[MAX_KWD], **s;
     int nargs = 0;
 
-    if ((word = iniFind(p->fp, name, p->section)) == NULL)
+    if (iniFindString(p->inifile, name, p->section, wordbuf, sizeof(wordbuf)))
         return NAME_NOT_FOUND;
 
     kwds[nargs++] = keyword;
     va_start(ap, value);
 
     while (keyword != NULL) {
-        if (!strcasecmp(word, keyword)) {
+        if (!strcasecmp(wordbuf, keyword)) {
             *result = value;
             va_end(ap);
             return KEYWORD_FOUND;
@@ -298,7 +298,7 @@ int findkwd(param_pointer p, const char *name, int *result, const char *keyword,
             value = va_arg(ap, int);
     }  
     fprintf(stderr, "%s: %s:[%s]%s: found '%s' - not one of: ", 
-            p->progname, p->inifile, p->section, name, word);
+            p->progname, p->inifile, p->section, name, wordbuf);
     for (s = kwds; *s; s++) 
         fprintf(stderr, "%s ", *s);
     fprintf(stderr, "\n");
@@ -308,50 +308,45 @@ int findkwd(param_pointer p, const char *name, int *result, const char *keyword,
 
 int read_ini(param_pointer p)
 {
-    const char *s;
+    char sbuf[INI_MAX_LINELEN];
     int value;
 
-    if ((p->fp = fopen(p->inifile,"r")) != NULL) {
-        if (!p->debug)
-            iniFindInt(p->fp, "DEBUG", p->section, &p->debug);
-        if (!p->modbus_debug)
-            iniFindInt(p->fp, "MODBUS_DEBUG", p->section, &p->modbus_debug);
-        iniFindInt(p->fp, "BITS", p->section, &p->bits);
-        iniFindInt(p->fp, "BAUD", p->section, &p->baud);
-        iniFindInt(p->fp, "STOPBITS", p->section, &p->stopbits);
-        iniFindInt(p->fp, "TARGET", p->section, &p->slave);
-        iniFindInt(p->fp, "POLLCYCLES", p->section, &p->pollcycles);
-        iniFindInt(p->fp, "RECONNECT_DELAY", p->section, &p->reconnect_delay);
+    if (!p->debug)
+        iniFindInt(p->inifile, "DEBUG", p->section, &p->debug);
+    if (!p->modbus_debug)
+        iniFindInt(p->inifile, "MODBUS_DEBUG", p->section, &p->modbus_debug);
+    iniFindInt(p->inifile, "BITS", p->section, &p->bits);
+    iniFindInt(p->inifile, "BAUD", p->section, &p->baud);
+    iniFindInt(p->inifile, "STOPBITS", p->section, &p->stopbits);
+    iniFindInt(p->inifile, "TARGET", p->section, &p->slave);
+    iniFindInt(p->inifile, "POLLCYCLES", p->section, &p->pollcycles);
+    iniFindInt(p->inifile, "RECONNECT_DELAY", p->section, &p->reconnect_delay);
 
-        iniFindInt(p->fp, "MOTOR_HZ", p->section, &p->motor_hz);
-        iniFindInt(p->fp, "MOTOR_RPM", p->section, &p->motor_rpm);
+    iniFindInt(p->inifile, "MOTOR_HZ", p->section, &p->motor_hz);
+    iniFindInt(p->inifile, "MOTOR_RPM", p->section, &p->motor_rpm);
 
-        if ((s = iniFind(p->fp, "DEVICE", p->section))) {
-            p->device = strdup(s);
-        }
-        value = p->parity;
-        if (findkwd(p, "PARITY", &value,
-                "even",'E',
-                "odd", 'O',
-                "none", 'N',
-                NULL) == KEYWORD_INVALID)
-            return -1;
-        p->parity = value;
-    } else {
-        fprintf(stderr, "%s:cant open inifile '%s'\n",
-                p->progname, p->inifile);
-        return -1;
+    if (0 == iniFindString(p->inifile, "DEVICE", p->section, sbuf, sizeof(sbuf))) {
+        p->device = strdup(sbuf);
     }
+    value = p->parity;
+    if (findkwd(p, "PARITY", &value,
+            "even",'E',
+            "odd", 'O',
+            "none", 'N',
+            (void *)NULL) == KEYWORD_INVALID)
+        return -1;
+    p->parity = value;
     return 0;
 }
 
 void usage(int argc, char **argv) {
+    (void)argc;
     printf("Usage:  %s [options]\n", argv[0]);
     printf("This is a userspace HAL program, typically loaded using the halcmd \"loadusr\" command:\n"
             "    loadusr vfdb_vfd [options]\n"
             "Options are:\n"
-            "-I or --ini <inifile>\n"
-            "    Use <inifile> (default: take ini filename from environment variable INI_FILE_NAME)\n"
+            "-I or --ini <INI file>\n"
+            "    Use <inifile> (default: take INI filename from environment variable INI_FILE_NAME)\n"
             "-S or --section <section-name> (default 8)\n"
             "    Read parameters from <section_name> (default 'VFD-B')\n"
             "-d or --debug\n"
@@ -695,7 +690,7 @@ int main(int argc, char **argv)
         if (!p->modname)
             p->modname = "vfdb_vfd";
     } else {
-        fprintf(stderr, "%s: ERROR: no inifile - either use '--ini inifile' or set INI_FILE_NAME environment variable\n", p->progname);
+        fprintf(stderr, "%s: ERROR: no inifile - either use '--ini filename' or set INI_FILE_NAME environment variable\n", p->progname);
         goto finish;
     }
 
@@ -715,7 +710,7 @@ int main(int argc, char **argv)
 
     // grab some shmem to store the HAL data in
     p->haldata = (haldata_t *)hal_malloc(sizeof(haldata_t));
-    if ((p->haldata == 0) || (connection_state == DONE)) {
+    if ((p->haldata == NULL) || (connection_state == DONE)) {
         fprintf(stderr, "%s: ERROR: unable to allocate shared memory\n", p->modname);
         retval = -1;
         goto finish;

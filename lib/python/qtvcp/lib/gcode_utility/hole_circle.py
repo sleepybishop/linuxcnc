@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import sys
 import os
 import math
@@ -7,20 +7,21 @@ import tempfile
 import atexit
 import shutil
 
-from PyQt5 import QtCore, QtGui, QtWidgets, uic
-from PyQt5.QtCore import QPoint, QLine, QRect, QFile, Qt, QEvent
-from PyQt5.QtWidgets import QFileDialog, QMessageBox
-from PyQt5.QtGui import QPainter, QBrush, QPen, QColor
+from qtpy import QtGui, QtWidgets, uic
+from qtpy.QtCore import QPoint, QPointF, QLine, QRect, QFile, Qt, QEvent, QRegularExpression
+from qtpy.QtWidgets import QFileDialog, QMessageBox
+from qtpy.QtGui import QPainter, QBrush, QPen, QColor
 
 from linuxcnc import OPERATOR_ERROR, NML_ERROR
-from qtvcp.core import Info, Status, Action
+from qtvcp.core import Info, Status, Action, Path
 
 INFO = Info()
 STATUS = Status()
 ACTION = Action()
+PATH = Path()
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-IMAGES = os.path.join(INFO.IMAGE_PATH, 'qtdragon/images')
+IMAGES = os.path.join(PATH.IMAGEDIR, 'gcode_utility')
 
 class Preview(QtWidgets.QWidget):
     def __init__(self):
@@ -39,31 +40,29 @@ class Preview(QtWidgets.QWidget):
 
     def draw_main_circle(self, event, qp):
         size = self.size()
-        w = size.width()
-        h = size.height()
-        center = QPoint(w/2, h/2)
-        diameter = min(w, h) - 70
+        w = size.width()/2
+        h = size.height()/2
+        center = QPointF(w, h)
+        radius = min(w, h) - 35
         qp.setPen(QPen(Qt.black, 1))
-        qp.drawEllipse(center, diameter/2, diameter/2)
+        qp.drawEllipse(center, radius, radius)
 
     def draw_crosshair(self, event, qp):
         size = self.size()
-        w = size.width()
-        h = size.height()
-        L = min(w, h) - 50
-        cx = int(w/2)
-        cy = int(h/2)
+        cx = int(size.width()/2)
+        cy = int(size.height()/2)
+        L = min(cx, cy) - 25
         qp.setPen(QPen(Qt.black, 1))
-        p1 = QPoint(cx + L/2, cy)
-        p2 = QPoint(cx, cy - L/2)
-        p3 = QPoint(cx - L/2, cy)
-        p4 = QPoint(cx, cy + L/2)
+        p1 = QPoint(cx + L, cy)
+        p2 = QPoint(cx, cy - L)
+        p3 = QPoint(cx - L, cy)
+        p4 = QPoint(cx, cy + L)
         qp.drawLine(p1, p3)
         qp.drawLine(p2, p4)
-        br1 = QRect(cx + L/2, cy-6, 30, 12)
-        br2 = QRect(cx-15, cy - L/2 - 12, 30, 12)
-        br3 = QRect(cx - L/2 - 30, cy-6, 30, 12)
-        br4 = QRect(cx-15, cy + L/2, 30, 12)
+        br1 = QRect(cx + L, cy-6, 30, 12)
+        br2 = QRect(cx-15, cy - L - 12, 30, 12)
+        br3 = QRect(cx - L - 30, cy-6, 30, 12)
+        br4 = QRect(cx-15, cy + L, 30, 12)
         qp.drawText(br1, Qt.AlignHCenter|Qt.AlignVCenter, "0")
         qp.drawText(br2, Qt.AlignHCenter|Qt.AlignVCenter, "90")
         qp.drawText(br3, Qt.AlignHCenter|Qt.AlignVCenter, "180")
@@ -73,19 +72,18 @@ class Preview(QtWidgets.QWidget):
         size = self.size()
         w = size.width()
         h = size.height()
-        center = QPoint(w/2, h/2)
-        diameter = min(w, h) - 70
+        center = QPointF(w/2, h/2)
+        r = (min(w, h) - 70)/2
         qp.setPen(QPen(Qt.red, 2))
         for i in range(self.num_holes):
             if i ==1:
                 qp.setPen(QPen(Qt.black, 2))
-            r = diameter/2
             theta = ((360.0/self.num_holes) * i) + self.first_angle
             x = r * math.cos(math.radians(theta))
             y = r * math.sin(math.radians(theta))
             x = round(x, 3)
             y = -round(y, 3) # need this to make it go CCW
-            p = QPoint(x, y) + center
+            p = QPointF(x, y) + center
             qp.drawEllipse(p, 6, 6)
 
     def set_num_holes(self, num):
@@ -104,7 +102,7 @@ class Hole_Circle(QtWidgets.QWidget):
         except AttributeError as e:
             print("Error: ", e)
         self.preview = Preview()
-        self.layout_preview.insertWidget(0, self.preview)
+        self.layout_preview.addWidget(self.preview)
 
         # set up Help messagebox
         help_file = open(os.path.join(HERE,"hole_circle_help.txt"), "r")
@@ -126,23 +124,19 @@ class Hole_Circle(QtWidgets.QWidget):
         self.start = .5
         self.depth = 1.0
         self.drill_feed = 1.0
+        self.units_text = ''
+
+        self.units_changed()
 
         # set valid input formats for lineEdits
-        self.lineEdit_spindle.setValidator(QtGui.QDoubleValidator(0, 99999, 0))
+
         self.lineEdit_spindle.setText(str(self.rpm))
-        self.lineEdit_num_holes.setValidator(QtGui.QDoubleValidator(0, 99, 0))
         self.lineEdit_num_holes.setText(str(self.num_holes))
-        self.lineEdit_radius.setValidator(QtGui.QDoubleValidator(0, 999, 2))
         self.lineEdit_radius.setText(str(self.radius))
-        self.lineEdit_first.setValidator(QtGui.QDoubleValidator(-999, 999, 2))
         self.lineEdit_first.setText(str(self.first))
-        self.lineEdit_safe_z.setValidator(QtGui.QDoubleValidator(0, 99, 2))
         self.lineEdit_safe_z.setText(str(self.safe_z))
-        self.lineEdit_start_height.setValidator(QtGui.QDoubleValidator(0, 99, 2))
         self.lineEdit_start_height.setText(str(self.start))
-        self.lineEdit_depth.setValidator(QtGui.QDoubleValidator(0, 99, 2))
         self.lineEdit_depth.setText(str(self.depth))
-        self.lineEdit_drill_feed.setValidator(QtGui.QDoubleValidator(0, 999, 2))
         self.lineEdit_drill_feed.setText(str(self.drill_feed))
         self.lineEdit_comment.setText('Hole Circle Program')
 
@@ -168,7 +162,28 @@ class Hole_Circle(QtWidgets.QWidget):
         else:
             unit = "METRIC"
             self.unit_code = "G21"
-        self.lbl_units_info.setText("**NOTE - All units are in {}".format(unit))
+        self.units_text = "**NOTE - All units are in {}".format(unit)
+        self.set_validator()
+
+    def set_validator(self):
+        # set valid input formats for lineEdits
+        if self.btn_inch.isChecked():
+            valid_size = QtGui.QRegularExpressionValidator(QRegularExpression(r'^((\d+(\.\d{,4})?)|(\.\d{,4}))$'))
+            valid_radius = QtGui.QRegularExpressionValidator(QRegularExpression(r'^((\d{1,3}(\.\d{1,4})?)|(\.\d{1,4}))$'))
+            valid_feed = QtGui.QRegularExpressionValidator(QRegularExpression('[0-9]{0,6}[.][0-9]{0,3}'))
+        else:
+            valid_size = QtGui.QRegularExpressionValidator(QRegularExpression(r'^((\d+(\.\d{,3})?)|(\.\d{,3}))$'))
+            valid_radius = QtGui.QRegularExpressionValidator(QRegularExpression(r'^((\d{1,4}(\.\d{1,3})?)|(\.\d{1,3}))$'))
+            valid_feed = QtGui.QRegularExpressionValidator(QRegularExpression(r'\d{0,5}[.]\d{0,1}'))
+
+        self.lineEdit_spindle.setValidator(QtGui.QRegularExpressionValidator(QRegularExpression(r'\d{0,5}')))
+        self.lineEdit_num_holes.setValidator(QtGui.QDoubleValidator(0, 99, 0))
+        self.lineEdit_radius.setValidator(valid_radius)
+        self.lineEdit_first.setValidator(QtGui.QRegularExpressionValidator(QRegularExpression(r'\d{0,3}[.]\d{0,2}')))
+        self.lineEdit_safe_z.setValidator(valid_size)
+        self.lineEdit_start_height.setValidator(valid_size)
+        self.lineEdit_depth.setValidator(valid_size)
+        self.lineEdit_drill_feed.setValidator(valid_feed)
 
     def clear_all(self):
         self.lbl_spindle_ok.setPixmap(self.unchecked)
@@ -209,6 +224,14 @@ class Hole_Circle(QtWidgets.QWidget):
                 self.valid = False
         except:
             self.valid = False
+
+        try:
+            angle = (180/self.num_holes)
+            chord_length = (2 * self.radius) * math.sin(math.radians(angle))
+            self.label_chord_length.setText('{:.3f}'.format(chord_length))
+        except Exception as e:
+            print(e)
+            self.label_chord_length.setText('')
 
         try:
             self.first = float(self.lineEdit_first.text())
@@ -296,7 +319,7 @@ class Hole_Circle(QtWidgets.QWidget):
         self.file.write("%\n")
         self.file.write("({})\n".format(comment))
         self.file.write("({} Holes on {} Diameter)\n".format(self.num_holes,self.radius *2))
-        self.file.write("({})\n".format(self.lbl_units_info.text()))
+        self.file.write("({})\n".format(self.units_text))
         self.file.write("({})\n".format('XY origin at circle center'))
         self.file.write("({})\n".format('Z origin at top face of surface'))
         self.file.write("\n")
@@ -373,5 +396,5 @@ if __name__ == "__main__":
     w = Hole_Circle()
 
     w.show()
-    sys.exit( app.exec_() )
+    sys.exit( app.exec() )
 

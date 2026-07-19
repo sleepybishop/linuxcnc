@@ -362,7 +362,7 @@ proc sim_spindle {} {
 
   setp rpm_rps.gain .0167
 
-  # this limit doesnt make any sense to me:
+  # this limit doesn't make any sense to me:
   do_setp limit_speed.maxv 5000.0 ;# rpm/second
 
   # encoder reset control
@@ -468,6 +468,15 @@ proc save_hal_cmds {savefilename {options ""} } {
       scan $line "%s %s %s" cmd arg1 remainder
       switch $cmd {
         setp    {puts $fd [format $setp_fmt $cmd $arg1 $remainder]}
+        loadrt  {
+                 if {   [string first tpmod   [list $line]] >= 0
+                     || [string first homemod [list $line]] >= 0
+                    } {
+                    puts $fd "#preloaded module: $line"
+                 } else {
+                    puts $fd $line
+                 }
+                }
         default {puts $fd $line}
       }
     }

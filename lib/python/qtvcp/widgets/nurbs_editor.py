@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 #############################################################################
 ##
 ## Copyright (C) 2010 Hans-Peter Jansen <hpj@urpla.net>.
@@ -38,17 +38,15 @@
 ## $QT_END_LICENSE$
 ##
 ###########################################################################
-from __future__ import print_function
 
 import os
 import sys
 import traceback
-from PyQt5 import uic
-from PyQt5.QtCore import pyqtSlot, QFile, QRegExp, Qt, QTextStream
-from PyQt5.QtWidgets import (QApplication, QDialog, QFileDialog, QMessageBox,
-        QStyleFactory, QWidget, QColorDialog)
-from PyQt5 import QtGui, QtCore
+from qtpy import uic
+from qtpy.QtCore import Slot, QFile, QTextStream
+from qtpy.QtWidgets import (QApplication, QDialog)
 
+import gcode
 from qt5_graphics import Lcnc_3dGraphics
 from qtvcp.core import Info, Path, Action
 
@@ -68,7 +66,7 @@ class NurbsEditor(QDialog):
         self.bluck_update = True
 
         # Load the widgets UI file:
-        self.filename = os.path.join(INFO.LIB_PATH,'widgets_ui', 'nurbs_editor.ui')
+        self.filename = os.path.join(PATH.SHAREDIR,'widgets_ui', 'nurbs_editor.ui')
         try:
             self.instance = uic.loadUi(self.filename, self)
         except AttributeError as e:
@@ -102,7 +100,7 @@ class NurbsEditor(QDialog):
         self.update()
 
     def setGraphicsDisplay(self):
-        # class patch to catch gcode errors - in theory 
+        # class patch to catch gcode errors - in theory
         self.graphics.report_gcode_error = self.report_gcode_error
         # reset trverse color so other displays don;t change
         self.defaultColor = self.graphics.colors['traverse']
@@ -252,7 +250,7 @@ class NurbsEditor(QDialog):
         self.graphics.set_current_view()
         #self.activateWindow()
 
-    @pyqtSlot()
+    @Slot()
     def on_makeButton_clicked(self):
         print('make')
         file = QFile(self.workpath)
@@ -266,12 +264,12 @@ class NurbsEditor(QDialog):
             gcode = str(gcode, encoding='utf8')
         self.gcodeText.setPlainText(gcode)
 
-    @pyqtSlot()
+    @Slot()
     def on_applyButton_clicked(self):
         self.finalizeGcode()
         ACTION.OPEN_PROGRAM(self.workpath)
 
-    @pyqtSlot()
+    @Slot()
     def on_closeButton_clicked(self):
         self.close()
 
@@ -301,9 +299,8 @@ if __name__ == '__main__':
     elif len(sys.argv) == 2:
         inifilename = sys.argv[1]
     else:
-        usage()
+        sys.exit(1)
     window = NurbsEditor(path = inifilename)
     window.load_dialog()
-    sys.exit(app.exec_())
-  
+    sys.exit(app.exec())
 
