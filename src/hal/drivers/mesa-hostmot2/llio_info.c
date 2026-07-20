@@ -57,7 +57,7 @@ static const char *hm2_7c80_pin_names[] = {
 	"TB04-04/TB04-05",
 	"TB04-07/TB04-08",
 	"TB05-02",		/* Spindle */
-	"TB05-02",
+	"TB05-03/TB05-04",
 	"TB05-05/TB05-06",
 	"TB05-07/TB05-08",
 	"Internal InMux0",	/* InMux */
@@ -212,6 +212,28 @@ static const info_entry_t spiboards[] = {
 		.num_leds = 8,
 		.fpga_part_number = "3s400tq144",
 		.hook = hook_7i43,
+	},
+	{
+		.board_name = "EMBMMOJO",
+		.base_name = "hm2_mojo",
+		.num_ioport_connectors = 3,
+		.pins_per_connector = 24,
+		.ioport_connector_name = { "P1", "P2", "P3" },
+		.io_connector_pin_names = NULL,
+		.num_leds = 8,
+		.fpga_part_number = "xc6slx9tq144",
+		.hook = NULL,
+	},
+	{
+		.board_name = "ALCHXXAU",
+		.base_name = "hm2_alch_au",
+		.num_ioport_connectors = 3,
+		.pins_per_connector = 32,
+		.ioport_connector_name = { "P1", "P2", "P3" },
+		.io_connector_pin_names = NULL,
+		.num_leds = 8,
+		.fpga_part_number = "xc7a35tftg256",
+		.hook = NULL,
 	},
 };
 

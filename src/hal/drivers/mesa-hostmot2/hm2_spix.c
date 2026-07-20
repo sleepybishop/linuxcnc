@@ -171,17 +171,19 @@ static int buffer_check_room(buffer_t *b, size_t n, size_t elmsize)
 	if(!b->ptr || !b->na) {
 		b->na = 64;	// Default to this many elements
 		b->n = 0;
-		b->ptr = rtapi_kmalloc(elmsize * b->na, RTAPI_GPF_KERNEL);
+		b->ptr = rtapi_kmalloc(elmsize * b->na, RTAPI_GFP_KERNEL);
 		return b->ptr == NULL;
 	}
 
 	if(b->n + n > b->na) {
+		size_t new_na = b->na;
 		do {
-			b->na *= 2;	// Double storage capacity
-		} while(b->n + n > b->na);	// Until we have enough room
-		void *p = rtapi_krealloc(b->ptr, elmsize * b->na, RTAPI_GPF_KERNEL);
+			new_na *= 2;	// Double storage capacity
+		} while(b->n + n > new_na);	// Until we have enough room
+		void *p = rtapi_krealloc(b->ptr, elmsize * new_na, RTAPI_GFP_KERNEL);
 		if(!p)
 			return 1;
+		b->na = new_na;
 		b->ptr = p;
 	}
 	return 0;
