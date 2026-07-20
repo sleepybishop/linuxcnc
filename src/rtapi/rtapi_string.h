@@ -57,7 +57,10 @@ static inline size_t rtapi_strlcpy(char *dst, const char *src, size_t size) {
 
 static inline size_t rtapi_strlcat(char *dst, const char *src, size_t size) {
     size_t l = strlen(dst);
-    return rtapi_snprintf(dst+l, size-l, "%s", src);
+    if (l >= size) {
+        return size + strlen(src);
+    }
+    return l + rtapi_snprintf(dst+l, size-l, "%s", src);
 }
 
 #define rtapi_strxcat(dst, src) ({ \

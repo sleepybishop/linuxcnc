@@ -257,7 +257,7 @@ int rtapi_pci_register_driver(struct rtapi_pci_driver *driver)
 
 void rtapi_pci_unregister_driver(struct rtapi_pci_driver *driver)
 {
-    if (!driver) return;
+    if (!driver || !driver->private_data) return;
 
     WITH_ROOT;
     for(auto dev : DEVICES(driver))

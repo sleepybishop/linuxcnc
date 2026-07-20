@@ -575,7 +575,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 */
 
     typedef struct emcmot_status_t {
-	unsigned char head;	/* flag count for mutex detect */
+	unsigned int head;	/* flag count for mutex detect */
 	/* these three are updated only when a new command is handled */
 	cmd_code_t commandEcho;	/* echo of input command */
 	int commandNumEcho;	/* echo of input command number */
@@ -661,7 +661,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 	unsigned int tcqlen;
 	EmcPose tool_offset;
 	int atspeed_next_feed;  /* at next feed move, wait for spindle to be at speed  */
-	unsigned char tail;	/* flag count for mutex detect */
+	unsigned int tail;	/* flag count for mutex detect */
 	int external_offsets_applied;
 	EmcPose eoffset_pose;
 	int numExtraJoints;
@@ -693,7 +693,7 @@ Suggestion: Split this in to an Error and a Status flag register..
    evaluated - either they move up, or they go away.
 */
     typedef struct emcmot_config_t {
-	unsigned char head;	/* flag count for mutex detect */
+	unsigned int head;	/* flag count for mutex detect */
 
 	int config_num;		/* Incremented everytime configuration
 				   changed, should match status.config_num */
@@ -728,7 +728,7 @@ Suggestion: Split this in to an Error and a Status flag register..
 
 	double limitVel;	/* scalar upper limit on vel */
 	int debug;		/* copy of DEBUG, from INI file */
-	unsigned char tail;	/* flag count for mutex detect */
+	unsigned int tail;	/* flag count for mutex detect */
         int arcBlendOptDepth;
         int arcBlendEnable;
         int arcBlendFallbackEnable;
@@ -750,8 +750,8 @@ Suggestion: Split this in to an Error and a Status flag register..
 
 
 typedef struct emcmot_internal_t {
-    unsigned char head; /* flag count for mutex detect */
-    unsigned char tail; /* flag count for mutex detect */
+    unsigned int head; /* flag count for mutex detect */
+    unsigned int tail; /* flag count for mutex detect */
     int split;          /* number of split command reads */
     int enabling;       /* starts up disabled */
     int coordinating;   /* starts up in free mode */

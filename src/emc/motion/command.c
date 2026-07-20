@@ -813,6 +813,7 @@ void emcmotCommandHandler_locked(void *arg, long servo_period)
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    emcmot_config_change();
 	    if (joint == 0 || emcmotCommand->maxFerror < 0.0) {
+		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
 		break;
 	    }
 	    joint->max_ferror = emcmotCommand->maxFerror;
@@ -823,6 +824,7 @@ void emcmotCommandHandler_locked(void *arg, long servo_period)
 	    rtapi_print_msg(RTAPI_MSG_DBG, " %d", joint_num);
 	    emcmot_config_change();
 	    if (joint == 0 || emcmotCommand->minFerror < 0.0) {
+		emcmotStatus->commandStatus = EMCMOT_COMMAND_INVALID_PARAMS;
 		break;
 	    }
 	    joint->min_ferror = emcmotCommand->minFerror;

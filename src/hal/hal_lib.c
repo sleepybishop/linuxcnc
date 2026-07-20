@@ -1076,6 +1076,10 @@ int hal_pin_new(const char *name, hal_type_t type, hal_pin_dir_t dir,
 	return -EFAULT;
     }
 
+    if (name == NULL || data_ptr_addr == NULL) {
+	return -EINVAL;
+    }
+
     if(*data_ptr_addr) 
     {
         rtapi_print_msg(RTAPI_MSG_ERR,
@@ -1337,11 +1341,16 @@ int hal_signal_new(const char *name, hal_type_t type)
     int cmp;
     hal_sig_t *new, *ptr;
     void *data_addr;
+    long int old_shmem_bot;
 
     if (hal_data == NULL) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
 	    "HAL: ERROR: signal_new called before init\n");
 	return -EFAULT;
+    }
+
+    if (name == NULL) {
+	return -EINVAL;
     }
 
     if (strlen(name) > HAL_NAME_LEN) {
@@ -1371,6 +1380,7 @@ int hal_signal_new(const char *name, hal_type_t type)
      * fixes an old memory corruption bug.
      * See: #421 and https://github.com/machinekit/machinekit/issues/524
      */
+    old_shmem_bot = hal_data->shmem_bot;
     switch (type) {
     case HAL_BOOL:
     case HAL_S32:
@@ -1392,8 +1402,13 @@ int hal_signal_new(const char *name, hal_type_t type)
     /* allocate a new signal structure */
     new = alloc_sig_struct();
     if ((new == NULL) || (data_addr == NULL)) {
-	/* alloc failed */
-	halpr_mutex_release();
+	/* alloc failed, rollback data_addr allocation if it succeeded */
+	hal_data->shmem_bot = old_shmem_bot;
+	hal_data->shmem_avail = hal_data->shmem_top - hal_data->shmem_bot;
+	if (new != NULL) {
+	    free_sig_struct(new);
+	}
+	rtapi_mutex_give(&(hal_data->mutex));
 	rtapi_print_msg(RTAPI_MSG_ERR,
 	    "HAL: ERROR: insufficient memory for signal '%s'\n", name);
 	return -ENOMEM;
@@ -1821,6 +1836,10 @@ static int hal_param_new_anyapi(const char *name, hal_type_t type, hal_pdir_t di
     int cmp;
     hal_param_t *new, *ptr;
     hal_comp_t *comp;
+
+    if (name == NULL || data_addr == NULL) {
+	return -EINVAL;
+    }
 
     if (hal_data == NULL) {
 	rtapi_print_msg(RTAPI_MSG_ERR,
@@ -2518,6 +2537,12 @@ int hal_create_thread(const char *name, unsigned long period_nsec, int uses_fp)
     long prev_period, curr_period;
     char buf[HAL_NAME_LEN + 1];
 
+    if (name == NULL) {
+	rtapi_print_msg(RTAPI_MSG_ERR,
+	    "HAL: ERROR: thread name is NULL\n");
+	return -EINVAL;
+    }
+
     rtapi_print_msg(RTAPI_MSG_DBG,
 	"HAL: creating thread %s, %ld nsec\n", name, period_nsec);
     if (hal_data == NULL) {
@@ -2667,19 +2692,19 @@ int hal_create_thread(const char *name, unsigned long period_nsec, int uses_fp)
     if (new->comp_id < 0) {
         rtapi_print_msg(RTAPI_MSG_ERR,
            "HAL: ERROR: fail to create pseudo comp for thread: '%s'\n", new->name);
-        return new->comp_id;
+        goto error_cleanup;
     }
 
     if ((retval = hal_param_new_si32(new->comp_id, HAL_RW, &(new->maxtime), 0, "%s.tmax", new->name)) < 0) {
         rtapi_print_msg(RTAPI_MSG_ERR,
            "HAL: ERROR: fail to create param '%s.tmax'\n", new->name);
-        return retval;
+        goto error_cleanup;
     }
 
     if ((retval = hal_pin_new_si32(new->comp_id, HAL_OUT, &(new->runtime), 0, "%s.time", new->name)) < 0) {
         rtapi_print_msg(RTAPI_MSG_ERR,
            "HAL: ERROR: fail to create pin '%s.time'\n", new->name);
-        return retval;
+        goto error_cleanup;
     }
 
     // A pin that increases monotonically once every thread loop cycle.
@@ -2694,6 +2719,29 @@ int hal_create_thread(const char *name, unsigned long period_nsec, int uses_fp)
 
     rtapi_print_msg(RTAPI_MSG_DBG, "HAL: thread created\n");
     return new->comp_id;
+
+error_cleanup:
+    rtapi_mutex_get(&(hal_data->mutex));
+    if (new->comp_id > 0) {
+        hal_exit(new->comp_id);
+        new->comp_id = 0;
+    }
+    {
+        rtapi_intptr_t *prev_ptr = &(hal_data->thread_list_ptr);
+        int next_offset = *prev_ptr;
+        while (next_offset != 0) {
+            hal_thread_t *thread = SHMPTR(next_offset);
+            if (thread == new) {
+                *prev_ptr = new->next_ptr;
+                break;
+            }
+            prev_ptr = &(thread->next_ptr);
+            next_offset = *prev_ptr;
+        }
+    }
+    free_thread_struct(new);
+    rtapi_mutex_give(&(hal_data->mutex));
+    return -EINVAL;
 }
 
 extern int hal_thread_delete(const char *name)
