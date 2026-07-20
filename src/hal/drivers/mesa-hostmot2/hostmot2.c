@@ -114,9 +114,10 @@ static void hm2_read(void *void_hm2, long period) {
     hm2_sserial_process_tram_read(hm2, period);
     hm2_bspi_process_tram_read(hm2, period);
     hm2_absenc_process_tram_read(hm2, period);
+    hm2_adc_process_tram_read(hm2);
+    //UARTS PktUARTS need to be explicity handled by an external component
     hm2_oneshot_process_tram_read(hm2);
     hm2_periodm_process_tram_read(hm2);
-    //UARTS PktUARTS need to be explicitly handled by an external component
 
     hm2_tp_pwmgen_process_read(hm2); // check the status of the fault bit
     hm2_dpll_process_tram_read(hm2, period);
@@ -156,6 +157,7 @@ static void hm2_write(void *void_hm2, long period) {
     // they only write to the FPGA if certain pins & params have changed
     hm2_ioport_write(hm2);    // handles gpio.is_output but not gpio.out (that's done in tram_write() above)
     hm2_watchdog_write(hm2, period);  // in case the user has written to the watchdog.timeout_ns param
+    hm2_adc_write(hm2);    // update adc config if needed
     hm2_pwmgen_write(hm2);    // update pwmgen registers if needed
     hm2_oneshot_write(hm2);   // update oneshot registers if needed
     hm2_periodm_write(hm2);   // update periodm registers if needed
@@ -326,6 +328,7 @@ const char *hm2_get_general_function_name(int gtag) {
         case HM2_GTAG_XY2MOD:          return "xy2mod Galvo interface";
         case HM2_GTAG_DPAINTER:        return "Data Painter";
         case HM2_GTAG_SSR:             return "SSR";
+        case HM2_GTAG_ADC:             return "ADC Interface";                                       
         case HM2_GTAG_ONESHOT:         return "OneShot";
         case HM2_GTAG_PERIODM:         return "PeriodM";
 
@@ -406,6 +409,7 @@ static int hm2_parse_config_string(hostmot2_t *hm2, char *config_string) {
     hm2->config.num_inms = -1;
     hm2->config.num_xy2mods = -1;
     hm2->config.num_leds = -1;
+    hm2->config.num_adcs = -1;
     hm2->config.num_ssrs = -1;
     hm2->config.num_outms = -1;
     hm2->config.num_oneshots = -1;
@@ -545,7 +549,9 @@ static int hm2_parse_config_string(hostmot2_t *hm2, char *config_string) {
         } else if (strncmp(token, "num_dplls=", 10) == 0) {
             token += 10;
             hm2->config.num_dplls = simple_strtol(token, NULL, 0);
-
+        } else if (strncmp(token, "num_adcs=", 12) == 0) {
+            token += 12;                                           
+            hm2->config.num_adcs = simple_strtol(token, NULL, 0); 
         } else if (strncmp(token, "enable_raw", 10) == 0) {
             hm2->config.enable_raw = 1;
 
@@ -588,6 +594,7 @@ static int hm2_parse_config_string(hostmot2_t *hm2, char *config_string) {
     HM2_DBG("    num_bspis=%d\n", hm2->config.num_bspis);
     HM2_DBG("    num_uarts=%d\n", hm2->config.num_uarts);
     HM2_DBG("    num_pktuarts=%d\n", hm2->config.num_pktuarts);
+    HM2_DBG("    num_adcs=%d\n", hm2->config.num_adcs);
     HM2_DBG("    enable_raw=%d\n",   hm2->config.enable_raw);
     HM2_DBG("    firmware=%s\n",   hm2->config.firmware ? hm2->config.firmware : "(NULL)");
 
@@ -1063,6 +1070,10 @@ static int hm2_parse_module_descriptors(hostmot2_t *hm2) {
                 
             case HM2_GTAG_LED:
                 md_accepted = hm2_led_parse_md(hm2, md_index);
+                break;
+
+            case HM2_GTAG_ADC:
+                md_accepted = hm2_adc_parse_md(hm2, md_index);
                 break;
 
             case HM2_GTAG_SSR:
@@ -1821,6 +1832,7 @@ void hm2_force_write(hostmot2_t *hm2) {
     if (hm2->llio->set_force_enqueue != NULL)
         hm2->llio->set_force_enqueue(hm2->llio, 1);
     hm2_watchdog_force_write(hm2);
+    hm2_adc_force_write(hm2);
     hm2_ioport_force_write(hm2);
     hm2_encoder_force_write(hm2);
     hm2_pwmgen_force_write(hm2);

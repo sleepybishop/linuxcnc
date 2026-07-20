@@ -71,7 +71,7 @@ static int *kvlist_lookup(struct rtapi_list_head *head, const char *name) {
         struct kvlist *ent = rtapi_list_entry(ptr, struct kvlist, list);
         if(strncmp(name, ent->key, sizeof(ent->key)) == 0) return &ent->value;
     }
-    struct kvlist *ent = rtapi_kzalloc(sizeof(struct kvlist), RTAPI_GPF_KERNEL);
+    struct kvlist *ent = rtapi_kzalloc(sizeof(struct kvlist), RTAPI_GFP_KERNEL);
     if(!ent)
         return NULL;
     strncpy(ent->key, name, sizeof(ent->key)-1);
@@ -860,8 +860,27 @@ static inline int eth_socket_send(hm2_eth_t *board, const void *buffer, int len)
     return board->eth_socket_send(board, buffer, len);
 }
 
-static inline int eth_socket_recv(hm2_eth_t *board, void *buffer, int len, int recv_timeout_ns){
-    return board->eth_socket_recv(board, buffer, len, recv_timeout_ns);
+static int eth_socket_send(int sockfd, const void *buffer, int len, int flags) {
+    return send(sockfd, buffer, len, flags);
+}
+
+static int eth_socket_recv(int sockfd, void *buffer, int len, int flags) {
+    return recv(sockfd, buffer, len, flags);
+}
+
+static int eth_socket_recv_loop(int sockfd, void *buffer, int len, int flags, long timeout) {
+    long long end = rtapi_get_time() + timeout;
+    int result;
+    do {
+        result = eth_socket_recv(sockfd, buffer, len, flags);
+        if (result < 0) {
+            int err = errno;
+            if (err != EAGAIN && err != EWOULDBLOCK && err != EINTR) {
+                break;
+            }
+        }
+    } while(result < 0 && rtapi_get_time() < end);
+    return result;
 }
 
 /// hm2_eth io functions
@@ -1075,18 +1094,14 @@ static int hm2_eth_enqueue_read(hm2_lowlevel_io_t *this, rtapi_u32 addr, void *b
     hm2_eth_t *board = this->private;
     if (comm_active == 0) return 1;
     if (size == 0) return 1;
-    
-    //Check size we are going to write
-    size_t read_packet_size = board->read_packet_ptr - board->read_packet;
-    if (read_packet_size + sizeof(lbp16_cmd_addr) > sizeof(board->read_packet)) {
-        LL_PRINT("ERROR: enqueue_read: buffer full\n");
+    if (board->queue_reads_count >= MAX_ETH_READS) {
+        THIS_ERR("hm2_eth_enqueue_read: read queue full (%d)\n", board->queue_reads_count);
         return 0;
     }
-    if (board->queue_reads_count + 1 > MAX_ETH_READS) {
-        LL_PRINT("ERROR: enqueue_read: queue_reads full\n");
+    if ((board->read_packet_ptr - board->read_packet) + sizeof(lbp16_cmd_addr) + 32 > 1400) {
+        THIS_ERR("hm2_eth_enqueue_read: read packet buffer size exceeded\n");
         return 0;
     }
-
     LBP16_INIT_PACKET4(*(lbp16_cmd_addr*)board->read_packet_ptr, CMD_READ_HOSTMOT2_ADDR32_INCR(size/4), addr);
     board->read_packet_ptr += sizeof(lbp16_cmd_addr);
     board->queue_reads[board->queue_reads_count].buffer = buffer;
@@ -1163,14 +1178,11 @@ static int hm2_eth_enqueue_write(hm2_lowlevel_io_t *this, rtapi_u32 addr, const 
     hm2_eth_t *board = this->private;
     if (comm_active == 0) return 1;
     if (size == 0) return 1;
-    lbp16_cmd_addr *packet = (lbp16_cmd_addr *) board->write_packet_ptr;
-
-    //Check size we are going to write
-    size_t write_packet_size = board->write_packet_ptr - board->write_packet;
-    if (write_packet_size + sizeof(*packet) + size > sizeof(board->write_packet)) {
-        LL_PRINT("ERROR: enqueue_write: buffer full\n");
+    if (board->write_packet_size + sizeof(lbp16_cmd_addr) + size + 16 > 1400) {
+        THIS_ERR("hm2_eth_enqueue_write: write packet buffer size exceeded\n");
         return 0;
     }
+    lbp16_cmd_addr *packet = (lbp16_cmd_addr *) board->write_packet_ptr;
 
     LBP16_INIT_PACKET4_PTR(packet, CMD_WRITE_HOSTMOT2_ADDR32_INCR(size/4), addr);
     board->write_packet_ptr += sizeof(*packet);
@@ -1369,23 +1381,8 @@ static int hm2_eth_probe(hm2_eth_t *board) {
         // DB25, 17 pins used, IO 34 to IO 50
         board->llio.ioport_connector_name[0] = "P1";
 
-        // terminal block, 10 pins used, enc 0-2
-        board->llio.ioport_connector_name[1] = "TB1";
-  
-        // terminal block, 10 pins used, enc 3-5
-        board->llio.ioport_connector_name[2] = "TB2";
-
-        // terminal block, 8 pins used, Step & Dir 0-3
-        board->llio.ioport_connector_name[3] = "TB3";
- 
-        // terminal block, 10 pins used, Step & Dir 4,5, serial Rx/Tx/Txen 0,1
-        board->llio.ioport_connector_name[2] = "TB4";
-
-        // terminal block, 8 inputs, 6 SSR outputs
-        board->llio.ioport_connector_name[3] = "TB5";
-
-        // terminal block, 16 inputs
-        board->llio.ioport_connector_name[2] = "TB6";
+        // terminal block, TB1 to TB6
+        board->llio.ioport_connector_name[1] = "TB1-TB6";
 
         board->llio.fpga_part_number = "6slx9tqg144";
         board->llio.num_leds = 4;
@@ -1399,23 +1396,8 @@ static int hm2_eth_probe(hm2_eth_t *board) {
         // DB25, 17 pins used, IO 34 to IO 50
         board->llio.ioport_connector_name[0] = "P1";
 
-        // terminal block, 10 pins used, enc 0-2
-        board->llio.ioport_connector_name[1] = "TB1";
-  
-        // terminal block, 10 pins used, enc 3-5
-        board->llio.ioport_connector_name[2] = "TB2";
-
-        // terminal block, 8 pins used, Step & Dir 0-3
-        board->llio.ioport_connector_name[3] = "TB3";
- 
-        // terminal block, 10 pins used, Step & Dir 4,5, serial Rx/Tx/Txen 0,1
-        board->llio.ioport_connector_name[2] = "TB4";
-
-        // terminal block, 8 inputs, 6 SSR outputs
-        board->llio.ioport_connector_name[3] = "TB5";
-
-        // terminal block, 16 inputs
-        board->llio.ioport_connector_name[2] = "TB6";
+        // terminal block, TB1 to TB6
+        board->llio.ioport_connector_name[1] = "TB1-TB6";
 
         board->llio.fpga_part_number = "T20F256";
         board->llio.num_leds = 4;

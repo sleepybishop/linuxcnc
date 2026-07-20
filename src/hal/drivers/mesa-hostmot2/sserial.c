@@ -308,6 +308,9 @@ int hm2_sserial_get_bytes(hostmot2_t *hm2,
 
         *(ptr++) = (unsigned char)data;
     }
+    if (string < 0) {
+        *ptr = '\0';
+    }
     return addr;
 }
 
