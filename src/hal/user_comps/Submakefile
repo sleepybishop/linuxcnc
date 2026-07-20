@@ -82,6 +82,13 @@ $(call TOOBJSDEPS, $(XHC_HB04_SRC)) : EXTRAFLAGS += $(LIBUSB10_CFLAGS)
 TARGETS += ../bin/xhc-hb04
 endif # HAVE_LIBUSB10
 
+SX1509B_SRC = hal/user_comps/sx1509b.c hal/user_comps/i2c.c
+USERSRCS += $(SX1509B_SRC)
+../bin/sx1509b: $(call TOOBJS, $(SX1509B_SRC)) ../lib/liblinuxcnchal.so.0
+	$(ECHO) Linking $(notdir $@)
+	$(Q)$(CC) $(LDFLAGS) -o $@ $^
+TARGETS += ../bin/sx1509b
+
 SENDKEYS_SRC = hal/user_comps/sendkeys.c
 USERSRCS += $(SENDKEYS_SRC)
 ../bin/sendkeys: $(call TOOBJS, $(SENDKEYS_SRC)) ../lib/liblinuxcnchal.so.0
