@@ -41,8 +41,6 @@
 #include "hostmot2-lowlevel.h"
 #include "hostmot2.h"
 #include "spi_common_rpspi.h"
-#include "llio_info.h"
-#include "kmod_check.h"
 
 #define HM2_LLIO_NAME "hm2_rpspi"
 
@@ -114,11 +112,132 @@ static uint32_t aux_enables;					// Previous state of SPI1 enable
 static hm2_rpspi_t boards[RPSPI_MAX_BOARDS];	// Connected boards
 static int comp_id;				// Upstream assigned component ID
 
+static const char *hm2_7c80_pin_names[] = {
+	"TB07-02/TB07-03",	/* Step/Dir/Misc 5V out */
+	"TB07-04/TB07-05",
+	"TB08-02/TB08-03",
+	"TB08-04/TB08-05",
+	"TB09-02/TB09-03",
+	"TB09-04/TB09-05",
+	"TB10-02/TB10-03",
+	"TB10-04/TB10-05",
+	"TB11-02/TB11-03",
+	"TB11-04/TB11-05",
+	"TB12-02/TB12-03",
+	"TB12-04/TB12-05",
+	"TB03-03/TB04-04",	/* RS-422/RS-485 interface */
+	"TB03-05/TB04-06",
+	"TB03-05/TB03-06",
+	"TB04-01/TB04-02",	/* Encoder */
+	"TB04-04/TB04-05",
+	"TB04-07/TB04-08",
+	"TB05-02",		/* Spindle */
+	"TB05-03/TB05-04",
+	"TB05-05/TB05-06",
+	"TB05-07/TB05-08",
+	"Internal InMux0",	/* InMux */
+	"Internal InMux1",
+	"Internal InMux2",
+	"Internal InMux3",
+	"Internal InMux4",
+
+	"Internal InMuxData",
+	"TB13-01/TB13-02",	/* SSR */
+	"TB13-03/TB13-04",
+	"TB13-05/TB13-06",
+	"TB13-07/TB13-08",
+	"TB14-01/TB14-02",
+	"TB14-03/TB14-04",
+	"TB14-05/TB14-06",
+	"TB14-07/TB14-08",
+	"Internal SSR",
+	"P1-01/DB25-01",
+	"P1-02/DB25-14",
+	"P1-03/DB25-02",
+	"P1-04/DB25-15",
+	"P1-05/DB25-03",
+	"P1-06/DB25-16",
+	"P1-07/DB25-04",
+	"P1-08/DB25-17",
+	"P1-09/DB25-05",
+	"P1-11/DB25-06",
+	"P1-13/DB25-07",
+	"P1-15/DB25-08",
+	"P1-17/DB25-09",
+	"P1-19/DB25-10",
+	"P1-21/DB25-11",
+	"P1-23/DB25-12",
+	"P1-25/DB25-13",
+};
+
+static const char *hm2_7c81_pin_names[] = {
+	"P1-01/DB25-01",
+	"P1-02/DB25-14",
+	"P1-03/DB25-02",
+	"P1-04/DB25-15",
+	"P1-05/DB25-03",
+	"P1-06/DB25-16",
+	"P1-07/DB25-04",
+	"P1-08/DB25-17",
+	"P1-09/DB25-05",
+	"P1-11/DB25-06",
+	"P1-13/DB25-07",
+	"P1-15/DB25-08",
+	"P1-17/DB25-09",
+	"P1-19/DB25-10",
+	"P1-21/DB25-11",
+	"P1-23/DB25-12",
+	"P1-25/DB25-13",
+	"J5-TX0",
+	"J6-TX1",
+
+	"P2-01/DB25-01",
+	"P2-02/DB25-14",
+	"P2-03/DB25-02",
+	"P2-04/DB25-15",
+	"P2-05/DB25-03",
+	"P2-06/DB25-16",
+	"P2-07/DB25-04",
+	"P2-08/DB25-17",
+	"P2-09/DB25-05",
+	"P2-11/DB25-06",
+	"P2-13/DB25-07",
+	"P2-15/DB25-08",
+	"P2-17/DB25-09",
+	"P2-19/DB25-10",
+	"P2-21/DB25-11",
+	"P2-23/DB25-12",
+	"P2-25/DB25-13",
+	"J5-TXEN0",
+	"J6-TXEN1",
+
+	"P7-01/DB25-01",
+	"P7-02/DB25-14",
+	"P7-03/DB25-02",
+	"P7-04/DB25-15",
+	"P7-05/DB25-03",
+	"P7-06/DB25-16",
+	"P7-07/DB25-04",
+	"P7-08/DB25-17",
+	"P7-09/DB25-05",
+	"P7-11/DB25-06",
+	"P7-13/DB25-07",
+	"P7-15/DB25-08",
+	"P7-17/DB25-09",
+	"P7-19/DB25-10",
+	"P7-21/DB25-11",
+	"P7-23/DB25-12",
+	"P7-25/DB25-13",
+	"P5-RX0",
+	"P6-RX1"
+};
+
+
 /*
  * Configuration parameters
  */
 static char *config[RPSPI_MAX_BOARDS];
-RTAPI_MP_ARRAY_STRING(config, RPSPI_MAX_BOARDS, "config string for the AnyIO boards (see hostmot2(9) manpage)");
+RTAPI_MP_ARRAY_STRING(config, RPSPI_MAX_BOARDS, "config string for the AnyIO boards (see hostmot2(9) manpage)")
 
 /*
  * RPI3 NOTE:
@@ -160,8 +279,8 @@ RTAPI_MP_ARRAY_STRING(config, RPSPI_MAX_BOARDS, "config string for the AnyIO boa
  */
 static int spiclk_rate = 31250;
 static int spiclk_rate_rd = -1;
-RTAPI_MP_INT(spiclk_rate, "SPI clock rate in kHz (default 31250 kHz, slowest 3 kHz)");
-RTAPI_MP_INT(spiclk_rate_rd, "SPI clock rate for reading in kHz (default same as spiclk_rate)");
+RTAPI_MP_INT(spiclk_rate, "SPI clock rate in kHz (default 31250 kHz, slowest 3 kHz)")
+RTAPI_MP_INT(spiclk_rate_rd, "SPI clock rate for reading in kHz (default same as spiclk_rate)")
 
 /*
  * Override the "safe" base frequency of the SPI peripheral. The clock speed
@@ -171,7 +290,7 @@ RTAPI_MP_INT(spiclk_rate_rd, "SPI clock rate for reading in kHz (default same as
  */
 #define F_PERI	400000000UL
 static int spiclk_base = F_PERI;
-RTAPI_MP_INT(spiclk_base, "SPI clock base rate in Hz (default 400000000 Hz)");
+RTAPI_MP_INT(spiclk_base, "SPI clock base rate in Hz (default 400000000 Hz)")
 
 /*
  * Enable/disable pullup/pulldown on the SPI pins
@@ -182,9 +301,9 @@ RTAPI_MP_INT(spiclk_base, "SPI clock base rate in Hz (default 400000000 Hz)");
 static int spi_pull_miso = SPI_PULL_DOWN;
 static int spi_pull_mosi = SPI_PULL_DOWN;
 static int spi_pull_sclk = SPI_PULL_DOWN;
-RTAPI_MP_INT(spi_pull_miso, "Enable/disable pull-{up,down} on SPI MISO (default pulldown, 0=off, 1=pulldown, 2=pullup)");
-RTAPI_MP_INT(spi_pull_mosi, "Enable/disable pull-{up,down} on SPI MOSI (default pulldown, 0=off, 1=pulldown, 2=pullup)");
-RTAPI_MP_INT(spi_pull_sclk, "Enable/disable pull-{up,down} on SPI SCLK (default pulldown, 0=off, 1=pulldown, 2=pullup)");
+RTAPI_MP_INT(spi_pull_miso, "Enable/disable pull-{up,down} on SPI MISO (default pulldown, 0=off, 1=pulldown, 2=pullup)")
+RTAPI_MP_INT(spi_pull_mosi, "Enable/disable pull-{up,down} on SPI MOSI (default pulldown, 0=off, 1=pulldown, 2=pullup)")
+RTAPI_MP_INT(spi_pull_sclk, "Enable/disable pull-{up,down} on SPI SCLK (default pulldown, 0=off, 1=pulldown, 2=pullup)")
 
 /*
  * Select which SPI channel(s) to probe. There are two SPI interfaces exposed
@@ -213,7 +332,7 @@ RTAPI_MP_INT(spi_pull_sclk, "Enable/disable pull-{up,down} on SPI SCLK (default 
 #define SPI1_PROBE_CE2	(1 << 4)
 #define SPI1_PROBE_MASK	(SPI1_PROBE_CE0 | SPI1_PROBE_CE1 | SPI1_PROBE_CE2)
 static int spi_probe = SPI0_PROBE_CE0;
-RTAPI_MP_INT(spi_probe, "Bit-field to select which SPI/CE combinations to probe (default 1 (SPI0/CE0))");
+RTAPI_MP_INT(spi_probe, "Bit-field to select which SPI/CE combinations to probe (default 1 (SPI0/CE0))")
 
 /*
  * Set the message level for debugging purpose. This has the (side-)effect that
@@ -222,7 +341,31 @@ RTAPI_MP_INT(spi_probe, "Bit-field to select which SPI/CE combinations to probe 
  * The upstream message level is not touched if spi_debug == -1.
  */
 static int spi_debug = -1;
-RTAPI_MP_INT(spi_debug, "Set message level for debugging purpose [0...5] where 0=none and 5=all (default: -1; upstream defined)");
+RTAPI_MP_INT(spi_debug, "Set message level for debugging purpose [0...5] where 0=none and 5=all (default: -1; upstream defined)")
+
+/*********************************************************************/
+/*
+ * Synchronized read and write to peripheral memory.
+ * Ensures coherency between cores, cache and peripherals
+ */
+#define rmb()	__sync_synchronize()	// Read sync (finish all reads before continuing)
+#define wmb()	__sync_synchronize()	// Write sync (finish all write before continuing)
+
+/*
+RPSPI_ALWAYS_INLINE static inline uint32_t reg_rd(const volatile void *addr)
+{
+	uint32_t val;
+	val = *(volatile uint32_t *)addr;
+	rmb();
+	return val;
+}
+
+RPSPI_ALWAYS_INLINE static inline void reg_wr(const volatile void *addr, uint32_t val)
+{
+	wmb();
+	*(volatile uint32_t *)addr = val;
+}
+*/
 
 /*********************************************************************/
 #if defined(RPSPI_DEBUG_PIN)
@@ -792,7 +935,7 @@ static uint32_t read_spiclkbase(void)
 
 	close(fd);
 
-	if(err >= (int)sizeof(buf)-1) {
+	if(err >= sizeof(buf)-1) {
 		// There are probably too many digits in the number
 		// 250000000 (250 MHz) has 9 digits and there is a newline
 		// following the number
@@ -810,8 +953,8 @@ static uint32_t read_spiclkbase(void)
 /*************************************************/
 static int probe_board(hm2_rpspi_t *board) {
 	int32_t ret;
-	hm2_idrom_t idrom;
-	const char *base;
+	char ident[8+1];
+	char *base;
 
 #if defined(RPSPI_DEBUG_WRITE)
 	uint32_t buf[8] = {0x00010203, 0x04050607, 0x08090a0b, 0x0c0d0e0f, 0x10111213, 0x14151617, 0x18191a1b, 0x1c1d1e1f};
@@ -823,16 +966,71 @@ static int probe_board(hm2_rpspi_t *board) {
 
 	rtapi_print_msg(RPSPI_INFO, "hm2_rpspi: SPI%d/CE%d Valid cookie matched\n", board->spidevid, board->spiceid);
 
-	// Read the IDROM from the board. The IDROM address offset was returned in
-	// the cookie check.
-	if(board->llio.read(&board->llio, (uint32_t)ret, &idrom, sizeof(hm2_idrom_t)) <= 0) {
+	// Read the board identification.
+	// The IDROM address offset is returned in the cookie check and the
+	// board_name offset is added (see hm2_idrom_t in hostmot2.h)
+	// FIXME: should we not simply read the entire IDROM here?
+	if(!board->llio.read(&board->llio, (uint32_t)ret + 0x000c, ident, 8)) {
 		rtapi_print_msg(RPSPI_ERR, "hm2_rpspi: SPI%d/CE%d Board ident read failed\n", board->spidevid, board->spiceid);
 		return -EIO;	// Cookie could be read, so this is a comms error
 	}
+	ident[sizeof(ident)-1] = 0;	// Because it may be used in printf, regardless format limits
 
-	// Detect board name and fill in informational values
-	if(!(base = set_llio_info_spi(&board->llio, &idrom)))
-		return -ENOENT;
+	if(!memcmp(ident, "MESA7I90", 8)) {
+		base = "hm2_7i90";
+		board->llio.num_ioport_connectors = 3;
+		board->llio.pins_per_connector = 24;
+		board->llio.ioport_connector_name[0] = "P1";
+		board->llio.ioport_connector_name[1] = "P2";
+		board->llio.ioport_connector_name[2] = "P3";
+		board->llio.num_leds = 2;
+		board->llio.fpga_part_number = "xc6slx9tq144";
+	} else if (!memcmp(ident, "EMBMMOJO", 8)) {
+		base = "hm2_mojo";
+		board->llio.num_ioport_connectors = 3;
+		board->llio.pins_per_connector = 24;
+		board->llio.ioport_connector_name[0] = "P1";
+		board->llio.ioport_connector_name[1] = "P2";
+		board->llio.ioport_connector_name[2] = "P3";
+		board->llio.num_leds = 8;
+		board->llio.fpga_part_number = "xc6slx9tq144";
+  } else if (!memcmp(ident, "ALCHXXAU", 8)) {
+    base = "hm2_alch_au";
+    board->llio.num_ioport_connectors = 3;
+    board->llio.pins_per_connector = 32;
+    board->llio.ioport_connector_name[0] = "P1";
+    board->llio.ioport_connector_name[1] = "P2";
+    board->llio.ioport_connector_name[2] = "P3";
+    board->llio.num_leds = 8;
+    board->llio.fpga_part_number = "xc7a35tftg256";
+	} else if(!memcmp(ident, "MESA7C80", 8)){
+		base = "hm2_7c80";
+		board->llio.num_ioport_connectors = 2;
+		board->llio.pins_per_connector = 27;
+		board->llio.ioport_connector_name[0] = "Embedded I/O";
+		board->llio.ioport_connector_name[1] = "Embedded I/O + P1 expansion";
+		board->llio.io_connector_pin_names = hm2_7c80_pin_names;
+		board->llio.num_leds = 4;
+		board->llio.fpga_part_number = "xc6slx9tq144";
+	} else if(!memcmp(ident, "MESA7C81", 8)){
+		base = "hm2_7c81";
+		board->llio.num_ioport_connectors = 3;
+		board->llio.pins_per_connector = 19;
+		board->llio.ioport_connector_name[0] = "P1";
+		board->llio.ioport_connector_name[1] = "P2";
+		board->llio.ioport_connector_name[2] = "P7";
+		board->llio.io_connector_pin_names = hm2_7c81_pin_names;
+		board->llio.num_leds = 4;
+		board->llio.fpga_part_number = "xc6slx9tq144";
+	} else {
+		int i;
+		for(i = 0; i < sizeof(ident) - 1; i++) {
+			if(!isprint(ident[i]))
+				ident[i] = '?';
+		}
+		rtapi_print_msg(RPSPI_ERR, "hm2_rpspi: Unknown board at SPI%d/CE%d: %.8s\n", board->spidevid, board->spiceid, ident);
+		return -1;
+	}
 
 	rtapi_print_msg(RPSPI_INFO, "hm2_rpspi: SPI%d/CE%d Base: %s.%d\n", board->spidevid, board->spiceid, base, board->nr);
 	rtapi_snprintf(board->llio.name, sizeof(board->llio.name), "%s.%d", base, board->nr);
@@ -859,11 +1057,9 @@ static int peripheral_map(uint32_t membase, uint32_t memsize)
 	peripheralmem = mmap(NULL, peripheralsize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, (off_t)membase);
 	err = errno;
 	close(fd);
+
 	if(peripheralmem == MAP_FAILED) {
-		rtapi_print_msg(RPSPI_ERR, "hm2_rpspi: Can't map peripherals: %s\n", strerror(err));
-		if (err == EPERM) {
-			rtapi_print_msg(RPSPI_ERR, "hm2_rpspi: Try adding 'iomem=relaxed' to your kernel command-line.\n");
-		}
+		rtapi_print_msg(RPSPI_ERR, "hm2_rpspi: Can't map peripherals\n");
 		return -err;
 	}
 
@@ -907,7 +1103,7 @@ static inline void gpio_fsel(uint32_t pin, uint32_t func)
 }
 
 /*************************************************/
-static inline void gpio_pull(unsigned pin, uint32_t pud)
+static void inline gpio_pull(unsigned pin, uint32_t pud)
 {
 	// Enable/disable pullups on the pins on request
 	reg_wr(&gpio->gppudclk0, 0);	// We are not sure about the previous state, make sure
@@ -916,11 +1112,11 @@ static inline void gpio_pull(unsigned pin, uint32_t pud)
 	reg_wr(&gpio->gppud, pud);
 	waste_150_cycles();
 	if(pin <= 31) {
-		reg_wr(&gpio->gppudclk0, 1u << pin);
+		reg_wr(&gpio->gppudclk0, 1 << pin);
 		waste_150_cycles();
 		reg_wr(&gpio->gppudclk0, 0);
 	} else if(pin <= 53) {
-		reg_wr(&gpio->gppudclk1, 1u << (pin - 32));
+		reg_wr(&gpio->gppudclk1, 1 << (pin - 32));
 		waste_150_cycles();
 		reg_wr(&gpio->gppudclk1, 0);
 	}
@@ -1053,7 +1249,7 @@ static uint8_t *read_file(const char *fname, size_t maxsize, size_t minsize)
 		return NULL;
 	}
 
-	nn = sb.st_size > (ssize_t)maxsize ? maxsize : (size_t)sb.st_size;
+	nn = sb.st_size > maxsize ? maxsize : sb.st_size;
 	if(!(buf = rtapi_kmalloc(nn+1, RTAPI_GFP_KERNEL))) {
 		rtapi_print_msg(RPSPI_ERR, "hm2_rpspi: No dynamic memory\n");
 		return NULL;
@@ -1265,6 +1461,38 @@ static int hm2_rpspi_setup(void)
 	return j > 0 ? 0 : -ENODEV;
 }
 
+static int shell(char *command) {
+    char *const argv[] = {"sh", "-c", command, NULL};
+    pid_t pid;
+    int res = rtapi_spawn_as_root(&pid, "/bin/sh", NULL, NULL, argv, environ);
+    if(res < 0) perror("rtapi_spawn_as_root");
+    int status;
+    waitpid(pid, &status, 0);
+    if(WIFEXITED(status)) return WEXITSTATUS(status);
+    else if(WIFSTOPPED(status)) return WTERMSIG(status)+128;
+    else return status;
+}
+
+static int eshellf(char *fmt, ...) {
+    char commandbuf[1024];
+    va_list ap;
+    va_start(ap, fmt);
+    int len = vsnprintf(commandbuf, sizeof(commandbuf), fmt, ap);
+    va_end(ap);
+
+    if(len < 0 || (size_t)len >= sizeof(commandbuf)) {
+        LL_PRINT("ERROR: Command truncated\n");
+        return -EINVAL;
+    }
+
+    int res = shell(commandbuf);
+    if(res == EXIT_SUCCESS) return 0;
+
+    LL_PRINT("ERROR: Failed to execute '%s'\n", commandbuf);
+    return -EINVAL;
+}
+
+
 /*************************************************/
 static void hm2_rpspi_cleanup(void)
 {
@@ -1272,6 +1500,7 @@ static void hm2_rpspi_cleanup(void)
 		peripheral_restore();
 		munmap(peripheralmem, peripheralsize);
 	}
+	eshellf("/sbin/modprobe spi-bcm2835");
 }
 
 /*************************************************/
@@ -1279,13 +1508,7 @@ int rtapi_app_main()
 {
 	int ret;
 
-	if(kernel_module_loaded("spi_bcm2835")) {
-		LL_ERR("Kernel SPI driver spi_bcm2835 is loaded and conflicts with "
-			HM2_LLIO_NAME ". Disable it with 'sudo raspi-config' "
-			"(Interface Options -> SPI -> Disable) and reboot. "
-			"See hm2_rpspi(9) for details.\n");
-		return -EBUSY;
-	}
+	eshellf("/sbin/rmmod spi_bcm2835");
 
 	if((comp_id = ret = hal_init("hm2_rpspi")) < 0)
 		goto fail;

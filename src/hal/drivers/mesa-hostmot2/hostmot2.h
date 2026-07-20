@@ -126,6 +126,7 @@
 #define HM2_GTAG_OUTM              (45) 
 #define HM2_GTAG_LIOPORT           (64) // Not supported
 #define HM2_GTAG_LED               (128)
+#define HM2_GTAG_ADC               (129)
 
 #define HM2_GTAG_RESOLVER          (192)
 #define HM2_GTAG_SMARTSERIAL       (193)
@@ -1150,6 +1151,51 @@ typedef struct {
 
 } hm2_tp_pwmgen_t;
 
+//
+// ADC
+//
+
+typedef struct {
+
+    struct {
+
+        struct {
+            hal_u32_t *value;
+//            hal_bit_t *enable;
+        } pin;
+
+	/*
+        struct {
+            hal_bit_t aref_sel;
+            hal_bit_t hi_power;
+            hal_u32_t prescaler;
+        } param;
+	*/
+
+    } hal;
+
+    /*
+    rtapi_u8  written_aref_sel;
+    rtapi_u8  written_hi_power;
+    rtapi_u32 written_prescaler;
+    rtapi_u8  written_enable;
+    */
+} hm2_adc_instance_t;
+
+typedef struct {
+    int num_instances;
+    hm2_adc_instance_t *instance;
+
+    rtapi_u32 chan_addr;
+    rtapi_u32 *chan_reg;
+
+    /*
+    rtapi_u32 enable_addr;
+    rtapi_u32 enable_reg;
+    */
+
+    rtapi_u8  version;
+} hm2_adc_t;
 
 // 
 // ioport
@@ -1656,6 +1702,7 @@ typedef struct {
         int num_inms;
         int num_xy2mods;
         int num_ssrs;
+        int num_adcs;
         int num_outms;
         int num_oneshots;
         int num_periodms;
@@ -1706,6 +1753,7 @@ typedef struct {
     hm2_inm_t inm;
     hm2_xy2mod_t xy2mod;
     hm2_led_t led;
+    hm2_adc_t adc;
     hm2_ssr_t ssr;
     hm2_outm_t outm;
     hm2_oneshot_t oneshot;
@@ -2061,6 +2109,17 @@ int hm2_led_parse_md(hostmot2_t *hm2, int md_index);
 void hm2_led_write(hostmot2_t *hm2);
 void hm2_led_cleanup(hostmot2_t *hm2);
 
+// 
+// adc related functions
+// 
+
+int hm2_adc_parse_md(hostmot2_t *hm2, int md_index);
+void hm2_adc_print_module(hostmot2_t *hm2);
+void hm2_adc_cleanup(hostmot2_t *hm2);
+void hm2_adc_prepare_tram_write(hostmot2_t *hm2);
+void hm2_adc_write(hostmot2_t *hm2);
+void hm2_adc_force_write(hostmot2_t *hm2);
+void hm2_adc_process_tram_read(hostmot2_t *hm2);
 
 //
 // SSR functions
