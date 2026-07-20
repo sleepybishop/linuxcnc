@@ -1,0 +1,194 @@
+component tmc26x_bspi "Support for the TMC 26x series stepper motor driver using bspi interface";
+
+description """The component takes parameters in the form of a comma-separated
+list of bspi (buffered SPI) instance names, for example:
+
+\\fB loadrt tmc26x_bspi bspi_chans=hm2_7i90.0.bspi.0, hm2_7i90.0.bspi.1\\fR
+
+""";
+
+//pin out unsigned raw.#.in      [6] "raw data";
+pin out signed stallguard.#.in [6] "stallguard value";
+pin out signed coolstep.#.in   [6] "coolstep value";
+pin out bit stalled.#.in       [6] "motor stalled";
+pin out bit overtemp.#.in      [6] "motor temp warning";
+//pin out bit shorted.#.in       [6] "motor shorted to ground";
+//pin out bit openload.#.in      [6] "open load on motor";
+pin out bit standstill.#.in    [6] "motor standstill";
+
+//pin in signed microsteps.#.out [6] "motor microsteps";
+pin in signed maxcurrent.#.out [6] "motor max current";
+
+variable unsigned *TMC26X_read[6];
+variable unsigned *TMC26X_write[6];
+
+variable unsigned state[6];
+variable signed currentcfg[6];
+variable signed mstepscfg[6];
+
+option extra_setup yes;
+option count_function yes;
+
+license "GPL";
+author "Joseph Calderon";
+
+include <hostmot2-serial.h>;
+;;
+
+// to parse the modparam
+char *bspi_chans[4] = {0,};
+RTAPI_MP_ARRAY_STRING(bspi_chans, 4, "BSPI Channel names");
+
+#include "rtapi_math.h"
+
+#define NUM_MOTORS 5
+
+static uint32_t calc_current(double mASetting, double resistor_value, int vsense) {
+  unsigned char current_scaling = 0;
+  double vsense_value = vsense ? 0.165 : 0.305;
+  double calc;
+
+  //calculate the current scaling from the max current setting (in mA)
+  calc = (resistor_value*mASetting*32.0/(vsense_value*1000.0*1000.0))-0.5; //theoretically - 1.0 for better rounding it is 0.5
+  
+  if (calc < 0) {
+    calc = 0;
+  }
+  if (calc > 31) {
+    calc = 31;
+  }
+  current_scaling = (unsigned char)calc;
+
+  return current_scaling;
+}
+
+static int read(void *subdata) {
+  struct __comp_state *__comp_inst = subdata;
+  unsigned int i = 0;
+
+  for (i = 0; i < NUM_MOTORS; i++) {
+    if (!TMC26X_read[i]) continue;
+    rtapi_u32 data = *(TMC26X_read[i]);
+    stalled_in(i)         = ((data >>  0) & 0x1) ? 1 : 0;
+    overtemp_in(i)        = ((data >>  1) & 0x1) ? 1 : 0;
+    overtemp_in(i)       |= ((data >>  2) & 0x1) ? 1 : 0;
+    //    shorted_in(i)         = ((data >>  3) & 0x3) ? 1 : 0;
+    //    openload_in(i)        = ((data >>  5) & 0x3) ? 1 : 0;
+    standstill_in(i)      = ((data >>  7) & 0x1) ? 1 : 0;
+    stallguard_in(i)      = ((data >> 10) ) & 0b01111100000;
+    coolstep_in(i)        = ((data >> 10) ) & 0b00000011111;
+
+    //    raw_in(i) = data;
+  }
+  return 0;
+}
+
+
+static int write(void *subdata) {
+  struct __comp_state *__comp_inst = subdata;
+  int vsense = 0, cscale_val = 0;
+
+  for (int i = 0; i < NUM_MOTORS; i++) {
+    if (maxcurrent_out(i) != currentcfg[i]) {
+      currentcfg[i] = maxcurrent_out(i);
+      state[i] = 0;
+    }
+    if (state[i] < 2) {
+      vsense = 0;
+      cscale_val = calc_current(currentcfg[i], 51, vsense);
+      if (cscale_val < 16) {
+        vsense = 1;
+        cscale_val = calc_current(currentcfg[i], 51, vsense);
+      }
+    }
+    switch(state[i]) {
+      case 0: {
+                int sgthres_val = 10; // -64 to 63, sensitivity low to high
+                uint32_t sgthresh_mask = 0b00000111111100000000;
+                uint32_t cscale_mask   = 0b00000000000000011111;
+                uint32_t sgcsconf = 0b11000000000000000000 | ((sgthres_val << 8) & sgthresh_mask) | (cscale_val & cscale_mask);
+                *TMC26X_write[i] = sgcsconf;
+                state[i]++;
+              }
+              break;
+      case 1: {
+                uint32_t drvconf  = 0b11100000000000100000; // enable step/dir mode, read back SG data
+                drvconf |= (vsense & 0x1) << 6;
+                *TMC26X_write[i] = drvconf;
+                state[i]++;
+              }
+              break;
+      case 2: {
+                uint32_t drvctrl  = 0b0000000000000000010; // 64x microstepping (INTPOL off, DEDGE on)
+                *TMC26X_write[i] = drvctrl;
+                state[i]++;
+              }
+              break; 
+      case 3: {
+                uint32_t chopconf = 0b10011000001000010011; // chopconf defaults
+                if (maxcurrent_out(i) == 0) {
+                  chopconf = 0b10011000001000010000;
+                }
+                *TMC26X_write[i] = chopconf;
+                state[i]++;
+              }
+              break;
+      case 4: {
+                uint32_t smarten  = 0b10101000001101100001; // SEIMIN 1/4 CS, SEDN 8, SEMAX 16, SEUP 8, SEMIN 32
+                smarten = 0b10100000000000000000; // disable coolstep for now
+                *TMC26X_write[i] = smarten;
+              }
+              break;
+    }
+  }
+
+  return 0;
+}
+
+EXTRA_SETUP(){
+  int i, r = 0;
+  char *name = bspi_chans[extra_arg]; // This is the string which identifies board and instance
+
+  for(int i = 0; i < NUM_MOTORS; i++) {
+    currentcfg[i] = 0;
+    mstepscfg[i] = 0;
+    state[i] = 5;
+  }
+
+  // Set up channel descriptors
+  //hm2_bspi_setup_chan(name, chan, cs, bits, mhz, delay(ns), cpol, cpha, /clear, /echo, samplelate)
+  for(int i = 0; i < NUM_MOTORS; i++) {
+    r += hm2_bspi_setup_chan(name, i, i, 20, 1.0f, 0, 0, 0, 0, 0, 0);
+  }
+
+  if (r < 0) {
+    rtapi_print_msg(RTAPI_MSG_ERR,  "tmc26x: There have been %i errors during channel setup, quitting\n", -r);
+    return -EINVAL;
+  }
+
+  // Add BSPI Frames
+  for(int i = 0; i < NUM_MOTORS; i++) {
+    r += hm2_tram_add_bspi_frame(name, i, &TMC26X_write[i], &TMC26X_read[i]);
+  }
+
+  // This is required, or nothing happens.
+  r += hm2_allocate_bspi_tram(name);
+
+  // Tell the bspi driver which function to call
+  r += hm2_bspi_set_write_function(name, &write, __comp_inst);
+
+  // Tell the bspi driver which function to call
+  r += hm2_bspi_set_read_function(name, &read, __comp_inst);
+
+  if (r < 0) {
+    rtapi_print_msg(RTAPI_MSG_ERR,  "tmc26x: There have been %i errors during TRAM allocation, quitting\n", -r);
+    return -EINVAL;
+  }
+  return 0;
+}
+
+int get_count(void){
+  int i;
+  for (i= 0; bspi_chans[i] != NULL && i < 4; i++){}
+  return i;
+}
