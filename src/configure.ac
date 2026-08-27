@@ -948,6 +948,9 @@ AC_SUBST(YAPPS)
 # MANDB empty is handled in doc/Submakefile
 AC_PATH_PROG(MANDB, mandb, "")
 
+AC_CHECK_TOOL([LD], [ld])
+AC_CHECK_TOOL([OBJDUMP], [objdump])
+
 AC_PATH_PROG(INTLTOOL_EXTRACT, intltool-extract, "none", $SPATH)
 if test "$INTLTOOL_EXTRACT" = "none"
 then

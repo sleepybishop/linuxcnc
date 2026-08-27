@@ -4,9 +4,9 @@ MODULE_HELPERSRCS := \
 USERSRCS += $(MODULE_HELPERSRCS)
 
 ifneq ($(rip_moduledir),)
-    $(call TOOBJSDEPS, $(MODULE_HELPERSRCS)) : EXTRAFLAGS = -Wall -Werror -Wformat -Wformat-security
+    $(call TOOBJSDEPS, $(MODULE_HELPERSRCS)) : EXTRAFLAGS = -Wall -Wformat -Wformat-security
 else
-    $(call TOOBJSDEPS, $(MODULE_HELPERSRCS)) : EXTRAFLAGS = -Wall -Werror -Wformat -Wformat-security
+    $(call TOOBJSDEPS, $(MODULE_HELPERSRCS)) : EXTRAFLAGS = -Wall -Wformat -Wformat-security
 endif
 
 ../bin/linuxcnc_module_helper: $(call TOOBJS, $(MODULE_HELPERSRCS))

@@ -1325,8 +1325,8 @@ RTDEPS := $(sort $(RTOBJS:.o=.d))
 modules: $(patsubst %.o,../rtlib/%.so,$(obj-m))
 ../rtlib/%.so:
 	$(ECHO) Linking $@
-	$(Q)ld -d -r -o objects/$*.tmp $^
-	$(Q)objdump -w -j .rtapi_export -t objects/$*.tmp \
+	$(Q)$(LD) -d -r -o objects/$*.tmp $^
+	$(Q)$(OBJDUMP) -w -j .rtapi_export -t objects/$*.tmp \
 	| awk 'BEGIN{print "{ global :"} /rtapi_exported_/{printf("%s;\n", substr($$6,16))} END{print "local : * ; };"}' \
 	> objects/$*.ver
 	$(Q)$(CC) -shared -Bsymbolic -Wl,--version-script,objects/$*.ver -o $@ $^ -lm $(XENOMAI_EVL_LDFLAGS) $(LDFLAGS)
